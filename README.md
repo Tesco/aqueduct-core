@@ -30,4 +30,5 @@ Note this is currently a work in progress product, and we wouldn't recommend usi
  
  ## Tests
  _./gradlew test integration_
+ test
  
