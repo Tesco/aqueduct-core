@@ -50,7 +50,7 @@ public class Node {
     /**
      * The last ACKed offset from the Provider.
      *
-     * Reported by older versions of magic pipe / provider.
+     * Reported by older versions of aqueduct pipe / provider.
      */
     @Deprecated
     private final long providerLastAckOffset;
@@ -58,7 +58,7 @@ public class Node {
     /**
      * Tracks the time that the last message was ACKed by a client.
      *
-     * Reported by older versions of magic pipe / provider.
+     * Reported by older versions of aqueduct pipe / provider.
      */
     @Deprecated
     private final ZonedDateTime providerLastAckTime;
