@@ -54,9 +54,20 @@ public class RegistryLogger {
                         .collect(Collectors.joining(","))
         );
         fields.put("lastSeen", String.valueOf(node.getLastSeen()));
-        fields.put("latestArrivalTime", String.valueOf(node.getLatestArrivalTime()));
         fields.put("providerLastAckOffset", String.valueOf(node.getProviderLastAckOffset()));
         fields.put("providerLastAckTime", String.valueOf(node.getProviderLastAckTime()));
+
+        if(node.getPipe() != null) {
+            node.getPipe().entrySet().forEach(e ->
+                fields.put("pipe." + e.getKey(), e.getValue())
+            );
+        }
+
+        if(node.getProvider() != null) {
+            node.getProvider().entrySet().forEach(e ->
+                fields.put("provider." + e.getKey(), e.getValue())
+            );
+        }
 
         return new RegistryLogger(this, fields);
     }

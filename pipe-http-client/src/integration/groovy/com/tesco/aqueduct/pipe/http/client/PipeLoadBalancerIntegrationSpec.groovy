@@ -17,7 +17,7 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo
 class PipeLoadBalancerIntegrationSpec extends Specification {
 
     @AutoCleanup ErsatzServer serverA
-    @AutoCleanup ApplicationContext context
+    @AutoCleanup("stop") ApplicationContext context
 
     HttpPipeClient client
     PipeLoadBalancer loadBalancer

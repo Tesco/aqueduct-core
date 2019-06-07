@@ -18,9 +18,8 @@ class StatusControllerSpec extends Specification {
     static final String RUNSCOPE_USERNAME = "runscope-username"
     static final String RUNSCOPE_PASSWORD = "runscope-password"
 
-    @Shared @AutoCleanup ApplicationContext context
-    @Shared @AutoCleanup EmbeddedServer server
-
+    @Shared @AutoCleanup("stop") ApplicationContext context
+    @Shared @AutoCleanup("stop") EmbeddedServer server
 
     void setupSpec() {
         context = ApplicationContext

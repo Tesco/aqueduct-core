@@ -22,14 +22,9 @@ class PipeCloudServerSpec extends Specification {
     static LocalDateTime time = LocalDateTime.parse("2018-12-20T15:13:01")
 
     // Starts real PostgreSQL database, takes some time to create it and clean it up.
-    @Shared @ClassRule
-    SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance()
-
-    @AutoCleanup
-    Sql sql
-
-    @AutoCleanup
-    ApplicationContext context
+    @Shared @ClassRule SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance()
+    @AutoCleanup Sql sql
+    @AutoCleanup("stop") ApplicationContext context
 
     DataSource dataSource
 
@@ -119,14 +114,5 @@ class PipeCloudServerSpec extends Specification {
             message.getTags(),
             message.getData()
         )
-    }
-
-    @Ignore
-    def "starts an demo app" (){
-        setup:
-        println "Server is running on port $RestAssured.port"
-
-        expect:
-        Thread.sleep(100000000000)
     }
 }

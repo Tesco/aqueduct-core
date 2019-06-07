@@ -26,8 +26,8 @@ class PipeReadAuthenticationProviderIntegrationSpec extends Specification {
 
     static InMemoryStorage storage = new InMemoryStorage(10, RETRY_AFTER_SECONDS)
 
-    @Shared @AutoCleanup ApplicationContext context
-    @Shared @AutoCleanup EmbeddedServer server
+    @Shared @AutoCleanup("stop") ApplicationContext context
+    @Shared @AutoCleanup("stop") EmbeddedServer server
 
     void setupSpec() {
         context = ApplicationContext

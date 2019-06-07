@@ -300,7 +300,6 @@ class NodeRegistrySpec extends Specification {
             .following(following)
             .lastSeen(created)
             .requestedToFollow(requestedToFollow)
-            .latestArrivalTime(now)
             .providerLastAckOffset(offset-1)
             .providerLastAckTime(now)
             .build()

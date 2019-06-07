@@ -19,7 +19,14 @@ let demoGraph = {
             "http://demo"
         ],
         "lastSeen": "2019-02-07T22:32:27.15Z",
-        "id": "6735|http://1.1.1.0"
+        "id": "6735|http://1.1.1.0",
+        "provider": {
+            "lastOffsetSent": 110,
+            "lastAckedOffset": 109,
+            "latestMessageLatency": 10,
+            "timeOfLastSent": "2019-05-21T16:47:42.815Z",
+            "timeOfLastAck": "2019-05-21T16:47:40.815Z"
+        }
     },
     {
         "group": "6735",
@@ -35,7 +42,14 @@ let demoGraph = {
             "http://demo"
         ],
         "lastSeen": "2019-02-07T22:32:27.165Z",
-        "id": "6735|http://1.1.1.1"
+        "id": "6735|http://1.1.1.1",
+        "provider": {
+            "lastOffsetSent": 108,
+            "lastAckedOffset": 108,
+            "latestMessageLatency": 10,
+            "timeOfLastSent": "2019-05-21T16:47:42.815Z",
+            "timeOfLastAck": "2019-05-21T16:47:40.815Z"
+        }
     },
     {
         "group": "6735",
@@ -51,7 +65,14 @@ let demoGraph = {
             "http://demo"
         ],
         "lastSeen": "2019-02-07T22:32:27.172Z",
-        "id": "6735|http://1.1.1.2"
+        "id": "6735|http://1.1.1.2",
+        "provider": {
+            "lastOffsetSent": 104,
+            "lastAckedOffset": 104,
+            "latestMessageLatency": 10,
+            "timeOfLastSent": "2019-05-21T16:47:42.815Z",
+            "timeOfLastAck": "2019-05-21T16:47:40.815Z"
+        }
     },
     {
         "group": "6735",

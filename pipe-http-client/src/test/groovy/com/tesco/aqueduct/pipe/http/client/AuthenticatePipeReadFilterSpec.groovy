@@ -10,7 +10,7 @@ import spock.lang.Specification
 class AuthenticatePipeReadFilterSpec extends Specification {
 
     @Shared @AutoCleanup ErsatzServer server
-    @Shared @AutoCleanup ApplicationContext context
+    @Shared @AutoCleanup("stop") ApplicationContext context
 
     InternalHttpPipeClient client
 

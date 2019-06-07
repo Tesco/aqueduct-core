@@ -23,20 +23,14 @@ class PipeReadControllerSpec extends Specification {
     static String type = "type1"
     static int RETRY_AFTER_SECONDS = 600
 
-    @Shared
-    InMemoryStorage storage = new InMemoryStorage(10, RETRY_AFTER_SECONDS)
-    @Shared
-    @AutoCleanup
-    ApplicationContext context
-    @Shared
-    @AutoCleanup
-    EmbeddedServer server
+    @Shared InMemoryStorage storage = new InMemoryStorage(10, RETRY_AFTER_SECONDS)
+    @Shared @AutoCleanup("stop") ApplicationContext context
+    @Shared @AutoCleanup("stop") EmbeddedServer server
 
     // overloads of settings for this test
-    @Shared
-        propertyOverloads = [
-            "pipe.http.server.read.response-size-limit-in-bytes": "200"
-        ]
+    @Shared propertyOverloads = [
+        "pipe.http.server.read.response-size-limit-in-bytes": "200"
+    ]
 
     void setupSpec() {
         // There is nicer way in the works: https://github.com/micronaut-projects/micronaut-test

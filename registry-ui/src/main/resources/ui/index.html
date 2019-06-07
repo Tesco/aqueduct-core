@@ -34,6 +34,19 @@
         <option value="providerLastAckOffset">Last Ack Offset</option>
         <option value="providerLastAckTime">Last Ack time</option>
         <option value="status">Status</option>
+
+        <!-- Legacy fields -->
+        <option value="providerLastAckOffset">Legacy Last Ack Offset</option>
+        <option value="providerLastAckTime">Legacy Last Ack time</option>
+
+        <!-- New fields -->
+        <option value="provider.ip">Provider Ip</option>
+        <option value="provider.id">Provider Id</option>
+        <option value="provider.lastAckedOffset">Provider Last Ack Offset</option>
+        <option value="provider.timeOfLastAck">Provider Last Ack time</option>
+        <option value="provider.lastOffsetSent">Provider Last Sent Offset</option>
+        <option value="provider.timeOfLastSent">Provider Last Sent time</option>
+        <option value="provider.latestMessageLatency">Provider Last Message Latency</option>
     </select>
 
     <select id="styleSelector"></select>
@@ -62,6 +75,20 @@
     -->
     
     <script id="js"> 
+        function normalise(str){
+            if(str) {
+                return str
+                    // add space before each group of upper case letters
+                    .replace(/([A-Z]+)/g, ' $1')
+                    .toLowerCase()
+                    // uppercase the first character only
+                    .replace(/^./, str => str.toUpperCase())
+                ;
+            } else {
+                return null;
+            }
+        }
+
         $("#svg-canvas")
             .attr("width", window.innerWidth)
             .attr("height", window.innerHeight);
@@ -119,6 +146,20 @@
                 requestedToFollow = data.requestedToFollow.join('<br>')
             }
             
+            var rows = ""
+            if(data.provider) {
+                rows = Object.keys(data.provider)
+                    .map(key => `<tr><td>${normalise(key)}</td><td>${data.provider[key]}</td></tr>`)
+                    .join("\n");
+                rows += "\n"
+            }
+            if(data.pipe) {
+                rows += Object.keys(data.pipe)
+                    .map(key => `<tr><td>${normalise(key)}</td><td>${data.pipe[key]}</td></tr>`)
+                    .join("\n");
+                rows += "\n"
+            }
+
             return `
             ${data.localUrl}
             <table>
@@ -142,6 +183,8 @@
                     <td>Requested to following</td>
                     <td>${requestedToFollow}</td>
                 </tr>
+
+                <!-- Legacy provider data -->
                 <tr>
                     <td>Last Ack Offset</td>
                     <td>${data.providerLastAckOffset}</td>
@@ -150,6 +193,9 @@
                     <td>Last Ack time</td>
                     <td>${data.providerLastAckTime}</td>
                 </tr>
+
+                <!-- New provider data -->
+                ${rows}
             </table>
             `
         };
@@ -273,7 +319,15 @@
 
         let getLabelProvider = () => {
             let property = $("#nameSelector").val();
-            return (node) => node[property];
+            return (node) => {
+                try {
+                    console.log("property " + property);
+                    console.log(property.split('.').reduce((a, b) => a[b], node));
+                    return property.split('.').reduce((a, b) => a[b], node);
+                } catch (e) {
+                    return "";
+                }
+            }
         }
 
         let fetchSummary = () => {

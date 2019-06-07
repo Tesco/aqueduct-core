@@ -6,6 +6,7 @@ import lombok.Data;
 import java.net.URL;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Builder(toBuilder = true)
 @Data
@@ -47,19 +48,30 @@ public class Node {
     private final ZonedDateTime lastSeen;
 
     /**
-     * The time at which the latest offset was received.
+     * The last ACKed offset from the Provider.
+     *
+     * Reported by older versions of magic pipe / provider.
      */
-    private final ZonedDateTime latestArrivalTime;
-
-    /**
-     * The last ACKed offset from the Provider
-     */
+    @Deprecated
     private final long providerLastAckOffset;
 
     /**
      * Tracks the time that the last message was ACKed by a client.
+     *
+     * Reported by older versions of magic pipe / provider.
      */
+    @Deprecated
     private final ZonedDateTime providerLastAckTime;
+
+    /**
+     * Fields populated by pipe
+     */
+    private final Map<String, String> pipe;
+
+    /**
+     * Fields populated by provider
+     */
+    private final Map<String, String> provider;
 
     public String getId() {
         if (group == null) {

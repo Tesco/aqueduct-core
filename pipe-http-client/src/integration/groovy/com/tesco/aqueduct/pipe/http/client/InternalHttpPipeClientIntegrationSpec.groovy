@@ -15,8 +15,7 @@ import java.time.ZonedDateTime
 class InternalHttpPipeClientIntegrationSpec extends Specification {
 
     @Shared @AutoCleanup ErsatzServer server
-    @Shared @AutoCleanup ApplicationContext context
-
+    @Shared @AutoCleanup("stop") ApplicationContext context
 
     PipeLoadBalancer loadBalancer
     InternalHttpPipeClient client

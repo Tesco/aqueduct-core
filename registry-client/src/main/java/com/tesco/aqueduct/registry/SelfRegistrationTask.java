@@ -26,7 +26,6 @@ public class SelfRegistrationTask {
     private final RegistryHitList hitList;
     private final Supplier<Node> selfSummary;
     private final String cloudPipeUrl;
-    private final Supplier<Map<String, Object>> providerMetricsSupplier;
 
     private boolean hasRegistered;
 
@@ -35,20 +34,18 @@ public class SelfRegistrationTask {
         RegistryClient client,
         RegistryHitList hitList,
         @Named("selfSummarySupplier") Supplier<Node> selfSummary,
-        @Named("providerMetricsSupplier") Supplier<Map<String, Object>> providerMetricsSupplier,
         @Property(name = "pipe.http.client.url") String cloudPipeUrl
     ) {
         this.client = client;
         this.hitList = hitList;
         this.selfSummary = selfSummary;
-        this.providerMetricsSupplier = providerMetricsSupplier;
         this.cloudPipeUrl = cloudPipeUrl;
     }
 
     @Scheduled(fixedRate = "${pipe.http.registration.interval}")
     void register() {
         try {
-            Node node = getMetrics();
+            Node node = selfSummary.get();
             List<URL> upstreamEndpoints = client.register(node);
             hitList.update(upstreamEndpoints);
             hasRegistered = true;
@@ -60,23 +57,6 @@ public class SelfRegistrationTask {
             }
         }
      }
-
-    private Node getMetrics() {
-        Node.NodeBuilder nodeBuilder = selfSummary.get().toBuilder();
-
-        Map<String, Object> providerMetrics = providerMetricsSupplier.get();
-        if (providerMetrics != null) {
-            long providerLastAckedOffset = (long) providerMetrics.getOrDefault("lastAckedOffset", 0L);
-            nodeBuilder.providerLastAckOffset(providerLastAckedOffset);
-
-            String timeOfLastAck = (String) providerMetrics.get("timeOfLastAck");
-            if (timeOfLastAck != null) {
-                ZonedDateTime time = ZonedDateTime.parse(timeOfLastAck);
-                nodeBuilder.providerLastAckTime(time);
-            }
-        }
-        return nodeBuilder.build();
-    }
 
     private void defaultToFollowCloudPipe() {
         try {

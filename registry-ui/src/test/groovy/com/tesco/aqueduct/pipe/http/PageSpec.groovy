@@ -9,12 +9,9 @@ import spock.lang.Specification
 import spock.lang.Unroll
 
 class PageSpec extends Specification {
-    @Shared
-    @AutoCleanup
-    ApplicationContext context
-    @Shared
-    @AutoCleanup
-    EmbeddedServer server
+
+    @Shared @AutoCleanup("stop") ApplicationContext context
+    @Shared @AutoCleanup("stop") EmbeddedServer server
 
     void setupSpec() {
         context = ApplicationContext

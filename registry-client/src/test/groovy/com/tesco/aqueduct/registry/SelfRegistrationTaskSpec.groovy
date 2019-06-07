@@ -27,7 +27,7 @@ class SelfRegistrationTaskSpec extends Specification {
         def startedLatch = new CountDownLatch(1)
 
         given: "a registry client"
-        def registryClient = new SelfRegistrationTask(upstreamClient, registryHitList, { MY_NODE }, {}, CLOUD_PIPE)
+        def registryClient = new SelfRegistrationTask(upstreamClient, registryHitList, { MY_NODE }, CLOUD_PIPE)
 
         when: "register() is called"
         registryClient.register()
@@ -42,7 +42,7 @@ class SelfRegistrationTaskSpec extends Specification {
 
     def 'check registryHitList defaults to cloud pipe if register call fails'() {
         given: "a registry client"
-        def registryClient = new SelfRegistrationTask(upstreamClient, registryHitList, { MY_NODE }, {}, CLOUD_PIPE)
+        def registryClient = new SelfRegistrationTask(upstreamClient, registryHitList, { MY_NODE }, CLOUD_PIPE)
 
         when: "register() is called"
         registryClient.register()
