@@ -39,9 +39,13 @@
         <option value="providerLastAckOffset">Legacy Last Ack Offset</option>
         <option value="providerLastAckTime">Legacy Last Ack time</option>
 
-        <!-- New fields -->
-        <option value="provider.ip">Provider Ip</option>
-        <option value="provider.id">Provider Id</option>
+        <!-- Pipe -->
+        <option value="pipe.offset">Pipe Offset</option>
+        <option value="pipe.ip">Pipe Ip</option>
+        <option value="pipe.id">Pipe Id</option>
+
+        <!-- Provider -->
+        <option value="provider.mode">Provider Mode</option>
         <option value="provider.lastAckedOffset">Provider Last Ack Offset</option>
         <option value="provider.timeOfLastAck">Provider Last Ack time</option>
         <option value="provider.lastOffsetSent">Provider Last Sent Offset</option>
@@ -321,8 +325,6 @@
             let property = $("#nameSelector").val();
             return (node) => {
                 try {
-                    console.log("property " + property);
-                    console.log(property.split('.').reduce((a, b) => a[b], node));
                     return property.split('.').reduce((a, b) => a[b], node);
                 } catch (e) {
                     return "";
