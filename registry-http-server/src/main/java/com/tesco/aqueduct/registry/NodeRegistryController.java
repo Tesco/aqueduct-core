@@ -11,6 +11,7 @@ import javax.annotation.Nullable;
 import javax.inject.Inject;
 import java.net.URL;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Measure
 @Controller("/registry")
@@ -38,7 +39,9 @@ public class NodeRegistryController {
     @Secured(SecurityRule.IS_AUTHENTICATED)
     @Post
     public List<URL> registerNode(@Body Node node) {
-        LOG.withNode(node).info("node registry controller", "node registered");
-        return registry.register(node);
+        List<URL> requestedToFollow = registry.register(node);
+        String followStr = requestedToFollow.stream().map(URL::toString).collect(Collectors.joining(","));
+        LOG.withNode(node).info("requested to follow", followStr);
+        return requestedToFollow;
     }
 }
