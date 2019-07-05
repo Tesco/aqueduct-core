@@ -13,6 +13,7 @@ dependencies {
     compile project (":registry-core")
     compile project (":registry-http-server")
     compile project (":registry-ui")
+    compile project (":pipe-storage-memory")
 
     addMicronautDependencies()
 
