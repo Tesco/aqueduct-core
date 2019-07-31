@@ -31,13 +31,7 @@
         <option value="localUrl" selected>Url</option>
         <option value="offset">Offset</option>
         <option value="lastSeen">Last seen</option>
-        <option value="providerLastAckOffset">Last Ack Offset</option>
-        <option value="providerLastAckTime">Last Ack time</option>
         <option value="status">Status</option>
-
-        <!-- Legacy fields -->
-        <option value="providerLastAckOffset">Legacy Last Ack Offset</option>
-        <option value="providerLastAckTime">Legacy Last Ack time</option>
 
         <!-- Pipe -->
         <option value="pipe.offset">Pipe Offset</option>
@@ -46,6 +40,8 @@
 
         <!-- Provider -->
         <option value="provider.mode">Provider Mode</option>
+        <option value="provider.v">Provider version</option>
+
         <option value="provider.lastAckedOffset">Provider Last Ack Offset</option>
         <option value="provider.timeOfLastAck">Provider Last Ack time</option>
         <option value="provider.lastOffsetSent">Provider Last Sent Offset</option>
@@ -153,13 +149,13 @@
             var rows = ""
             if(data.provider) {
                 rows = Object.keys(data.provider)
-                    .map(key => `<tr><td>${normalise(key)}</td><td>${data.provider[key]}</td></tr>`)
+                    .map(key => `<tr><td>Provider ${normalise(key)}</td><td>${data.provider[key]}</td></tr>`)
                     .join("\n");
                 rows += "\n"
             }
             if(data.pipe) {
                 rows += Object.keys(data.pipe)
-                    .map(key => `<tr><td>${normalise(key)}</td><td>${data.pipe[key]}</td></tr>`)
+                    .map(key => `<tr><td>Pipe ${normalise(key)}</td><td>${data.pipe[key]}</td></tr>`)
                     .join("\n");
                 rows += "\n"
             }
@@ -188,17 +184,7 @@
                     <td>${requestedToFollow}</td>
                 </tr>
 
-                <!-- Legacy provider data -->
-                <tr>
-                    <td>Last Ack Offset</td>
-                    <td>${data.providerLastAckOffset}</td>
-                </tr>
-                <tr>
-                    <td>Last Ack time</td>
-                    <td>${data.providerLastAckTime}</td>
-                </tr>
-
-                <!-- New provider data -->
+                <!-- New provider and pipe data -->
                 ${rows}
             </table>
             `
