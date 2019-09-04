@@ -8,6 +8,7 @@ import java.net.URL;
 import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public class RegistryLogger {
@@ -120,6 +121,26 @@ public class RegistryLogger {
             loggerFunc.accept(what, why);
         } finally {
             MDC.clear();
+        }
+    }
+
+    public <T> T measure(String metric, Supplier<T> supplier) {
+        long start = System.currentTimeMillis();
+        try {
+            return supplier.get();
+        }finally {
+            long end = System.currentTimeMillis();
+            info(metric, Long.toString(end - start));
+        }
+    }
+
+    public <T extends Throwable> void measure(String metric, ThrowingRunnable<T> runnable) throws T {
+        long start = System.currentTimeMillis();
+        try {
+            runnable.run();
+        }finally {
+            long end = System.currentTimeMillis();
+            info(metric, Long.toString(end - start));
         }
     }
 }

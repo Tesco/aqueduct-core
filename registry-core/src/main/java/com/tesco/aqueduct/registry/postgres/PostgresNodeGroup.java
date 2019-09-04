@@ -154,17 +154,19 @@ public class PostgresNodeGroup extends NodeGroup {
     }
 
     public void delete(final Connection connection) throws SQLException {
-        long start = System.currentTimeMillis();
-        try (PreparedStatement statement = connection.prepareStatement(QUERY_DELETE_GROUP)) {
-            statement.setString(1, groupId);
-            statement.setInt(2, version);
+        // we could have something like that the code below, but
+        // it should log things with structured arguments instead
+        // - have message being the measure in usual metric like format, i.e. postgres.table.operation or similar
+        // - have value of metric in value field
+        LOG.measure("postgre.nodegroup.delete", () -> {
+            try (PreparedStatement statement = connection.prepareStatement(QUERY_DELETE_GROUP)) {
+                statement.setString(1, groupId);
+                statement.setInt(2, version);
 
-            if (statement.executeUpdate() == 0) {
-                throw new VersionChangedException();
+                if (statement.executeUpdate() == 0) {
+                    throw new VersionChangedException();
+                }
             }
-        }finally {
-            long end = System.currentTimeMillis();
-            LOG.info("node group delete:time", Long.toString(end - start));
-        }
+        });
     }
 }
