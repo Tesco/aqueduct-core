@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 
-server=$(printf "%q" $1)
-database=$(printf "%q" $2)
-username=$(printf "%q" $3)
-password=$(printf "%q" $4)
-pipe_url=$(printf "%q" $5)
-pipe_read_security_enabled=$(printf "%q" $6)
-pipe_read_username=$(printf "%q" $7)
-pipe_read_password=$(printf "%q" $8)
-runscope_pipe_read_username=$(printf "%q" $9)
-runscope_pipe_read_password=$(printf "%q" ${10})
-support_username=$(printf "%q" ${11})
-support_password=$(printf "%q" ${12})
+server=$(printf "%q" ${SERVER:-$1})
+database=$(printf "%q" ${DATABASE:-$2})
+username=$(printf "%q" ${USERNAME:-$3})
+password=$(printf "%q" ${PASSWORD:-$4})
+pipe_url=$(printf "%q" ${PIPE_URL:-$5})
+pipe_read_security_enabled=$(printf "%q" ${PIPE_READ_SECURITY_ENABLED:-$6})
+pipe_read_username=$(printf "%q" ${PIPE_READ_USERNAME:-$7})
+pipe_read_password=$(printf "%q" ${PIPE_READ_PASSWORD:-$8})
+runscope_pipe_read_username=$(printf "%q" ${RUNSCOPE_PIPE_READ_USERNAME:-$9})
+runscope_pipe_read_password=$(printf "%q" ${RUNSCOPE_PIPE_READ_PASSWORD:-${10}})
+support_username=$(printf "%q" ${SUPPORT_USERNAME:-${11}})
+support_password=$(printf "%q" ${SUPPORT_PASSWORD:-${12}})
 
 if [[ "$pipe_read_security_enabled" = "''" ]]; then
     pipe_read_security_enabled="false"
