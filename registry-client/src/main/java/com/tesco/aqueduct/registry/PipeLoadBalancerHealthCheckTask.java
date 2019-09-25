@@ -21,7 +21,7 @@ public class PipeLoadBalancerHealthCheckTask {
         try {
             services.checkState();
         } catch (Throwable t) {
-            LOG.error("healthcheck","unexpected error",t);
+            LOG.error("healthcheck","unexpected error", t);
         }
     }
 }

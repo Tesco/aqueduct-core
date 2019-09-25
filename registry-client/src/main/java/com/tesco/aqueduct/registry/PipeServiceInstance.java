@@ -78,7 +78,7 @@ public class PipeServiceInstance implements ServiceInstance {
             .map(response -> true )
             // log result
             .doOnNext(b -> LOG.info("healthcheck.success", url.toString()))
-            .doOnError(t -> LOG.error("healthcheck.failed", url.toString(), t.getMessage()))
+            .doOnError(t -> LOG.error("healthcheck.failed", url.toString() + " failed with error " + t.getMessage(), ""))
             // change exception to "false"
             .onErrorResumeNext(Flowable.just(false))
             // set the status of the instance
