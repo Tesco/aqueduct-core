@@ -8,6 +8,8 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
 
+import com.tesco.aqueduct.registry.model.Node
+
 import java.time.ZonedDateTime
 import java.util.function.Supplier
 
