@@ -10,7 +10,6 @@ include ':pipe-api',
         ':pipe-storage-memory',
         ':pipe-storage-postgresql',
         ':pipe-storage-sqlite',
-        ':registry-core',
         ':registry-http-server',
         ':registry-client',
         ':registry-ui'

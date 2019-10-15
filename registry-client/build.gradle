@@ -1,5 +1,5 @@
 dependencies {
-    compile project (":registry-core")
+    compile project (":registry-http-server")
 
     addMicronautDependencies()
 

@@ -10,7 +10,6 @@ dependencies {
     compile project (":pipe-api")
     compile project (":pipe-http-server")
     compile project (":pipe-storage-postgresql")
-    compile project (":registry-core")
     compile project (":registry-http-server")
     compile project (":registry-ui")
 
