@@ -1,9 +1,9 @@
 package com.tesco.aqueduct.registry.postgres;
 
-import com.tesco.aqueduct.registry.utils.RegistryLogger;
 import com.tesco.aqueduct.registry.model.Node;
 import com.tesco.aqueduct.registry.model.NodeRegistry;
 import com.tesco.aqueduct.registry.model.StateSummary;
+import com.tesco.aqueduct.registry.utils.RegistryLogger;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;

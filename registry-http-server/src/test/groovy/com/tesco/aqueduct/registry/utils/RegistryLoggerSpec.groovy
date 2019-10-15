@@ -1,8 +1,9 @@
 package com.tesco.aqueduct.registry.utils
 
-import com.tesco.aqueduct.registry.model.Node
 import org.slf4j.Logger
 import spock.lang.Specification
+
+import com.tesco.aqueduct.registry.model.Node
 
 import java.time.ZonedDateTime
 
