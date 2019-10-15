@@ -1,8 +1,7 @@
 package com.tesco.aqueduct.registry
 
-import spock.lang.Specification
-
 import com.tesco.aqueduct.registry.model.Node
+import spock.lang.Specification
 
 import java.time.ZonedDateTime
 import java.util.concurrent.CountDownLatch

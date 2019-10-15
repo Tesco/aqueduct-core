@@ -1,14 +1,13 @@
 package com.tesco.aqueduct.registry
 
 import com.stehno.ersatz.ErsatzServer
+import com.tesco.aqueduct.registry.model.Node
 import io.micronaut.context.ApplicationContext
 import io.micronaut.http.client.DefaultHttpClientConfiguration
 import io.micronaut.inject.qualifiers.Qualifiers
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
-
-import com.tesco.aqueduct.registry.model.Node
 
 import java.time.ZonedDateTime
 import java.util.function.Supplier

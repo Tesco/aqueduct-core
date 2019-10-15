@@ -1,8 +1,8 @@
 package com.tesco.aqueduct.registry.postgres;
 
-import com.tesco.aqueduct.registry.model.TillStorage;
 import com.tesco.aqueduct.registry.utils.RegistryLogger;
 import com.tesco.aqueduct.registry.model.Till;
+import com.tesco.aqueduct.registry.model.TillStorage;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
