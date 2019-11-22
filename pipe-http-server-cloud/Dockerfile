@@ -26,4 +26,4 @@ USER aqueductpipe
 ENV BIN_ROOT /opt/aqueduct/pipe
 
 # Run Aqueduct Pipe
-ENTRYPOINT ["/opt/aqueduct/pipe/start.sh"]
+ENTRYPOINT ["exec java", "-Dmicronaut.config.files=/etc/aqueduct/pipe/application.yml", "-jar $(ls -1 /opt/aqueduct/pipe/pipe-http-server-cloud-*all.jar | tail -n 1)"]
