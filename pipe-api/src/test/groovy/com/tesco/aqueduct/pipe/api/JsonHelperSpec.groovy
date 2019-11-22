@@ -42,6 +42,17 @@ class JsonHelperSpec extends Specification {
 		result == expected
 	}
 
+	def "Lists of Objects are correctly serialised"() {
+		given: "A valid json string for a List"
+		def date = new Date(119, 11, 13, 14, 25, 7)
+		def obj1 = new TestObject("test-1", null, date)
+		def obj2 = new TestObject("test-2", null, date)
+		when: "I ask for the List<> representation"
+		def result = JsonHelper.toJson([obj1, obj2])
+		then: "The result is correct"
+		result == """[{"name":"test-1","date":"2019-12-13T14:25:07.000+0000"},{"name":"test-2","date":"2019-12-13T14:25:07.000+0000"}]"""
+	}
+
 	def "Lists of Objects are correctly deserialised"() {
 		given: "A valid json string for a List"
 		def input = """[{"name":"test-1","date":"2019-12-13T14:25:07.000+0000"},{"name":"test-2","date":"2019-12-13T14:25:07.000+0000"}]"""

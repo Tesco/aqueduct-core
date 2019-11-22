@@ -57,7 +57,6 @@ class PipeReadControllerBatchSpec extends Specification {
         RestAssured.port = RestAssured.DEFAULT_PORT
     }
 
-
     void "A batch of messages that equals the payload size is still transported"() {
         given:
         def messages = [
@@ -68,9 +67,7 @@ class PipeReadControllerBatchSpec extends Specification {
 
         def batchInJson = JsonHelper.toJson(messages)
         def batchSize = batchInJson.getBytes(StandardCharsets.UTF_8).length
-
         context = setupContext(batchSize)
-
         storage.write(messages)
 
         when:
@@ -81,19 +78,19 @@ class PipeReadControllerBatchSpec extends Specification {
             .then()
             .statusCode(200)
             .body("size", equalTo(3))
-            .body("[0].offset", equalTo("100"))
+            .body("[0].offset", equalTo(100))
             .body("[0].key", equalTo("a"))
             .body("[0].data", equalTo(DATA_BLOB))
-            .body("[1].offset", equalTo("101"))
+            .body("[1].offset", equalTo(101))
             .body("[1].key", equalTo("b"))
             .body("[1].data", equalTo(DATA_BLOB))
-            .body("[2].offset", equalTo("102"))
+            .body("[2].offset", equalTo(102))
             .body("[2].key", equalTo("c"))
             .body("[2].data", equalTo(DATA_BLOB))
     }
 
     @Ignore
-    void "A batch of messages that exeeds the payload size is truncated correctly"() {
+    void "A batch of messages that exceeds the payload size is truncated correctly"() {
         given:
         def messages = [
             Message(type, "a", "contentType", 100, null, DATA_BLOB),
@@ -119,10 +116,10 @@ class PipeReadControllerBatchSpec extends Specification {
             .then()
             .statusCode(200)
             .body("size", equalTo(2))
-            .body("[0].offset", equalTo("100"))
+            .body("[0].offset", equalTo(100))
             .body("[0].key", equalTo("a"))
             .body("[0].data", equalTo(DATA_BLOB))
-            .body("[1].offset", equalTo("101"))
+            .body("[1].offset", equalTo(101))
             .body("[1].key", equalTo("b"))
             .body("[1].data", equalTo(DATA_BLOB))
     }
