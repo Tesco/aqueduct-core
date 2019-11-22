@@ -35,20 +35,20 @@ public class JsonHelper {
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
-    public static String toJson(final Object msg) throws IOException {
-        return MAPPER.writeValueAsString(msg);
+    public static String toJson(final Object obj) throws IOException {
+        return MAPPER.writeValueAsString(obj);
     }
 
-    public static String toJson(final List<?> msg) throws IOException {
-        return MAPPER.writeValueAsString(msg);
+    public static String toJson(final List<?> obj) throws IOException {
+        return MAPPER.writeValueAsString(obj);
     }
 
-    public static <T> List<T> listFromJson(String json, Class<T> collectionOf) throws IOException {
+    public static <T> List<T> listFromJson(final String json, final Class<T> collectionOf) throws IOException {
         CollectionType type = MAPPER.getTypeFactory().constructCollectionType(List.class, collectionOf);
         return MAPPER.readValue(json, type);
     }
 
-    public static <T> T fromJson(String json, Class<T> typeOf) throws IOException {
+    public static <T> T fromJson(final String json, final Class<T> typeOf) throws IOException {
         return MAPPER.readValue(json, typeOf);
     }
 }
