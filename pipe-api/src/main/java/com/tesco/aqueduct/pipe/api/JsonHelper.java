@@ -14,13 +14,10 @@ import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * Helper to use one way of parsing Message across the pipe projects
- */
 public class JsonHelper {
-    // it should not be public, is because of the way we limiting response size
-    public static final ObjectMapper MAPPER = configureObjectMapper(new ObjectMapper());
+    private JsonHelper() {}
 
+    private static final ObjectMapper MAPPER = configureObjectMapper(new ObjectMapper());
 
     public static ObjectMapper configureObjectMapper(final ObjectMapper mapper) {
         return mapper.registerModule(new JavaTimeModule())
@@ -38,22 +35,20 @@ public class JsonHelper {
             .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
-    private static final CollectionType
-        messageListType = MAPPER.getTypeFactory().constructCollectionType(List.class, Message.class);
-
-    public static Message messageFromJson(final String json) throws IOException {
-        return MAPPER.readValue(json, Message.class);
-    }
-
-    public static List<Message> messageFromJsonArray(final String json) throws IOException {
-        return MAPPER.readValue(json, messageListType);
-    }
-
     public static String toJson(final Object msg) throws IOException {
         return MAPPER.writeValueAsString(msg);
     }
 
     public static String toJson(final List<?> msg) throws IOException {
         return MAPPER.writeValueAsString(msg);
+    }
+
+    public static <T> List<T> listFromJson(String json, Class<T> collectionOf) throws IOException {
+        CollectionType type = MAPPER.getTypeFactory().constructCollectionType(List.class, collectionOf);
+        return MAPPER.readValue(json, type);
+    }
+
+    public static <T> T fromJson(String json, Class<T> typeOf) throws IOException {
+        return MAPPER.readValue(json, typeOf);
     }
 }

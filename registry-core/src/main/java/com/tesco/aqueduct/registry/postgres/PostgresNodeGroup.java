@@ -49,8 +49,7 @@ public class PostgresNodeGroup extends NodeGroup {
     }
 
     private static List<Node> readGroupEntry(final String entry) throws IOException {
-        final JavaType type = JsonHelper.MAPPER.getTypeFactory().constructCollectionType(List.class, Node.class);
-        return JsonHelper.MAPPER.readValue(entry, type);
+        return JsonHelper.listFromJson(entry, Node.class);
     }
 
     private final String groupId;

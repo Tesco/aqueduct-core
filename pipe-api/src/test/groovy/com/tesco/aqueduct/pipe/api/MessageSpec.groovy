@@ -1,6 +1,5 @@
 package com.tesco.aqueduct.pipe.api
 
-
 import spock.lang.Specification
 
 import java.time.ZoneOffset
@@ -50,7 +49,7 @@ class MessageSpec extends Specification {
         """
 
         when:
-        def actualMsg = JsonHelper.messageFromJson(json)
+        def actualMsg = JsonHelper.fromJson(json, Message.class)
 
         then:
         actualMsg == new Message(
@@ -81,7 +80,7 @@ class MessageSpec extends Specification {
         '''
 
         when:
-        def m = JsonHelper.messageFromJson(msg)
+        def m = JsonHelper.fromJson(msg, Message.class)
 
         then:
         m.type == 'type1'
