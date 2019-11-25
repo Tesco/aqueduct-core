@@ -26,7 +26,7 @@ endpoints:
 
 pipe:
   server:
-    url: "${PIPE_URL}"
+    url: "{PIPE_URL}"
 
 persistence:
   compact:
@@ -39,23 +39,23 @@ persistence:
 
 datasources:
   postgres:
-    url: "jdbc:postgresql://${POSTGRE_SERVER}/${POSTGRE_DATABASE}"
-    username: "${POSTGRE_USERNAME}"
-    password: "${POSTGRE_PASSWORD}"
+    url: "jdbc:postgresql://{POSTGRE_SERVER}/{POSTGRE_DATABASE}"
+    username: "{POSTGRE_USERNAME}"
+    password: "{POSTGRE_PASSWORD}"
     driverClassName: org.postgresql.Driver
 
 authentication:
   users:
-    ${PIPE_READ_USERNAME}:
-      password: "${PIPE_READ_PASSWORD}"
-    ${RUNSCOPE_PIPE_READ_USERNAME}:
-      password: "${RUNSCOPE_PIPE_READ_PASSWORD}"
-    ${SUPPORT_USERNAME}:
-      password: "${SUPPORT_PASSWORD}"
+    {PIPE_READ_USERNAME}:
+      password: "{PIPE_READ_PASSWORD}"
+    {RUNSCOPE_PIPE_READ_USERNAME}:
+      password: "{RUNSCOPE_PIPE_READ_PASSWORD}"
+    {SUPPORT_USERNAME}:
+      password: "{SUPPORT_PASSWORD}"
       roles:
         - REGISTRY_DELETE
         - BOOTSTRAP_TILL
   identity:
-    clientId: "${TILL_CLIENT_UID}"
-    url: "${IDENTITY_URL}"
-    validate.token.path: "${IDENTITY_VALIDATE_TOKEN_PATH}"
+    clientId: "{TILL_CLIENT_UID}"
+    url: "{IDENTITY_URL}"
+    validate.token.path: "{IDENTITY_VALIDATE_TOKEN_PATH}"
