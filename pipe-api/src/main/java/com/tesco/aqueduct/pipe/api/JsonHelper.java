@@ -19,7 +19,7 @@ public class JsonHelper {
 
     private static final ObjectMapper MAPPER = configureObjectMapper(new ObjectMapper());
 
-    private static ObjectMapper configureObjectMapper(final ObjectMapper mapper) {
+    public static ObjectMapper configureObjectMapper(final ObjectMapper mapper) {
         return mapper.registerModule(new JavaTimeModule())
             .registerModule(new Jdk8Module())
             .registerModule(new ParameterNamesModule())
