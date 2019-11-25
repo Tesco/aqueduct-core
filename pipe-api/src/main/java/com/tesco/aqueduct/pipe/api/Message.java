@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.experimental.Wither;
 
 import java.time.ZonedDateTime;
+import java.util.Objects;
 
 @Data
 @Wither
@@ -52,5 +53,24 @@ public class Message {
         this.created = created;
         this.data = data;
         this.size = size;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Message message = (Message) o;
+        return Objects.equals(type, message.type) &&
+            Objects.equals(key, message.key) &&
+            Objects.equals(contentType, message.contentType) &&
+            Objects.equals(offset, message.offset) &&
+            (Objects.equals(created, message.created) || (created != null && created.isEqual(message.created))) &&
+            Objects.equals(data, message.data) &&
+            Objects.equals(size, message.size);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(type, key, contentType, offset, created, data, size);
     }
 }
