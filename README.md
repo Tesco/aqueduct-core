@@ -43,4 +43,3 @@ Delete the sub-folder of embedded-pg.
 ```
 rm -rf /var/folders/my/02z_ghk12h54_k9lrm8vhq8m0000gn/T/embedded-pg/PG-d6f2320465793366f452337868c0d06f
 ```
-
