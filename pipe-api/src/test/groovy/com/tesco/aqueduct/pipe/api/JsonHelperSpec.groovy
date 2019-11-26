@@ -98,7 +98,7 @@ class JsonHelperSpec extends Specification {
 			TestObject other = (TestObject) otherObj
 			return other.name == name &&
 				other.number == number &&
-				other.date == date
+				(Objects.equals(date, other.date) || (date != null && date.isEqual(other.date)))
 		}
 	}
 }
