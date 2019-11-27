@@ -33,7 +33,7 @@ ansiColor('xterm') {
         String integrationImage = "$registry/aqueduct-pipe:integration-${scmVars.GIT_COMMIT}"
         String ppeImage = "$registry/aqueduct-pipe:ppe-${scmVars.GIT_COMMIT}"
         String liveImage = "$registry/aqueduct-pipe:live-${scmVars.GIT_COMMIT}"
-        String rollbackImage = "$registry/aqueduct-pipe:rollback-from-${scmVars.GIT_COMMIT}"
+        String ppeRollbackImage = "$registry/aqueduct-pipe:ppe-rollback-from-${scmVars.GIT_COMMIT}"
         String latestImage = "$registry/aqueduct-pipe:latest"
 
         stage('Run Tests') {
@@ -163,8 +163,8 @@ ansiColor('xterm') {
                         sh "#!/bin/sh -e\ndocker login $registry -u 00000000-0000-0000-0000-000000000000 -p $acrLoginToken"
 
                         stage('Tag Rollback Image') {
-                            sh "docker tag ${latestImage} ${rollbackImage}"
-                            sh "docker push ${rollbackImage}"
+                            sh "docker tag ${latestImage} ${ppeRollbackImage}"
+                            sh "docker push ${ppeRollbackImage}"
                         }
                     }
                     throw e
