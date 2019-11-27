@@ -85,35 +85,23 @@ ansiColor('xterm') {
             junit '**/build/test-results/test/*.xml'
         }
 
-        stage('test coverage and docker build') {
-            parallel(
-                publishTestCoverage: {
-                    stage('Publish Coverage Report') {
-                        jacoco buildOverBuild: true, changeBuildStatus: true, deltaBranchCoverage: '50', deltaClassCoverage: '50', deltaComplexityCoverage: '50', deltaInstructionCoverage: '50', deltaLineCoverage: '50', deltaMethodCoverage: '50', exclusionPattern: '**/*Spec.class'
-                        echo "RESULT: ${currentBuild.result}"
-                    }
-                },
-                dockerBuildAndScan: {
-                    stage('Docker build and Scan') {
-                        container('docker') {
-                            sh "#!/bin/sh -e\ndocker login $registry -u 00000000-0000-0000-0000-000000000000 -p $acrLoginToken"
-                            dir("pipe-http-server-cloud") {
-                                sh "docker build -t ${integrationImage} ."
-                            }
+        stage('Docker build and Scan') {
+            container('docker') {
+                sh "#!/bin/sh -e\ndocker login $registry -u 00000000-0000-0000-0000-000000000000 -p $acrLoginToken"
+                dir("pipe-http-server-cloud") {
+                    sh "docker build -t ${integrationImage} ."
+                } 
 
-                            sh "docker run --rm  -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.cache/trivy:/root/.cache/trivy knqyf263/trivy:0.1.2 --quiet --ignore-unfixed $integrationImage"
+                sh "docker run --rm  -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.cache/trivy:/root/.cache/trivy knqyf263/trivy:0.1.2 --quiet --ignore-unfixed $integrationImage"
+                sh "docker push ${integrationImage}"
 
-                            sh "docker push ${integrationImage}"
-
-                            if (params.INITIAL_BUILD) {
-                                sh "docker tag ${integrationImage} ${latestImage}"
-                                sh "docker push ${latestImage}"
-                            }
-                        }
-                    }
+                if (params.INITIAL_BUILD) {
+                    sh "docker tag ${integrationImage} ${latestImage}"
+                    sh "docker push ${latestImage}"
                 }
-            )
+            }
         }
+
         stage ('Isolated System test') {
             isolatedSystemTest(MP_AQUEDUCT_PIPE_IMAGE_VERSION: "integration-${scmVars.GIT_COMMIT.toString()}")
         }
