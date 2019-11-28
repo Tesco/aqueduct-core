@@ -1,6 +1,8 @@
 package com.tesco.aqueduct.pipe.http;
 
 import io.micronaut.configuration.metrics.management.endpoint.MetricsEndpoint;
+import io.micronaut.context.annotation.Requires;
+import io.micronaut.context.env.Environment;
 import io.micronaut.scheduling.annotation.Scheduled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +15,7 @@ import java.util.Collections;
 import java.util.SortedSet;
 
 @Singleton
+@Requires(env = Environment.KUBERNETES)
 public class DumpMetrics {
     private static final Logger log = LoggerFactory.getLogger("metrics");
 
