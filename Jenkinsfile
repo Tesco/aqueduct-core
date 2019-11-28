@@ -85,6 +85,15 @@ ansiColor('xterm') {
             junit '**/build/test-results/test/*.xml'
         }
 
+        stage ('Publish Sonar') {
+            try {
+                sonarReport("aqueduct_core", scmVars.GIT_BRANCH)
+            } catch (err) {
+                echo "Error publishing Sonar. Continuing."
+                echo "$err"
+            }
+        }
+
         stage('Docker build and Scan') {
             container('docker') {
                 sh "#!/bin/sh -e\ndocker login $registry -u 00000000-0000-0000-0000-000000000000 -p $acrLoginToken"
@@ -107,15 +116,6 @@ ansiColor('xterm') {
         }
 
         def version = readFile(file:"VERSION.txt")
-
-        stage ('Publish Sonar') {
-            try {
-                sonarReport("aqueduct_core", scmVars.GIT_BRANCH)
-            } catch (err) {
-                echo "Error publishing Sonar. Continuing."
-                echo "$err"
-            }
-        }
 
         if (scmVars.GIT_BRANCH == "master") {
             container('docker') {
