@@ -1,9 +1,0 @@
-dependencies {
-    compile project(":pipe-api")
-    compile project(":pipe-logger")
-
-    compile 'org.xerial:sqlite-jdbc:3.27.2.1'
-    compile 'io.micrometer:micrometer-core:1.0.6'
-}
-
-addPublish()
