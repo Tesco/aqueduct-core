@@ -4,11 +4,14 @@ authentication:
       password: "${PIPE_READ_PASSWORD}"
     pipe-runscope-live:
       password: "${RUNSCOPE_PIPE_READ_PASSWORD}"
+      roles:
+        - PIPE_READ
     live-support:
       password: "${SUPPORT_PASSWORD}"
       roles:
         - REGISTRY_DELETE
         - BOOTSTRAP_TILL
+        - PIPE_READ
   identity:
     url: "${IDENTITY_URL}"
     validate.token.path: "${IDENTITY_VALIDATE_TOKEN_PATH}"
