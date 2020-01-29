@@ -2,6 +2,7 @@ package com.tesco.aqueduct.pipe.http.client
 
 import com.tesco.aqueduct.pipe.api.HttpHeaders
 import com.tesco.aqueduct.pipe.api.Message
+import com.tesco.aqueduct.pipe.api.PipeState
 import com.tesco.aqueduct.pipe.api.PipeStateResponse
 import io.micronaut.cache.CacheManager
 import io.micronaut.cache.SyncCache
@@ -89,7 +90,7 @@ class HttpPipeClientSpec extends Specification {
         given:
         def offset = 1
         def types = []
-        def pipeState = new PipeStateResponse(true, offset)
+        def pipeState = new PipeStateResponse(PipeState.UP_TO_DATE, offset)
         internalClient.getPipeState(types) >> pipeState
 
         when: "getting pipe state"
@@ -103,7 +104,7 @@ class HttpPipeClientSpec extends Specification {
         given:
         def offset = 1
         def types = []
-        def pipeState = new PipeStateResponse(false, offset)
+        def pipeState = new PipeStateResponse(PipeState.OUT_OF_DATE, offset)
         internalClient.getPipeState(types) >> pipeState
         cacheManager.getCache("health-check") >> Mock(SyncCache)
 

@@ -1,6 +1,7 @@
 package com.tesco.aqueduct.pipe.http.client
 
 import com.stehno.ersatz.ErsatzServer
+import com.tesco.aqueduct.pipe.api.PipeState
 import com.tesco.aqueduct.pipe.api.PipeStateResponse
 import com.tesco.aqueduct.pipe.api.TokenProvider
 import com.tesco.aqueduct.registry.client.PipeServiceInstance
@@ -73,7 +74,7 @@ class HttpPipeClientIntegrationSpec extends Specification {
         def state2 = client.getPipeState(["a"])
 
         then: "the first result was 'up to date'"
-        state == new PipeStateResponse(true, 1000)
+        state == new PipeStateResponse(PipeState.UP_TO_DATE, 1000)
 
         and: "I got the same result from the second call"
         state2 == state
@@ -103,7 +104,7 @@ class HttpPipeClientIntegrationSpec extends Specification {
         def state2 = client.getPipeState(["a"])
 
         then: "the first result was 'up to date'"
-        state == new PipeStateResponse(false, 1000)
+        state == new PipeStateResponse(PipeState.OUT_OF_DATE, 1000)
 
         and: "I got the same result from the second call"
         state2 == state

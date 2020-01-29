@@ -3,6 +3,7 @@ package com.tesco.aqueduct.pipe.http
 import com.tesco.aqueduct.pipe.api.HttpHeaders
 import com.tesco.aqueduct.pipe.api.Message
 import com.tesco.aqueduct.pipe.api.MessageReader
+import com.tesco.aqueduct.pipe.api.PipeState
 import com.tesco.aqueduct.pipe.api.PipeStateResponse
 import com.tesco.aqueduct.pipe.storage.CentralInMemoryStorage
 import com.tesco.aqueduct.pipe.storage.InMemoryStorage
@@ -53,7 +54,9 @@ class PipeReadControllerIntegrationSpec extends Specification {
         // SetupSpec cannot be overridden within specific features, hence we had to mock the conditional behaviour here
         pipeStateProvider.getState(_ ,_) >> { args ->
             def type = args[0]
-            return type.contains("OutOfDateType") ? new PipeStateResponse(false, 1000) : new PipeStateResponse(true, 1000)
+            return type.contains("OutOfDateType") ?
+                    new PipeStateResponse(PipeState.OUT_OF_DATE, 1000) :
+                    new PipeStateResponse(PipeState.UP_TO_DATE, 1000)
         }
 
         context.registerSingleton(pipeStateProvider)
@@ -226,9 +229,9 @@ class PipeReadControllerIntegrationSpec extends Specification {
             .header(HttpHeaders.PIPE_STATE, headerValue)
 
         where:
-        type           | isPipeUpToDate  | headerValue
-        'type1'        | true            | "UP_TO_DATE"
-        'OutOfDateType'| false           | "OUT_OF_DATE"
+        type           | isPipeUpToDate                  | headerValue
+        'type1'        | PipeState.UP_TO_DATE            | "UP_TO_DATE"
+        'OutOfDateType'| PipeState.OUT_OF_DATE           | "OUT_OF_DATE"
     }
 
     @Unroll
@@ -364,7 +367,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         def request = RestAssured.get("/pipe/state?type=a")
 
         then: "response is serialised correctly"
-        def response = """{"upToDate":true,"localOffset":"1000"}"""
+        def response = """{"upToDate":"UP_TO_DATE","localOffset":"1000"}"""
         request
             .then()
             .statusCode(200)

@@ -3,6 +3,7 @@ package com.tesco.aqueduct.pipe.http
 import com.tesco.aqueduct.pipe.api.HttpHeaders
 import com.tesco.aqueduct.pipe.api.Message
 import com.tesco.aqueduct.pipe.api.MessageReader
+import com.tesco.aqueduct.pipe.api.PipeState
 import com.tesco.aqueduct.pipe.api.PipeStateResponse
 import com.tesco.aqueduct.pipe.storage.DistributedInMemoryStorage
 import com.tesco.aqueduct.pipe.storage.InMemoryStorage
@@ -45,7 +46,7 @@ class DistributedPipeReadControllerIntegrationSpec extends Specification {
 
         context.registerSingleton(MessageReader, storage, Qualifiers.byName("local"))
 
-        pipeStateProvider.getState(_ ,_) >> new PipeStateResponse(true, 1000)
+        pipeStateProvider.getState(_ ,_) >> new PipeStateResponse(PipeState.UP_TO_DATE, 1000)
 
         context.registerSingleton(pipeStateProvider)
         context.start()
