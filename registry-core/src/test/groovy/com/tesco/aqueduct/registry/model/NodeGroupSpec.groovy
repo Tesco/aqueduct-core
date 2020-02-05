@@ -4,6 +4,11 @@ import spock.lang.Specification
 
 import java.time.ZonedDateTime
 
+import static com.tesco.aqueduct.registry.model.Status.FOLLOWING
+import static com.tesco.aqueduct.registry.model.Status.INITIALISING
+import static com.tesco.aqueduct.registry.model.Status.OFFLINE
+import static com.tesco.aqueduct.registry.model.Status.PENDING
+
 class NodeGroupSpec extends Specification {
     def "Group has node"() {
         given: "A Group with Nodes"
@@ -197,37 +202,37 @@ class NodeGroupSpec extends Specification {
         Node n1 = Node.builder()
             .localUrl(n1Url)
             .requestedToFollow([cloudUrl])
-            .status("offline")
+            .status(OFFLINE)
             .build()
         URL n2Url = new URL("http://node-2")
         Node n2 = Node.builder()
             .localUrl(n2Url)
             .requestedToFollow([n1Url, cloudUrl])
-            .status("offline")
+            .status(OFFLINE)
             .build()
         URL n3Url = new URL("http://node-3")
         Node n3 = Node.builder()
             .localUrl(n3Url)
             .requestedToFollow([n1Url, cloudUrl])
-            .status("following")
+            .status(FOLLOWING)
             .build()
         URL n4Url = new URL("http://node-4")
         Node n4 = Node.builder()
             .localUrl(n4Url)
             .requestedToFollow([n2Url, n1Url, cloudUrl])
-            .status("pending")
+            .status(PENDING)
             .build()
         URL n5Url = new URL("http://node-5")
         Node n5 = Node.builder()
             .localUrl(n5Url)
             .requestedToFollow([n2Url, n1Url, cloudUrl])
-            .status("initialising")
+            .status(INITIALISING)
             .build()
         URL n6Url = new URL("http://node-6")
         Node n6 = Node.builder()
             .localUrl(n6Url)
             .requestedToFollow([n3Url, n1Url, cloudUrl])
-            .status("offline")
+            .status(OFFLINE)
             .build()
 
         NodeGroup group = new NodeGroup([n1, n2, n3, n4, n5, n6])
@@ -255,37 +260,37 @@ class NodeGroupSpec extends Specification {
         Node n1 = Node.builder()
             .localUrl(n1Url)
             .requestedToFollow([cloudUrl])
-            .status("following")
+            .status(FOLLOWING)
             .build()
         URL n2Url = new URL("http://node-2")
         Node n2 = Node.builder()
             .localUrl(n2Url)
             .requestedToFollow([n1Url, cloudUrl])
-            .status("pending")
+            .status(PENDING)
             .build()
         URL n3Url = new URL("http://node-3")
         Node n3 = Node.builder()
             .localUrl(n3Url)
             .requestedToFollow([n1Url, cloudUrl])
-            .status("following")
+            .status(FOLLOWING)
             .build()
         URL n4Url = new URL("http://node-4")
         Node n4 = Node.builder()
             .localUrl(n4Url)
             .requestedToFollow([n2Url, n1Url, cloudUrl])
-            .status("pending")
+            .status(PENDING)
             .build()
         URL n5Url = new URL("http://node-5")
         Node n5 = Node.builder()
             .localUrl(n5Url)
             .requestedToFollow([n2Url, n1Url, cloudUrl])
-            .status("initialising")
+            .status(INITIALISING)
             .build()
         URL n6Url = new URL("http://node-6")
         Node n6 = Node.builder()
             .localUrl(n6Url)
             .requestedToFollow([n3Url, n1Url, cloudUrl])
-            .status("following")
+            .status(FOLLOWING)
             .build()
 
         NodeGroup group = new NodeGroup([n1, n2, n3, n4, n5, n6])
@@ -333,24 +338,24 @@ class NodeGroupSpec extends Specification {
         Node n1 = Node.builder()
             .localUrl(new URL("http://node-1"))
             .lastSeen(ZonedDateTime.now())
-            .status("online")
+            .status(FOLLOWING)
             .build()
         Node n2 = Node.builder()
             .localUrl(new URL("http://node-2"))
             .lastSeen(ZonedDateTime.now().minusDays(10))
-            .status("online")
+            .status(FOLLOWING)
             .build()
         Node n3 = Node.builder()
             .localUrl(new URL("http://node-3"))
             .lastSeen(ZonedDateTime.now().minusDays(3))
-            .status("online")
+            .status(FOLLOWING)
             .build()
         NodeGroup group = new NodeGroup([n1, n2, n3])
         when: "requesting nodes be marked offline"
         group.markNodesOfflineIfNotSeenSince(ZonedDateTime.now().minusDays(5))
         then: "Only nodes not seen since the threshold are marked offline"
-        group.nodes.get(0).status == "online"
-        group.nodes.get(1).status == "offline"
-        group.nodes.get(0).status == "online"
+        group.nodes.get(0).status == FOLLOWING
+        group.nodes.get(1).status == OFFLINE
+        group.nodes.get(0).status == FOLLOWING
     }
 }

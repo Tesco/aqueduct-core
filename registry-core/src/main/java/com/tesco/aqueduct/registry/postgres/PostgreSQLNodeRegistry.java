@@ -1,5 +1,6 @@
 package com.tesco.aqueduct.registry.postgres;
 
+import com.tesco.aqueduct.registry.model.Status;
 import com.tesco.aqueduct.registry.utils.RegistryLogger;
 import com.tesco.aqueduct.registry.model.Node;
 import com.tesco.aqueduct.registry.model.NodeRegistry;
@@ -91,7 +92,7 @@ public class PostgreSQLNodeRegistry implements NodeRegistry {
     }
 
     @Override
-    public StateSummary getSummary(final long offset, final String status, final List<String> groupIds) {
+    public StateSummary getSummary(final long offset, final Status status, final List<String> groupIds) {
         List<PostgresNodeGroup> groups = getPostgresNodeGroups(groupIds);
 
         final ZonedDateTime threshold = ZonedDateTime.now().minus(offlineDelta);
@@ -116,7 +117,7 @@ public class PostgreSQLNodeRegistry implements NodeRegistry {
         return groups;
     }
 
-    private Node getCloudNode(final long offset, final String status) {
+    private Node getCloudNode(final long offset, final Status status) {
         return Node.builder()
             .localUrl(cloudUrl)
             .offset(offset)

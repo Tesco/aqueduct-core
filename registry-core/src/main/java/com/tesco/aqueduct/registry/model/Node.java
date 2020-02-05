@@ -32,7 +32,7 @@ public class Node {
     /**
      * Status as last reported by this node (computed status might be different)
      */
-    private final String status;
+    private final Status status;
 
     /**
      * List of nodes in order that current node will try to connect to

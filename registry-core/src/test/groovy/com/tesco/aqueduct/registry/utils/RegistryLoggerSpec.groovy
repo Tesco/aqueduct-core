@@ -6,6 +6,8 @@ import spock.lang.Specification
 
 import java.time.ZonedDateTime
 
+import static com.tesco.aqueduct.registry.model.Status.INITIALISING
+
 class RegistryLoggerSpec extends Specification {
 
     def "Logger logs as expected with message"() {
@@ -75,7 +77,7 @@ class RegistryLoggerSpec extends Specification {
                 .following([url])
                 .requestedToFollow([url])
                 .offset(0)
-                .status("initialising")
+                .status(INITIALISING)
                 .lastSeen(ZonedDateTime.now())
                 .build()
 
@@ -101,7 +103,7 @@ class RegistryLoggerSpec extends Specification {
                 .following([url])
                 .requestedToFollow([url])
                 .offset(0)
-                .status("initialising")
+                .status(INITIALISING)
                 .lastSeen(ZonedDateTime.now())
                 .build()
 
@@ -125,7 +127,7 @@ class RegistryLoggerSpec extends Specification {
                 .group("1234")
                 .localUrl(url)
                 .offset(0)
-                .status("initialising")
+                .status(INITIALISING)
                 .lastSeen(ZonedDateTime.now())
                 .build()
 

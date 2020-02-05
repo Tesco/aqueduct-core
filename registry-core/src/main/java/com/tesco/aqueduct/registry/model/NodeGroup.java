@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static com.tesco.aqueduct.registry.model.Status.OFFLINE;
+
 public class NodeGroup {
     private static final int NUMBER_OF_CHILDREN_PER_NODE = 2;
 
@@ -111,7 +113,7 @@ public class NodeGroup {
         for (int i = 0; i < nodes.size(); i++) {
             Node node = nodes.get(i);
             if (node.getLastSeen().compareTo(threshold) < 0) {
-                updateNodeByIndex(node.toBuilder().status("offline").build(), i);
+                updateNodeByIndex(node.toBuilder().status(OFFLINE).build(), i);
             }
         }
     }
@@ -132,6 +134,6 @@ public class NodeGroup {
     }
 
     private boolean isOffline(Node node) {
-        return node.getStatus().equals("offline");
+        return node.getStatus() == OFFLINE;
     }
 }

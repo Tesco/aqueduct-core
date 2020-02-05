@@ -25,6 +25,11 @@ import javax.sql.DataSource
 import java.sql.DriverManager
 import java.time.Duration
 
+import static com.tesco.aqueduct.registry.model.Status.FOLLOWING
+import static com.tesco.aqueduct.registry.model.Status.INITIALISING
+import static com.tesco.aqueduct.registry.model.Status.OFFLINE
+import static com.tesco.aqueduct.registry.model.Status.OK
+import static com.tesco.aqueduct.registry.model.Status.PENDING
 import static io.restassured.RestAssured.given
 import static io.restassured.RestAssured.when
 import static org.hamcrest.Matchers.*
@@ -193,7 +198,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
                 "group": "6735",
                 "localUrl": "http://localhost:8080",
                 "offset": "123",
-                "status": "initialising",
+                "status": "$INITIALISING",
                 "following": ["$CLOUD_PIPE_URL"]
             }""")
         .when()
@@ -217,13 +222,13 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
             .body(
                 "root.offset", notNullValue(),
                 "root.localUrl", notNullValue(),
-                "root.status", equalTo("ok")
+                "root.status", equalTo(OK.toString())
             )
     }
 
     def "Registered nodes are returned"() {
         given: "We register a node"
-        registerNode(6735, "http://1.1.1.1:1234", 123, "status", ["http://x"])
+        registerNode(6735, "http://1.1.1.1:1234", 123, FOLLOWING, ["http://x"])
 
         when: "we get summary"
         def request =
@@ -239,7 +244,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
                 "followers[0].group", equalTo("6735"),
                 "followers[0].localUrl", equalTo("http://1.1.1.1:1234"),
                 "followers[0].offset", equalTo("123"),
-                "followers[0].status", equalTo("status"),
+                "followers[0].status", equalTo(FOLLOWING.toString()),
                 "followers[0].following", contains("http://x"),
                 "followers[0].requestedToFollow", contains("http://cloud.pipe")
             )
@@ -277,8 +282,8 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
 
     def "deleting a single node from the registry"() {
         given: "We register two nodes"
-        registerNode(1234, "http://1.1.1.1:1234", 123, "status", ["http://x"])
-        registerNode(4321, "http://1.1.1.1:4321", 123, "status", ["http://y"])
+        registerNode(1234, "http://1.1.1.1:1234", 123, FOLLOWING, ["http://x"])
+        registerNode(4321, "http://1.1.1.1:4321", 123, INITIALISING, ["http://y"])
 
         when: "node is deleted"
         given()
@@ -304,11 +309,11 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
 
     def "deleting a node from the registry and rebalancing a group"() {
         given: "We register multiple nodes"
-        registerNode(1234, "http://1.1.1.1:0001", 123, "status")
-        registerNode(1234, "http://1.1.1.2:0002", 123, "status")
-        registerNode(1234, "http://1.1.1.3:0003", 123, "status")
-        registerNode(1234, "http://1.1.1.4:0004", 123, "status")
-        registerNode(1234, "http://1.1.1.5:0005", 123, "status")
+        registerNode(1234, "http://1.1.1.1:0001", 123, FOLLOWING)
+        registerNode(1234, "http://1.1.1.2:0002", 123, FOLLOWING)
+        registerNode(1234, "http://1.1.1.3:0003", 123, FOLLOWING)
+        registerNode(1234, "http://1.1.1.4:0004", 123, FOLLOWING)
+        registerNode(1234, "http://1.1.1.5:0005", 123, FOLLOWING)
 
         when: "first node is deleted"
         given()
@@ -341,12 +346,12 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
 
     def "if some registered nodes are offline, they are sorted to the base of the hierarchy"() {
         given: "six nodes with varying state"
-        registerNode(1234, "http://1.1.1.1:0001", 123, "offline")
-        registerNode(1234, "http://1.1.1.2:0002", 123, "offline")
-        registerNode(1234, "http://1.1.1.3:0003", 123, "pending")
-        registerNode(1234, "http://1.1.1.4:0004", 123, "following")
-        registerNode(1234, "http://1.1.1.5:0005", 123, "initialising")
-        registerNode(1234, "http://1.1.1.6:0006", 123, "offline")
+        registerNode(1234, "http://1.1.1.1:0001", 123, OFFLINE)
+        registerNode(1234, "http://1.1.1.2:0002", 123, OFFLINE)
+        registerNode(1234, "http://1.1.1.3:0003", 123, PENDING)
+        registerNode(1234, "http://1.1.1.4:0004", 123, FOLLOWING)
+        registerNode(1234, "http://1.1.1.5:0005", 123, INITIALISING)
+        registerNode(1234, "http://1.1.1.6:0006", 123, OFFLINE)
 
         when: "We get the hierarchy"
         def request = given()
@@ -373,8 +378,8 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
 
     def "authenticated user without deletion role cannot delete from the database"() {
         given: "We register two nodes"
-        registerNode(1234, "http://1.1.1.1:1234", 123, "status", ["http://x"])
-        registerNode(4321, "http://1.1.1.1:4321", 123, "status", ["http://y"])
+        registerNode(1234, "http://1.1.1.1:1234", 123, FOLLOWING, ["http://x"])
+        registerNode(4321, "http://1.1.1.1:4321", 123, FOLLOWING, ["http://y"])
 
         when: "node is deleted"
         def encodedCredentials = "${USERNAME_TWO}:${PASSWORD_TWO}".bytes.encodeBase64().toString()
@@ -401,8 +406,8 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
 
     def "anonymous user without deletion role cannot delete from the database"() {
         given: "We register two nodes"
-        registerNode(1234, "http://1.1.1.1:1234", 123, "status", ["http://x"])
-        registerNode(4321, "http://1.1.1.1:4321", 123, "status", ["http://y"])
+        registerNode(1234, "http://1.1.1.1:1234", 123, FOLLOWING, ["http://x"])
+        registerNode(4321, "http://1.1.1.1:4321", 123, FOLLOWING, ["http://y"])
 
         when: "node is deleted"
         given()
@@ -498,7 +503,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
             .body(
                 "root.offset", notNullValue(),
                 "root.localUrl", notNullValue(),
-                "root.status", equalTo("ok")
+                "root.status", equalTo(OK.toString())
         )
 
         then: 'identity was called'
@@ -549,7 +554,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
         }
     }
 
-    private static void registerNode(group, url, offset = 0, status = "initialising", following = [CLOUD_PIPE_URL]) {
+    private static void registerNode(group, url, offset = 0, status = INITIALISING.toString(), following = [CLOUD_PIPE_URL]) {
         given()
             .contentType("application/json")
             .header("Authorization", "Basic $USERNAME_ENCODED_CREDENTIALS")

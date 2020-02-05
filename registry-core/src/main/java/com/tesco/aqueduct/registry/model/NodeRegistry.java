@@ -16,7 +16,7 @@ public interface NodeRegistry {
      * @param groups List of groups to return, all if empty or null
      * @return Summary of all currently known nodes
      */
-    StateSummary getSummary(long offset, String status, List<String> groups);
+    StateSummary getSummary(long offset, Status status, List<String> groups);
 
     boolean deleteNode(String group, String host);
 }
