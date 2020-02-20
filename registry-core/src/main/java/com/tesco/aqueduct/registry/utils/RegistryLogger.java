@@ -34,7 +34,8 @@ public class RegistryLogger {
         fields.put("id", node.getId());
         fields.put("group", node.getGroup());
         fields.put("localUrl", node.getLocalUrl().toString());
-        fields.put("offset", String.valueOf(node.getOffset()));
+        fields.put("effectiveOffset", String.valueOf(node.getEffectiveOffset()));
+        fields.put("latestOffset", String.valueOf(node.getLatestOffset()));
         fields.put("status", node.getStatus().toString());
         fields.put(
                 "following",

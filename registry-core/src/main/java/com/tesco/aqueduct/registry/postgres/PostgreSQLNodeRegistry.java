@@ -120,7 +120,8 @@ public class PostgreSQLNodeRegistry implements NodeRegistry {
     private Node getCloudNode(final long offset, final Status status) {
         return Node.builder()
             .localUrl(cloudUrl)
-            .offset(offset)
+            .effectiveOffset(offset)
+            .latestOffset(offset)
             .status(status)
             .following(Collections.emptyList())
             .lastSeen(ZonedDateTime.now())

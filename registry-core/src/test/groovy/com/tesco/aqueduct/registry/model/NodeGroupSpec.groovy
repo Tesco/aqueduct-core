@@ -320,13 +320,15 @@ class NodeGroupSpec extends Specification {
             "[" +
                 "{" +
                     "\"localUrl\":\"http://node-1\"," +
-                    "\"offset\":\"0\"," +
+                    "\"effectiveOffset\":\"0\"," +
+                    "\"latestOffset\":\"0\"," +
                     "\"providerLastAckOffset\":\"0\"," +
                     "\"id\":\"http://node-1\"" +
                 "}," +
                 "{" +
                     "\"localUrl\":\"http://node-2\"," +
-                    "\"offset\":\"0\"," +
+                    "\"effectiveOffset\":\"0\"," +
+                    "\"latestOffset\":\"0\"," +
                     "\"providerLastAckOffset\":\"0\"," +
                     "\"id\":\"http://node-2\"" +
                 "}" +

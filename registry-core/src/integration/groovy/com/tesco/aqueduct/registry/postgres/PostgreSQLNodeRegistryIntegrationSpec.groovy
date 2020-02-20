@@ -66,7 +66,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
 
         then: "Cloud root is returned"
         summary.root.localUrl == cloudURL
-        summary.root.offset == 1234
+        summary.root.effectiveOffset == 1234
+        summary.root.latestOffset == 1234
         summary.root.status == FOLLOWING
     }
 
@@ -80,7 +81,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         Node expectedNode = Node.builder()
             .group("group")
             .localUrl(new URL("http://1.1.1.1"))
-            .offset(offset)
+            .effectiveOffset(offset)
+            .latestOffset(offset)
             .status(FOLLOWING)
             .following([cloudURL])
             .providerLastAckOffset(offset-1)
@@ -99,7 +101,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
 
         then: "the registry contains the node"
         followers[0].group == "group"
-        followers[0].offset == offset
+        followers[0].effectiveOffset == offset
+        followers[0].latestOffset == offset
         followers[0].status == FOLLOWING
         followers[0].following == [cloudURL]
         followers.size() == 1
@@ -116,7 +119,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         Node node1 = Node.builder()
             .group("group")
             .localUrl(url1)
-            .offset(offset)
+            .effectiveOffset(offset)
+            .latestOffset(offset)
             .status(FOLLOWING)
             .following([cloudURL])
             .build()
@@ -125,7 +129,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         Node node2 = Node.builder()
             .group("group")
             .localUrl(url2)
-            .offset(offset)
+            .effectiveOffset(offset)
+            .latestOffset(offset)
             .status(FOLLOWING)
             .following([cloudURL])
             .build()
@@ -134,7 +139,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         Node node3 = Node.builder()
             .group("group")
             .localUrl(url3)
-            .offset(offset)
+            .effectiveOffset(offset)
+            .latestOffset(offset)
             .status(FOLLOWING)
             .following([cloudURL])
             .build()
@@ -143,7 +149,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         Node node4 = Node.builder()
             .group("group")
             .localUrl(url4)
-            .offset(offset)
+            .effectiveOffset(offset)
+            .latestOffset(offset)
             .status(FOLLOWING)
             .following([cloudURL])
             .build()
@@ -152,7 +159,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         Node node5 = Node.builder()
             .group("group")
             .localUrl(url5)
-            .offset(offset)
+            .effectiveOffset(offset)
+            .latestOffset(offset)
             .status(FOLLOWING)
             .following([cloudURL])
             .build()
@@ -161,7 +169,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         Node node6 = Node.builder()
             .group("group")
             .localUrl(url6)
-            .offset(offset)
+            .effectiveOffset(offset)
+            .latestOffset(offset)
             .status(FOLLOWING)
             .following([cloudURL])
             .build()
@@ -506,7 +515,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         Node theNode = Node.builder()
             .group("x")
             .localUrl(new URL("http://1.1.1.1"))
-            .offset(offset)
+            .effectiveOffset(offset)
+            .latestOffset(offset)
             .status(INITIALISING)
             .following([])
             .lastSeen(now)
@@ -558,7 +568,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
             .localUrl(new URL(url))
             .group(group)
             .status(status)
-            .offset(offset)
+            .effectiveOffset(offset)
+            .latestOffset(offset)
             .following(following)
             .lastSeen(created)
             .requestedToFollow(requestedToFollow)

@@ -22,7 +22,8 @@ class PostgresNodeGroupStorageSpec extends Specification {
 							[ 
 								{ 
 									"localUrl":"http://node-1",
-									"offset":"0",
+									"effectiveOffset":"0",
+									"latestOffset":"0",
 									"status":"offline",
 									"providerLastAckOffset":"0",
 									"id":"http://node-1"
@@ -60,7 +61,8 @@ class PostgresNodeGroupStorageSpec extends Specification {
 							"[" +
 							"{" +
 							"\"localUrl\":\"http://node-1\"," +
-							"\"offset\":\"0\"," +
+							"\"effectiveOffset\":\"0\"," +
+							"\"latestOffset\":\"0\"," +
 							"\"providerLastAckOffset\":\"0\"," +
 							"\"id\":\"http://node-1\"" +
 							"}" +
@@ -96,7 +98,8 @@ class PostgresNodeGroupStorageSpec extends Specification {
 							"[" +
 							"{" +
 							"\"localUrl\":\"http://node-1\"," +
-							"\"offset\":\"0\"," +
+							"\"effectiveOffset\":\"0\"," +
+							"\"latestOffset\":\"0\"," +
 							"\"providerLastAckOffset\":\"0\"," +
 							"\"id\":\"http://node-1\"" +
 							"}" +

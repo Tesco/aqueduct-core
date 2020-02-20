@@ -3,6 +3,7 @@ import com.opentable.db.postgres.junit.SingleInstancePostgresRule
 import com.stehno.ersatz.Decoders
 import com.stehno.ersatz.ErsatzServer
 import com.tesco.aqueduct.pipe.api.MessageReader
+import com.tesco.aqueduct.pipe.api.OffsetName
 import com.tesco.aqueduct.registry.model.NodeRegistry
 import com.tesco.aqueduct.registry.postgres.PostgreSQLNodeRegistry
 import com.tesco.aqueduct.registry.model.TillStorage
@@ -66,6 +67,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
     DataSource dataSource
     NodeRegistry registry
     TillStorage tillStorage
+    private MessageReader messageReader
 
     def setupDatabase() {
         sql = new Sql(pg.embeddedPostgres.postgresDatabase.connection)
@@ -114,6 +116,10 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
 
         setupDatabase()
 
+        messageReader = Mock(MessageReader) {
+            getOffset(OffsetName.GLOBAL_LATEST_OFFSET) >> OptionalLong.of(1)
+        }
+
         context = ApplicationContext
                 .build()
                 .properties(
@@ -149,7 +155,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
             )
             .build()
             .registerSingleton(NodeRegistry, registry)
-            .registerSingleton(MessageReader, Mock(MessageReader))
+            .registerSingleton(MessageReader, messageReader)
             .registerSingleton(TillStorage, tillStorage)
             .start()
 
@@ -179,7 +185,8 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
             .body("""{
                 "group": "6735",
                 "localUrl": "http://localhost:8080",
-                "offset": "123",
+                "effectiveOffset": "123",
+                "latestOffset": "123",
                 "status": "initialising",
                 "following": ["$CLOUD_PIPE_URL"]
             }""")
@@ -197,7 +204,8 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
             .body("""{
                 "group": "6735",
                 "localUrl": "http://localhost:8080",
-                "offset": "123",
+                "effectiveOffset": "123",
+                "latestOffset": "123",
                 "status": "$INITIALISING",
                 "following": ["$CLOUD_PIPE_URL"]
             }""")
@@ -220,7 +228,8 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
         .then()
             .statusCode(200)
             .body(
-                "root.offset", notNullValue(),
+                "root.effectiveOffset", notNullValue(),
+                "root.latestOffset", notNullValue(),
                 "root.localUrl", notNullValue(),
                 "root.status", equalTo(OK.toString())
             )
@@ -243,7 +252,8 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
             .body(
                 "followers[0].group", equalTo("6735"),
                 "followers[0].localUrl", equalTo("http://1.1.1.1:1234"),
-                "followers[0].offset", equalTo("123"),
+                "followers[0].effectiveOffset", equalTo("123"),
+                "followers[0].latestOffset", equalTo("123"),
                 "followers[0].status", equalTo(FOLLOWING.toString()),
                 "followers[0].following", contains("http://x"),
                 "followers[0].requestedToFollow", contains("http://cloud.pipe")
@@ -501,7 +511,8 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
         .then()
             .statusCode(200)
             .body(
-                "root.offset", notNullValue(),
+                "root.effectiveOffset", notNullValue(),
+                "root.latestOffset", notNullValue(),
                 "root.localUrl", notNullValue(),
                 "root.status", equalTo(OK.toString())
         )
@@ -561,7 +572,8 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
             .body("""{
                 "group": "$group",
                 "localUrl": "$url",
-                "offset": "$offset",
+                "effectiveOffset": "$offset",
+                "latestOffset": "$offset",
                 "status": "$status",
                 "following": ["${following.join('", "')}"]
             }""")

@@ -25,9 +25,14 @@ public class Node {
     private final URL localUrl;
 
     /**
-     * The offset as last reported by this node
+     * The effectiveOffset as last reported by this node
      */
-    private final long offset;
+    private final long effectiveOffset;
+
+    /**
+    * The latestOffset reported by this node
+    */
+    private final long latestOffset;
 
     /**
      * Status as last reported by this node (computed status might be different)
