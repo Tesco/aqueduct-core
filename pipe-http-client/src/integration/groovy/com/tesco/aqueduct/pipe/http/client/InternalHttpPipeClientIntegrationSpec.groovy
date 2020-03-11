@@ -63,7 +63,7 @@ class InternalHttpPipeClientIntegrationSpec extends Specification {
             get("/pipe/$offset") {
                 header('Accept', 'application/json')
                 header('Accept-Encoding', 'gzip, deflate')
-                queries(type: type, location: location)
+                queries(type: type)
                 called(1)
 
                 responder {
@@ -84,7 +84,7 @@ class InternalHttpPipeClientIntegrationSpec extends Specification {
         }
 
         when:
-        def messages = client.httpRead([type], offset, location).body()
+        def messages = client.httpRead([type], offset, "locationUuid").body()
 
         def expectedMessage = new Message(
             type,
@@ -99,11 +99,11 @@ class InternalHttpPipeClientIntegrationSpec extends Specification {
         messages[0] == expectedMessage
 
         where:
-        type    | location    | ct             | offset
-        "type1" | "location1" | "contentType1" | 123
-        "type2" | "location2" | "contentType2" | 123
-        "type1" | "location1" | "contentType3" | 111
-        "type2" | "location2" | "contentType4" | 123
+        type    | ct             | offset
+        "type1" | "contentType1" | 123
+        "type2" | "contentType2" | 123
+        "type1" | "contentType3" | 111
+        "type2" | "contentType4" | 123
     }
 
     def "can get latest offset"(){

@@ -58,12 +58,12 @@ public class PipeReadController {
         return pipeStateProvider.getState(types, reader);
     }
 
-    @Get("/pipe/{offset}{?type,location}")
+    @Get("/pipe/{offset}{?type}")
     public HttpResponse<List<Message>> readMessages(
         final long offset,
         final HttpRequest<?> request,
         @Nullable final List<String> type,
-        @Nullable final String location
+        @Nullable final String locationUuid
     ) {
         if(offset < 0) {
             return HttpResponse.badRequest();
@@ -74,7 +74,7 @@ public class PipeReadController {
         final List<String> types = flattenRequestParams(type);
 
         LOG.withTypes(types).debug("pipe read controller", "reading with types");
-        final val messageResults = reader.read(types, offset, Collections.singletonList(location));
+        final val messageResults = reader.read(types, offset, Collections.singletonList(locationUuid));
         final val list = messageResults.getMessages();
         final long retryTime = messageResults.getRetryAfterSeconds();
 
