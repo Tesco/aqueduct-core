@@ -51,10 +51,10 @@ public class IdentityIssueTokenProvider implements TokenProvider {
         } catch (HttpClientResponseException httpException) {
             try {
                 LOG.info("retrieveIdentityToken",
-                        "request: " + JsonHelper.toJson(new IssueTokenRequest("removedClientId", "removedClientSecret")) +
-                                ", response body: " + httpException.getResponse().body() +
-                                ", response header: " + headers(httpException.getResponse().getHeaders()) +
-                                ", status code: " + httpException.getStatus().getCode()
+            "request: " + JsonHelper.toJson(new IssueTokenRequest("removedClientId", "removedClientSecret")) +
+                    ", response body: " + httpException.getResponse().body() +
+                    ", response header: " + headers(httpException.getResponse().getHeaders()) +
+                    ", status code: " + httpException.getStatus().getCode()
                 );
             } catch (IOException e) {
                 LOG.error("retrieveIdentityToken", "Erro while serializing issue token request", e);
