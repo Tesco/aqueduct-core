@@ -8,7 +8,7 @@ import io.micronaut.http.annotation.Post;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.retry.annotation.CircuitBreaker;
 
-@Client(id="identityIssueToken", value="${authentication.identity.url}")
+@Client(value="${authentication.identity.url}")
 @Header(name = "Content-Type", value = MediaType.APPLICATION_JSON)
 @Requires(property = "authentication.identity.url")
 @Requires(property = "authentication.identity.issue.token.path")

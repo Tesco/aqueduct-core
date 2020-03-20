@@ -21,6 +21,7 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
 
     static final int CACHE_EXPIRY_SECONDS = 1
     static final String VALIDATE_TOKEN_BASE_PATH = '/v4/access-token/auth/validate'
+    static final String ISSUE_TOKEN_PATH = '/v4/issue-token/token'
     static final String USERNAME = "username"
     static final String PASSWORD = "password"
     static final String encodedCredentials = "${USERNAME}:${PASSWORD}".bytes.encodeBase64().toString()
@@ -71,6 +72,7 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
                   identity:
                     url: ${identityMock.getHttpUrl()}
                     validate.token.path: $validateTokenPath
+                    issue.token.path: $ISSUE_TOKEN_PATH
                     client:
                         id: "someClientId"
                         secret: "someClientSecret"
