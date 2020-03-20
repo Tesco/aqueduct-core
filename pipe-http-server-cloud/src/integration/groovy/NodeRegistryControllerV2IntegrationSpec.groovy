@@ -37,6 +37,7 @@ import static org.hamcrest.Matchers.*
 
 class NodeRegistryControllerV2IntegrationSpec extends Specification {
     private static final String VALIDATE_TOKEN_BASE_PATH = '/v4/access-token/auth/validate'
+    private static final String ISSUE_TOKEN_PATH = '/v4/issue-token/token'
     private static final String CLOUD_PIPE_URL = "http://cloud.pipe"
     private static final String USERNAME = "username"
     private static final String PASSWORD = "password"
@@ -139,6 +140,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
                       identity:
                         url: ${identityMock.getHttpUrl()}
                         validate.token.path: $validateTokenPath
+                        issue.token.path: $ISSUE_TOKEN_PATH
                         client:
                             id: "someClientId"
                             secret: "someClientSecret"
