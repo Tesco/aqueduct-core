@@ -17,14 +17,21 @@ authentication:
     validate.token.path: "${IDENTITY_VALIDATE_TOKEN_PATH}"
     issue.token.path: "${IDENTITY_ISSUE_TOKEN_PATH}"
     client:
-      id: "${IDENTITY_CLIENT_ID}"
-      secret: "${IDENTITY_CLIENT_SECRET}"
+      id: "someClientId"
+      secret: "someClientSecret"
     users:
       till:
         clientId: "${TILL_CLIENT_UID}"
         roles:
           - PIPE_READ
           - REGISTRY_WRITE
+
+micronaut:
+  http:
+    services:
+      identity-issue-token:
+        url: "${IDENTITY_URL}"
+        logger-name: issue.token.client
 
 pipe:
   server:

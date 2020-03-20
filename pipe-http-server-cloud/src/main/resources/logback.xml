@@ -8,6 +8,8 @@
         </encoder>
     </appender>
 
+    <logger name="issue.token.client" level="TRACE"/>
+
     <root level="${LOG_LEVEL:-info}">
         <appender-ref ref="stdout"/>
     </root>

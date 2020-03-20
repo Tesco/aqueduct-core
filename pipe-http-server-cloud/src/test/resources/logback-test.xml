@@ -1,7 +1,19 @@
 <configuration>
     <appender name="test-appender" class="com.tesco.aqueduct.pipe.TestAppender" />
 
+    <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.core.encoder.LayoutWrappingEncoder">
+            <layout class="com.tesco.aqueduct.pipe.http.JsonLayoutWithVersion">
+                <jsonFormatter class="ch.qos.logback.contrib.jackson.JacksonJsonFormatter"/>
+                <appendLineSeparator>true</appendLineSeparator>
+            </layout>
+        </encoder>
+    </appender>
+
+    <logger name="issue.token.client" level="TRACE"/>
+
     <root level="info">
         <appender-ref ref="test-appender" />
+        <appender-ref ref="stdout" />
     </root>
 </configuration>
