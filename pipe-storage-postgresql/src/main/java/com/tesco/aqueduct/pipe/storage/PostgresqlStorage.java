@@ -33,7 +33,7 @@ public class PostgresqlStorage implements CentralStorage {
     public MessageResults read(final List<String> types, final long startOffset, final List<String> clusterUuids) {
         long start = System.currentTimeMillis();
         try (Connection connection = dataSource.getConnection();
-            PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset)) {
+            PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, clusterUuids)) {
 
             final long globalLatestOffset = getLatestOffsetWithConnection(connection);
             final long retry = startOffset >= globalLatestOffset ? retryAfter : 0;
@@ -135,22 +135,38 @@ public class PostgresqlStorage implements CentralStorage {
         }
     }
 
-    private PreparedStatement getMessagesStatement(final Connection connection, final List<String> types, final long startOffset) {
+    private PreparedStatement getMessagesStatement(final Connection connection, final List<String> types, final long startOffset, List<String> clusterUuids) {
         try {
             PreparedStatement query;
 
             if (types == null || types.isEmpty()) {
-                query = connection.prepareStatement(getSelectEventsWithoutTypeFilteringQuery(maxBatchSize));
-                query.setLong(1, startOffset);
-                query.setLong(2, limit);
-
+//                if(clusterUuids == null || clusterUuids.isEmpty()) {
+                    query = connection.prepareStatement(getSelectEventsWithoutTypeFilteringQuery(maxBatchSize));
+                    query.setLong(1, startOffset);
+                    query.setLong(2, limit);
+//                } else {
+//                    final String strClusters = String.join(",", clusterUuids);
+//                    query = connection.prepareStatement(getSelectEventsWithoutTypeButWithClustersFilteringQuery(maxBatchSize));
+//                    query.setLong(1, startOffset);
+//                    query.setString(2, strClusters);
+//                    query.setLong(3, limit);
+//                }
             } else {
-                final String strTypes = String.join(",", types);
-
-                query = connection.prepareStatement(getSelectEventsWithTypeFilteringQuery(maxBatchSize));
-                query.setLong(1, startOffset);
-                query.setString(2, strTypes);
-                query.setLong(3, limit);
+//                if(clusterUuids == null || clusterUuids.isEmpty()) {
+                    final String strTypes = String.join(",", types);
+                    query = connection.prepareStatement(getSelectEventsWithTypeFilteringQuery(maxBatchSize));
+                    query.setLong(1, startOffset);
+                    query.setString(2, strTypes);
+                    query.setLong(3, limit);
+//                } else {
+//                    final String strClusters = String.join(",", clusterUuids);
+//                    final String strTypes = String.join(",", types);
+//                    query = connection.prepareStatement(getSelectEventsWithTypeAndClusterFilteringQuery(maxBatchSize));
+//                    query.setLong(1, startOffset);
+//                    query.setString(2, strClusters);
+//                    query.setString(3, strTypes);
+//                    query.setLong(4, limit);
+//                }
             }
 
             return query;
@@ -186,6 +202,47 @@ public class PostgresqlStorage implements CentralStorage {
             "   FROM events " +
             "   WHERE " +
             "     msg_offset >= ? " +
+            "     AND type = ANY (string_to_array(?, ',')" +
+            " ) " +
+            " ORDER BY msg_offset " +
+            " LIMIT ?" +
+            " ) unused " +
+            " WHERE running_size <= " + maxBatchSize;
+    }
+
+    private String getSelectEventsWithoutTypeButWithClustersFilteringQuery(long maxBatchSize) {
+        return
+            " SELECT type, msg_key, content_type, msg_offset, created_utc, data " +
+            " FROM " +
+            " ( " +
+            "   SELECT " +
+            "     type, msg_key, content_type, msg_offset, created_utc, data, " +
+            "     SUM(event_size) OVER (ORDER BY msg_offset ASC) AS running_size " +
+            "   FROM events " +
+            "   INNER JOIN clusters ON (events.cluster_id = clusters.cluster_id)" +
+            "   WHERE " +
+            "     msg_offset >= ? " +
+            "     AND clusters.cluster_uuid = ANY (string_to_array(?, ',')" +
+            " ) " +
+            " ORDER BY msg_offset " +
+            " LIMIT ?" +
+            " ) unused " +
+            " WHERE running_size <= " + maxBatchSize;
+    }
+
+    private String getSelectEventsWithTypeAndClusterFilteringQuery(long maxBatchSize) {
+        return
+            " SELECT type, msg_key, content_type, msg_offset, created_utc, data " +
+            " FROM " +
+            " ( " +
+            "   SELECT " +
+            "     type, msg_key, content_type, msg_offset, created_utc, data, " +
+            "     SUM(event_size) OVER (ORDER BY msg_offset ASC) AS running_size " +
+            "   FROM events " +
+            "   INNER JOIN clusters ON (events.cluster_id = clusters.cluster_id)" +
+            "   WHERE " +
+            "     msg_offset >= ? " +
+            "     AND clusters.cluster_uuid = ANY (string_to_array(?, ',')" +
             "     AND type = ANY (string_to_array(?, ',')" +
             " ) " +
             " ORDER BY msg_offset " +
