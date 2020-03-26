@@ -123,7 +123,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
 
     def "get pipe state as up to date always"() {
         when: "reading the messages"
-        def messageResults = storage.read(["some_type"], 0, ["someLocationUuid"])
+        def messageResults = storage.read(["some_type"], 0, [])
 
         then: "pipe state is up to date"
         messageResults.pipeState == PipeState.UP_TO_DATE
@@ -188,7 +188,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(msg3, messageSize)
 
         when: "reading from the database"
-        MessageResults result = storage.read(["type-1"], 0, ["locationUuid"])
+        MessageResults result = storage.read(["type-1"], 0, [])
 
         then: "messages that are returned are no larger than the maximum batch size"
         result.messages.size() == 2
@@ -347,16 +347,16 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
 
         when: 'reading all messages'
-        def messageResults = storage.read([type], 0, locationUuid)
+        def messageResults = storage.read([type], 0, [])
 
         then: 'global latest offset is type and locationUuid independent'
         messageResults.globalLatestOffset == OptionalLong.of(3)
 
         where:
-        type    | locationUuid
-        "type1" | ["locationUuid1"]
-        "type2" | ["locationUuid2"]
-        "type3" | ["locationUuid3"]
+        type    | _
+        "type1" | _
+        "type2" | _
+        "type3" | _
     }
 
     def 'pipe should return all messages when no types and no clusters are provided'(){
@@ -448,7 +448,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(9, "type1", "I", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
 
         when: 'reading all messages'
-        def messageResults = storage.read(["type1"], 0, ["some-location"])
+        def messageResults = storage.read(["type1"], 0, [])
 
         then: 'duplicate messages are deleted that are within the threshold'
         messageResults.messages.size() == 3
@@ -457,7 +457,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.globalLatestOffset == OptionalLong.of(9)
 
         when:
-        messageResults = storage.read(["type1"], 4, ["some-location"])
+        messageResults = storage.read(["type1"], 4, [])
 
         then:
         messageResults.messages.size() == 3

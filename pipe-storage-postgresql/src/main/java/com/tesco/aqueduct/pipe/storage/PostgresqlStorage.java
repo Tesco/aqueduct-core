@@ -152,21 +152,21 @@ public class PostgresqlStorage implements CentralStorage {
                     query.setLong(3, limit);
                 }
             } else {
-//                if(clusterUuids == null || clusterUuids.isEmpty()) {
+                if(clusterUuids == null || clusterUuids.isEmpty()) {
                     final String strTypes = String.join(",", types);
                     query = connection.prepareStatement(getSelectEventsWithTypeFilteringQuery(maxBatchSize));
                     query.setLong(1, startOffset);
                     query.setString(2, strTypes);
                     query.setLong(3, limit);
-//                } else {
-//                    final String strClusters = String.join(",", clusterUuids);
-//                    final String strTypes = String.join(",", types);
-//                    query = connection.prepareStatement(getSelectEventsWithTypeAndClusterFilteringQuery(maxBatchSize));
-//                    query.setLong(1, startOffset);
-//                    query.setString(2, strClusters);
-//                    query.setString(3, strTypes);
-//                    query.setLong(4, limit);
-//                }
+                } else {
+                    final String strClusters = String.join(",", clusterUuids);
+                    final String strTypes = String.join(",", types);
+                    query = connection.prepareStatement(getSelectEventsWithTypeAndClusterFilteringQuery(maxBatchSize));
+                    query.setLong(1, startOffset);
+                    query.setString(2, strClusters);
+                    query.setString(3, strTypes);
+                    query.setLong(4, limit);
+                }
             }
 
             return query;
@@ -202,8 +202,7 @@ public class PostgresqlStorage implements CentralStorage {
             "   FROM events " +
             "   WHERE " +
             "     msg_offset >= ? " +
-            "     AND type = ANY (string_to_array(?, ',')" +
-            " ) " +
+            "     AND type = ANY (string_to_array(?, ','))" +
             " ORDER BY msg_offset " +
             " LIMIT ?" +
             " ) unused " +
@@ -222,8 +221,7 @@ public class PostgresqlStorage implements CentralStorage {
             "   INNER JOIN clusters ON (events.cluster_id = clusters.cluster_id)" +
             "   WHERE " +
             "     msg_offset >= ? " +
-            "     AND clusters.cluster_uuid = ANY (string_to_array(?, ',')" +
-            " ) " +
+            "     AND clusters.cluster_uuid = ANY (string_to_array(?, ','))" +
             " ORDER BY msg_offset " +
             " LIMIT ?" +
             " ) unused " +
@@ -242,9 +240,8 @@ public class PostgresqlStorage implements CentralStorage {
             "   INNER JOIN clusters ON (events.cluster_id = clusters.cluster_id)" +
             "   WHERE " +
             "     msg_offset >= ? " +
-            "     AND clusters.cluster_uuid = ANY (string_to_array(?, ',')" +
-            "     AND type = ANY (string_to_array(?, ',')" +
-            " ) " +
+            "     AND clusters.cluster_uuid = ANY (string_to_array(?, ','))" +
+            "     AND type = ANY (string_to_array(?, ','))" +
             " ORDER BY msg_offset " +
             " LIMIT ?" +
             " ) unused " +
