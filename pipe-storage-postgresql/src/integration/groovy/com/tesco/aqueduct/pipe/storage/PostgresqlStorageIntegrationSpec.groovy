@@ -167,7 +167,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(msg3, messageSize)
 
         when: "reading from the database"
-        MessageResults result = storage.read([], 0, ["locationUuid"])
+        MessageResults result = storage.read([], 0, [])
 
         then: "messages that are returned are no larger than the maximum batch size when reading with a type"
         result.messages.size() == 2
@@ -201,7 +201,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(key: "x"))
 
         when:
-        MessageResults result = storage.read([], 0, ["locationUuid"])
+        MessageResults result = storage.read([], 0, [])
 
         then:
         result.retryAfterSeconds == 0
@@ -243,7 +243,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults result = storage.read(null, 0, ["locationUuid"])
+        MessageResults result = storage.read(null, 0, [])
         List<Message> retrievedMessages = result.messages
 
         then: 'duplicate messages are deleted'
@@ -263,7 +263,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults result = storage.read(null, 0, ["locationUuid"])
+        MessageResults result = storage.read(null, 0, [])
         List<Message> retrievedMessages = result.messages
 
         then:
@@ -284,7 +284,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults messageResults = storage.read(null, 1, ["locationUuid"])
+        MessageResults messageResults = storage.read(null, 1, [])
 
         then: 'duplicate messages are not deleted as they are beyond the threshold'
         messageResults.messages.size() == 4
@@ -307,7 +307,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults messageResults = storage.read(null, 1, ["locationUuid"])
+        MessageResults messageResults = storage.read(null, 1, [])
 
         then: 'duplicate messages are deleted that are within the threshold'
         messageResults.messages.size() == 7
@@ -331,7 +331,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults messageResults = storage.read(null, 1, ["locationUuid"])
+        MessageResults messageResults = storage.read(null, 1, [])
 
         then: 'duplicate messages are deleted that are within the threshold'
         messageResults.messages.size() == 7

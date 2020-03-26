@@ -140,17 +140,17 @@ public class PostgresqlStorage implements CentralStorage {
             PreparedStatement query;
 
             if (types == null || types.isEmpty()) {
-//                if(clusterUuids == null || clusterUuids.isEmpty()) {
+                if(clusterUuids == null || clusterUuids.isEmpty()) {
                     query = connection.prepareStatement(getSelectEventsWithoutTypeFilteringQuery(maxBatchSize));
                     query.setLong(1, startOffset);
                     query.setLong(2, limit);
-//                } else {
-//                    final String strClusters = String.join(",", clusterUuids);
-//                    query = connection.prepareStatement(getSelectEventsWithoutTypeButWithClustersFilteringQuery(maxBatchSize));
-//                    query.setLong(1, startOffset);
-//                    query.setString(2, strClusters);
-//                    query.setLong(3, limit);
-//                }
+                } else {
+                    final String strClusters = String.join(",", clusterUuids);
+                    query = connection.prepareStatement(getSelectEventsWithoutTypeButWithClustersFilteringQuery(maxBatchSize));
+                    query.setLong(1, startOffset);
+                    query.setString(2, strClusters);
+                    query.setLong(3, limit);
+                }
             } else {
 //                if(clusterUuids == null || clusterUuids.isEmpty()) {
                     final String strTypes = String.join(",", types);
