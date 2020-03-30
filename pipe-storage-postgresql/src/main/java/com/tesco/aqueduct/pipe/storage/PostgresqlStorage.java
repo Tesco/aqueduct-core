@@ -1,6 +1,5 @@
 package com.tesco.aqueduct.pipe.storage;
 
-import com.sun.istack.internal.NotNull;
 import com.tesco.aqueduct.pipe.api.*;
 import com.tesco.aqueduct.pipe.logger.PipeLogger;
 import org.slf4j.LoggerFactory;
@@ -34,8 +33,8 @@ public class PostgresqlStorage implements CentralStorage {
     @Override
     public MessageResults read(
         final List<String> types,
-        @NotNull final long startOffset,
-        @NotNull final List<String> clusterUuids) {
+        final long startOffset,
+        final List<String> clusterUuids) {
 
         long start = System.currentTimeMillis();
         try (Connection connection = dataSource.getConnection();
