@@ -123,13 +123,13 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
 
     def "get pipe state as up to date always"() {
         when: "reading the messages"
-        def messageResults = storage.read(["some_type"], 0, [])
+        def messageResults = storage.read(["some_type"], 0, ["clusterId"])
 
         then: "pipe state is up to date"
         messageResults.pipeState == PipeState.UP_TO_DATE
     }
 
-    def "get messages where tags contains type but no clusters"() {
+    def "get messages for given type and clusters"() {
         given: "there is postgres storage"
         def limit = 1
         def dataSourceWithMockedConnection = Mock(DataSource)
@@ -144,12 +144,13 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         preparedStatement.executeQuery() >> Mock(ResultSet)
         connection.prepareStatement(_ as String) >> preparedStatement
 
-        when: "requesting messages with tags specifying a type key"
-        postgresStorage.read(["some_type"], 0, ["locationUuid"])
+        when: "requesting messages specifying a type key and a cluster id"
+        postgresStorage.read(["some_type"], 0, ["clusterId"])
 
-        then: "a query is created that does not contain tags in the where clause"
-        0 * preparedStatement.setString(1, "some_type")
-        0 * preparedStatement.setString(_ as Integer, '{}')
+        then: "a query is created that contain given type and cluster including default cluster in the where clause"
+        1 * preparedStatement.setLong(_, 0)
+        1 * preparedStatement.setString(_, "some_type")
+        1 * preparedStatement.setString(_, "clusterId,NONE")
     }
 
     def "the messages returned are no larger than the maximum batch size when reading without a type"() {
@@ -167,7 +168,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(msg3, messageSize)
 
         when: "reading from the database"
-        MessageResults result = storage.read([], 0, [])
+        MessageResults result = storage.read([], 0, ["clusterId"])
 
         then: "messages that are returned are no larger than the maximum batch size when reading with a type"
         result.messages.size() == 2
@@ -188,7 +189,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(msg3, messageSize)
 
         when: "reading from the database"
-        MessageResults result = storage.read(["type-1"], 0, [])
+        MessageResults result = storage.read(["type-1"], 0, ["clusterId"])
 
         then: "messages that are returned are no larger than the maximum batch size"
         result.messages.size() == 2
@@ -201,7 +202,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(key: "x"))
 
         when:
-        MessageResults result = storage.read([], 0, [])
+        MessageResults result = storage.read([], 0, ["clusterId"])
 
         then:
         result.retryAfterSeconds == 0
@@ -215,7 +216,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(key: "x"))
 
         when:
-        MessageResults result = storage.read([], 4, ["locationUuid"])
+        MessageResults result = storage.read([], 4, ["clusterId"])
 
         then:
         result.retryAfterSeconds > 0
@@ -226,7 +227,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         given: "I have no records in the integrated database"
 
         when:
-        MessageResults result = storage.read([], 0,["locationUuid"])
+        MessageResults result = storage.read([], 0,["clusterId"])
 
         then:
         result.retryAfterSeconds > 0
@@ -234,16 +235,19 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     }
 
     def 'All duplicate messages are compacted for whole data store'() {
-        given: 'an existing data store with duplicate messages for the same key'
-        insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), CLUSTER_A)
-        insertWithCluster(message(2, "type", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), CLUSTER_A)
-        insertWithCluster(message(3, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), CLUSTER_A)
+        given: 'some clusters are stored'
+        Long cluster1 = insertCluster("cluster1")
+
+        and: 'an existing data store with duplicate messages for the same key'
+        insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(2, "type", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(3, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
 
         when: 'compaction is run on the whole data store'
         storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults result = storage.read(null, 0, [])
+        MessageResults result = storage.read(null, 0, ["cluster1"])
         List<Message> retrievedMessages = result.messages
 
         then: 'duplicate messages are deleted'
@@ -255,15 +259,19 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     }
 
     def 'Messages with the same key but different clusters are not compacted'() {
-        given: 'an existing data store with 2 messages with same key but different clusters'
-        insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), CLUSTER_A)
-        insertWithCluster(message(2, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), CLUSTER_B)
+        given: 'some clusters are stored'
+        Long cluster1 = insertCluster("cluster1")
+        Long cluster2 = insertCluster("cluster2")
+
+        and: 'an existing data store with 2 messages with same key but different clusters'
+        insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(2, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
 
         when: 'compaction is run on the whole data store'
         storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults result = storage.read(null, 0, [])
+        MessageResults result = storage.read(null, 0, ["cluster1", "cluster2"])
         List<Message> retrievedMessages = result.messages
 
         then:
@@ -274,17 +282,20 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     }
 
     def 'Duplicate messages are not compacted when published after the threshold'() {
-        given: 'an existing data store with duplicate messages for the same key'
-        insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), CLUSTER_A)
-        insertWithCluster(message(2, "type", "A", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), CLUSTER_A)
-        insertWithCluster(message(3, "type", "B", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), CLUSTER_A)
-        insertWithCluster(message(4, "type", "A", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), CLUSTER_A)
+        given: 'a stored cluster'
+        Long cluster1 = insertCluster("cluster1")
+
+        and: 'an existing data store with duplicate messages for the same key'
+        insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(2, "type", "A", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(3, "type", "B", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(4, "type", "A", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), cluster1)
 
         when: 'compaction is run up to the timestamp of offset 1'
         storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults messageResults = storage.read(null, 1, [])
+        MessageResults messageResults = storage.read(null, 1, ["cluster1"])
 
         then: 'duplicate messages are not deleted as they are beyond the threshold'
         messageResults.messages.size() == 4
@@ -307,7 +318,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults messageResults = storage.read(null, 1, [])
+        MessageResults messageResults = storage.read(null, 1, ["cluster1"])
 
         then: 'duplicate messages are deleted that are within the threshold'
         messageResults.messages.size() == 7
@@ -316,22 +327,26 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     }
 
     def 'All duplicate messages are compacted to a given offset per cluster, complex case'() {
-        given: 'an existing data store with duplicate messages for the same key'
-        insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), CLUSTER_A)
-        insertWithCluster(message(2, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), CLUSTER_A)
-        insertWithCluster(message(3, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), CLUSTER_B)
-        insertWithCluster(message(4, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), CLUSTER_B)
-        insertWithCluster(message(5, "type", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), CLUSTER_A)
-        insertWithCluster(message(6, "type", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), CLUSTER_B)
-        insertWithCluster(message(7, "type", "B", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), CLUSTER_B)
-        insertWithCluster(message(8, "type", "A", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), CLUSTER_A)
-        insertWithCluster(message(9, "type", "A", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), CLUSTER_B)
+        given: 'a stored cluster'
+        Long cluster1 = insertCluster("cluster1")
+        Long cluster2 = insertCluster("cluster2")
+
+        and: 'an existing data store with duplicate messages for the same key'
+        insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(2, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(3, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
+        insertWithCluster(message(4, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
+        insertWithCluster(message(5, "type", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(6, "type", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
+        insertWithCluster(message(7, "type", "B", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), cluster2)
+        insertWithCluster(message(8, "type", "A", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(9, "type", "A", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), cluster2)
 
         when: 'compaction is run up to the timestamp of offset 4'
         storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults messageResults = storage.read(null, 1, [])
+        MessageResults messageResults = storage.read(null, 1, ["cluster1", "cluster2"])
 
         then: 'duplicate messages are deleted that are within the threshold'
         messageResults.messages.size() == 7
@@ -347,9 +362,9 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
 
         when: 'reading all messages'
-        def messageResults = storage.read([type], 0, [])
+        def messageResults = storage.read([type], 0, ["clusterId"])
 
-        then: 'global latest offset is type and locationUuid independent'
+        then: 'global latest offset is type and clusterId independent'
         messageResults.globalLatestOffset == OptionalLong.of(3)
 
         where:
@@ -359,14 +374,14 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         "type3" | _
     }
 
-    def 'pipe should return all messages when no types and no clusters are provided'(){
-        given: 'some messages are stored'
+    def 'pipe should return all messages when no types are provided and all messages have default cluster'(){
+        given: 'some messages are stored with default cluster'
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
         insert(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
         insert(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
 
         when: 'reading with no types'
-        def messageResults = storage.read([], 0, [])
+        def messageResults = storage.read([], 0, ["clusterId"])
 
         then: 'all messages from the storage are returned regardless the types'
         messageResults.messages.size() == 3
@@ -374,12 +389,12 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.messages*.offset*.intValue() == [1, 2, 3]
     }
 
-    def 'pipe should return relevant messages when no types, but cluster provided'(){
+    def 'pipe should return messages for given clusters and no type'() {
         given: 'some clusters are stored'
         Long cluster1 = insertCluster("cluster1")
         Long cluster2 = insertCluster("cluster2")
 
-        and: 'some messages are stored'
+        and: 'some messages are stored with clusters'
         insertWithCluster(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
         insertWithCluster(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
         insertWithCluster(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
@@ -393,20 +408,27 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.messages*.offset*.intValue() == [1, 3]
     }
 
-    def 'pipe should return relevant messages when no cluster, but types provided'(){
-        given: 'some messages are stored'
-        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
-        insert(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
-        insert(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
-        insert(message(4, "type2", "D", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+    def 'pipe should return messages for given clusters and default clusters'() {
+        given: 'some clusters are stored'
+        Long cluster1 = insertCluster("cluster1")
+        Long cluster2 = insertCluster("cluster2")
+
+        and: 'some messages are stored with clusters'
+        insertWithCluster(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
+        insertWithCluster(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+
+        and: 'some messages without cluster'
+        insert(message(4, "type1", "D", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+        insert(message(5, "type2", "E", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
 
         when: 'reading with no types but cluster provided'
-        def messageResults = storage.read(["type2", "type3"], 0, [])
+        def messageResults = storage.read([], 0, ["cluster1"])
 
         then: 'messages belonging to cluster1 are returned'
-        messageResults.messages.size() == 3
-        messageResults.messages*.key == ["B", "C", "D"]
-        messageResults.messages*.offset*.intValue() == [2, 3, 4]
+        messageResults.messages.size() == 4
+        messageResults.messages*.key == ["A", "C", "D", "E"]
+        messageResults.messages*.offset*.intValue() == [1, 3, 4, 5]
     }
 
     def 'pipe should return relevant messages when types and cluster provided'(){
@@ -431,7 +453,33 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.messages*.offset*.intValue() == [4, 6]
     }
 
-    def "pipe should read all messages when no types are specified"() {
+    def 'pipe should return relevant messages for given types and cluster and messages exist with default cluster too'() {
+        given: 'some clusters are stored'
+        Long cluster1 = insertCluster("cluster1")
+        Long cluster2 = insertCluster("cluster2")
+
+        and: 'some messages are stored'
+        insertWithCluster(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
+        insertWithCluster(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
+        insertWithCluster(message(4, "type2", "D", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(5, "type1", "E", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(6, "type3", "F", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+
+        and: 'some messages without cluster'
+        insert(message(7, "type1", "G", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+        insert(message(8, "type2", "H", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+
+        when: 'reading with no types but cluster provided'
+        def messageResults = storage.read(["type2", "type3"], 0, ["cluster1"])
+
+        then: 'messages belonging to cluster1 are returned'
+        messageResults.messages.size() == 3
+        messageResults.messages*.key == ["D", "F", "H"]
+        messageResults.messages*.offset*.intValue() == [4, 6, 8]
+    }
+
+    def "pipe should return messages if available from the given offset"() {
         given: "there is postgres storage"
         def limit = 3
         storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize)
@@ -448,18 +496,18 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(9, "type1", "I", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
 
         when: 'reading all messages'
-        def messageResults = storage.read(["type1"], 0, [])
+        def messageResults = storage.read(["type1"], 0, ["cluster1"])
 
-        then: 'duplicate messages are deleted that are within the threshold'
+        then: 'messages are provided for the given type'
         messageResults.messages.size() == 3
         messageResults.messages*.key == ["A", "B", "C"]
         messageResults.messages*.offset*.intValue() == [1, 2, 3]
         messageResults.globalLatestOffset == OptionalLong.of(9)
 
-        when:
+        when: "read again from further offset"
         messageResults = storage.read(["type1"], 4, [])
 
-        then:
+        then: "we should still get relevant messages back even if they are further down from the given offset"
         messageResults.messages.size() == 3
         messageResults.messages*.key == ["G", "H", "I"]
         messageResults.messages*.offset*.intValue() == [7, 8, 9]

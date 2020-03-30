@@ -66,7 +66,7 @@ public class PipeReadController {
         final long offset,
         final HttpRequest<?> request,
         @Nullable final List<String> type,
-        @Nullable final String location // TODO - make it non-optional once all tills are sending stores through
+        @Nullable final String location
     ) {
         if(offset < 0) {
             return HttpResponse.badRequest();
