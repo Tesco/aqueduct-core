@@ -408,7 +408,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.messages*.offset*.intValue() == [1, 3]
     }
 
-    def 'pipe should return messages for given clusters and default clusters'() {
+    def 'pipe should return messages for given clusters and default cluster'() {
         given: 'some clusters are stored'
         Long cluster1 = insertCluster("cluster1")
         Long cluster2 = insertCluster("cluster2")
@@ -425,13 +425,13 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         when: 'reading with no types but cluster provided'
         def messageResults = storage.read([], 0, ["cluster1"])
 
-        then: 'messages belonging to cluster1 are returned'
+        then: 'messages belonging to cluster1 and default cluster are returned'
         messageResults.messages.size() == 4
         messageResults.messages*.key == ["A", "C", "D", "E"]
         messageResults.messages*.offset*.intValue() == [1, 3, 4, 5]
     }
 
-    def 'pipe should return relevant messages when types and cluster provided'(){
+    def 'pipe should return relevant messages when types and cluster are provided'(){
         given: 'some clusters are stored'
         Long cluster1 = insertCluster("cluster1")
         Long cluster2 = insertCluster("cluster2")
@@ -453,7 +453,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.messages*.offset*.intValue() == [4, 6]
     }
 
-    def 'pipe should return relevant messages for given types and cluster and messages exist with default cluster too'() {
+    def 'pipe should return relevant messages for given types and cluster including default cluster'() {
         given: 'some clusters are stored'
         Long cluster1 = insertCluster("cluster1")
         Long cluster2 = insertCluster("cluster2")
@@ -479,7 +479,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.messages*.offset*.intValue() == [4, 6, 8]
     }
 
-    def "pipe should return messages if available from the given offset"() {
+    def "pipe should return messages if available from the given offset instead of empty set"() {
         given: "there is postgres storage"
         def limit = 3
         storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize)
