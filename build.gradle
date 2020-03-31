@@ -230,6 +230,10 @@ subprojects {
         
         testRuntime 'net.bytebuddy:byte-buddy:1.9.6' // allows mocking of classes (in addition to interfaces)
         testRuntime 'org.objenesis:objenesis:2.6'    // allows mocking of classes without default constructor (together with CGLIB)
+
+        testCompile "io.micronaut:micronaut-inject-groovy"
+        testAnnotationProcessor "io.micronaut:micronaut-inject-groovy" // allows testing using MicronautTest framework
+        testCompile "io.micronaut.test:micronaut-test-spock"
     }
 
     // add -parameters to java compile have Jackson happy

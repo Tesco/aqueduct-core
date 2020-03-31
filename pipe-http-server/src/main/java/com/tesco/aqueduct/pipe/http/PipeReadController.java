@@ -49,12 +49,14 @@ public class PipeReadController {
     private int maxPayloadSizeBytes;
 
     @Get("/pipe/offset/latest")
+    @Deprecated // remove when its non-usage is confirmed
     public String latestOffset(@QueryValue final List<String> type) {
         final List<String> types = flattenRequestParams(type);
         return Long.toString(reader.getLatestOffsetMatching(types));
     }
 
     @Get("/pipe/state{?type}")
+    @Deprecated // remove when its non-usage is confirmed
     public PipeStateResponse state(@Nullable final List<String> type) {
         final List<String> types = flattenRequestParams(type);
         return pipeStateProvider.getState(types, reader);
@@ -67,7 +69,7 @@ public class PipeReadController {
         @Nullable final List<String> type,
         @Nullable final String location
     ) {
-        if(offset < 0) {
+        if(offset < 0 || location == null) {
             return HttpResponse.badRequest();
         }
 

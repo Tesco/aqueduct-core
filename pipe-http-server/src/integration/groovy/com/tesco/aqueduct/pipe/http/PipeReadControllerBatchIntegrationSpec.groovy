@@ -1,5 +1,6 @@
 package com.tesco.aqueduct.pipe.http
 
+import com.tesco.aqueduct.pipe.api.Cluster
 import com.tesco.aqueduct.pipe.api.JsonHelper
 import com.tesco.aqueduct.pipe.api.LocationResolver
 import com.tesco.aqueduct.pipe.api.Message
@@ -29,8 +30,12 @@ class PipeReadControllerBatchIntegrationSpec extends Specification {
     @Shared CentralInMemoryStorage storage = new CentralInMemoryStorage(10, RETRY_AFTER_SECONDS)
     @Shared ApplicationContext context
     @Shared LocationResolver locationResolver = Mock(LocationResolver)
+    private Cluster cluster
 
     ApplicationContext setupContext(maxPayloadSize) {
+
+        cluster = new Cluster("clusterId")
+        locationResolver.resolve(_) >> [cluster]
 
         def context = ApplicationContext
             .build()
@@ -67,9 +72,9 @@ class PipeReadControllerBatchIntegrationSpec extends Specification {
     void "A batch of messages that equals the payload size is still transported"() {
         given:
         def messages = [
-            new CentralInMemoryStorage.ClusteredMessage(Message(type, "a", "contentType", 100, null, DATA_BLOB), "cluster1"),
-            new CentralInMemoryStorage.ClusteredMessage(Message(type, "b", "contentType", 101, null, DATA_BLOB), "cluster2"),
-            new CentralInMemoryStorage.ClusteredMessage(Message(type, "c", "contentType", 102, null, DATA_BLOB), "cluster3")
+            new CentralInMemoryStorage.ClusteredMessage(Message(type, "a", "contentType", 100, null, DATA_BLOB), "clusterId"),
+            new CentralInMemoryStorage.ClusteredMessage(Message(type, "b", "contentType", 101, null, DATA_BLOB), "clusterId"),
+            new CentralInMemoryStorage.ClusteredMessage(Message(type, "c", "contentType", 102, null, DATA_BLOB), "clusterId")
         ]
 
         def batchInJson = JsonHelper.toJson(messages)
@@ -80,7 +85,7 @@ class PipeReadControllerBatchIntegrationSpec extends Specification {
         storage.write(messages)
 
         when:
-        def request = RestAssured.get("/pipe/100")
+        def request = RestAssured.get("/pipe/100?location=someLocation")
 
         then:
         request
@@ -102,9 +107,9 @@ class PipeReadControllerBatchIntegrationSpec extends Specification {
     void "A batch of messages that exceeds the payload size is truncated correctly"() {
         given:
         def messages = [
-            Message(type, "a", "contentType", 100, null, DATA_BLOB),
-            Message(type, "b", "contentType", 101, null, DATA_BLOB),
-            Message(type, "c", "contentType", 102, null, DATA_BLOB)
+            new CentralInMemoryStorage.ClusteredMessage(Message(type, "a", "contentType", 100, null, DATA_BLOB), "clusterId"),
+            new CentralInMemoryStorage.ClusteredMessage(Message(type, "b", "contentType", 101, null, DATA_BLOB), "clusterId"),
+            new CentralInMemoryStorage.ClusteredMessage(Message(type, "c", "contentType", 102, null, DATA_BLOB), "clusterId")
         ]
 
         def batchJson = JsonHelper.toJson(messages)
@@ -118,7 +123,7 @@ class PipeReadControllerBatchIntegrationSpec extends Specification {
         storage.write(messages)
 
         when:
-        def request = RestAssured.get("/pipe/100")
+        def request = RestAssured.get("/pipe/100?location=someLocation")
 
         then:
         request

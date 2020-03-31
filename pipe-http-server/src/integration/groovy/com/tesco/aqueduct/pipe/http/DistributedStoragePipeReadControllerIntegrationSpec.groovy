@@ -1,5 +1,6 @@
 package com.tesco.aqueduct.pipe.http
 
+import com.tesco.aqueduct.pipe.api.Cluster
 import com.tesco.aqueduct.pipe.api.HttpHeaders
 import com.tesco.aqueduct.pipe.api.LocationResolver
 import com.tesco.aqueduct.pipe.api.Message
@@ -48,6 +49,8 @@ class DistributedStoragePipeReadControllerIntegrationSpec extends Specification 
 
         pipeStateProvider.getState(_ ,_) >> new PipeStateResponse(true, 1000)
 
+        locationResolver.resolve(_) >> [new Cluster("clusterId")]
+
         context.registerSingleton(pipeStateProvider)
         context.registerSingleton(locationResolver)
         context.start()
@@ -69,12 +72,12 @@ class DistributedStoragePipeReadControllerIntegrationSpec extends Specification 
     @Unroll
     void "the header does not contain Global-Latest-Offset when no global latest offset is stored"() {
         given:
-        storage.write([
+        storage.write(
             Message("type1", "b", "ct", 101, null, null)
-        ])
+        )
 
         when:
-        def response = RestAssured.get("/pipe/0?type=type1")
+        def response = RestAssured.get("/pipe/0?type=type1&location=someLocation")
 
         then:
         response
