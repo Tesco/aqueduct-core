@@ -125,16 +125,16 @@ class PipeReadControllerIntegrationSpec extends Specification {
         reader.read(_ as List, 101, _ as List) >> new MessageResults([], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get(requestPath)
+        def response = RestAssured.get(requestPath)
 
         then:
-        request
+        response
             .then()
             .statusCode(statusCode)
-            .body(equalTo((String) response))
+            .body(equalTo((String) responseBody))
 
         where:
-        requestPath                       | statusCode | response
+        requestPath                       | statusCode | responseBody
         "/pipe/0?location=someLocation"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
         "/pipe/1?location=someLocation"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
         "/pipe/101?location=someLocation" | 200        | '[]'
@@ -148,16 +148,16 @@ class PipeReadControllerIntegrationSpec extends Specification {
         reader.read(typeList, 0, _ as List) >> new MessageResults(messages, 0, offset, PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get("/pipe/0?type=$types&location=someLocation")
+        def response = RestAssured.get("/pipe/0?type=$types&location=someLocation")
 
         then:
-        request
+        response
             .then()
             .statusCode(statusCode)
-            .body(equalTo(response))
+            .body(equalTo(responseBody))
 
         where:
-        types               | statusCode | messages                                                                                     | response
+        types               | statusCode | messages                                                                                     | responseBody
         "type1"             | 200        | [Message("type1", "a", "ct", 100, null, null)]                                               | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"}]'
         "type2"             | 200        | [Message("type2", "b", "ct", 101, null, null)]                                               | '[{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
         "type3"             | 200        | []                                                                                           | '[]'
@@ -172,16 +172,16 @@ class PipeReadControllerIntegrationSpec extends Specification {
             [Message("type1", "a", "ct", 100, null, null)], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get("/pipe/0$query")
+        def response = RestAssured.get("/pipe/0$query")
 
         then:
-        request
+        response
             .then()
             .statusCode(statusCode)
-            .body(equalTo(response))
+            .body(equalTo(responseBody))
 
         where:
-        query                           | statusCode | response
+        query                           | statusCode | responseBody
         ""                              | 400        | ''
         "?type=type1"                   | 400        | ''
         "?type=type1&location=1234"     | 200        | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"}]'
@@ -196,17 +196,17 @@ class PipeReadControllerIntegrationSpec extends Specification {
             [Message("type2", "b", "ct", headerValue, null, null)], 0, of(headerValue), PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get("/pipe/0?type=$type&location=someLocation")
+        def response = RestAssured.get("/pipe/0?type=$type&location=someLocation")
 
         then:
-        request
+        response
             .then()
             .statusCode(statusCode)
             .header(headerName, headerValue.toString())
-            .body(equalTo(response))
+            .body(equalTo(responseBody))
 
         where:
-        type    | statusCode    | headerName                              | headerValue         | response
+        type    | statusCode    | headerName                              | headerValue         | responseBody
         'type1' |  200          | HttpHeaders.GLOBAL_LATEST_OFFSET        | 101                 | '[]'
         'type2' |  200          | HttpHeaders.GLOBAL_LATEST_OFFSET        | 101                 | '[{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
     }
@@ -216,10 +216,10 @@ class PipeReadControllerIntegrationSpec extends Specification {
         reader.read(["type1"], 0, _ as List) >> new MessageResults([], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get("/pipe/0?type=type1&location=someLocation")
+        def response = RestAssured.get("/pipe/0?type=type1&location=someLocation")
 
         then:
-        request
+        response
             .then()
             .statusCode(200)
             .header(HttpHeaders.PIPE_STATE, PipeState.UP_TO_DATE.toString())
@@ -273,10 +273,10 @@ class PipeReadControllerIntegrationSpec extends Specification {
                 0, OptionalLong.empty(), PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get("/pipe/100?location=someLocation")
+        def response = RestAssured.get("/pipe/100?location=someLocation")
 
         then:
-        request
+        response
             .then()
             .content(equalTo("""
                 [
