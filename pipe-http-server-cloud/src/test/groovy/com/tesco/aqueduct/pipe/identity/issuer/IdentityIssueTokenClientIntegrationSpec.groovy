@@ -160,7 +160,6 @@ class IdentityIssueTokenClientIntegrationSpec extends Specification {
         then: "metrics are logged"
         TestAppender.getEvents().stream()
             .anyMatch {
-                print (it.loggerName == "metrics" ? it.MDCPropertyMap : [:])
                 it.loggerName.contains("metrics") && it.MDCPropertyMap.get("method") == "retrieveIdentityToken"
             }
     }

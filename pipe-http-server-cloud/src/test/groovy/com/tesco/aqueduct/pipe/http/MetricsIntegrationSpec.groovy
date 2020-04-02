@@ -28,7 +28,6 @@ class MetricsIntegrationSpec extends Specification {
                     enabled: true
                     path: /endpoints
                     sensitive: true
-                    
                 """
                 )
             )
@@ -47,6 +46,7 @@ class MetricsIntegrationSpec extends Specification {
 
     def "Metrics are dumped through logs using DumpMetrics component"() {
         expect: "metrics are logged"
+        sleep(1000) // wait enough  for metrics to be logged
         TestAppender.getEvents().stream()
             .anyMatch {
                 it.loggerName.contains("metrics")
