@@ -17,7 +17,7 @@ import java.time.ZonedDateTime
 import static org.hamcrest.Matchers.equalTo
 
 @Newify(Message)
-@Deprecated // Remove this test when /offset/latest and /pipe/state endpoints are removed, PipeReadControllerSpec test covers functionality
+@Deprecated // Remove this test when /offset/latest and /pipe/state endpoints are removed
 class PipeReadControllerIntegrationDeprecatedSpec extends Specification {
     public static final String SOME_CLUSTER = "someCluster"
 
