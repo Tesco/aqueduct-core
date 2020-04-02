@@ -2,6 +2,7 @@ package com.tesco.aqueduct.pipe.identity.issuer
 
 import com.stehno.ersatz.Decoders
 import com.stehno.ersatz.ErsatzServer
+import com.tesco.aqueduct.pipe.TestAppender
 import groovy.json.JsonOutput
 import io.micronaut.context.ApplicationContext
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader
@@ -114,6 +115,54 @@ class IdentityIssueTokenClientIntegrationSpec extends Specification {
 
         and: "Identity mock service is called once"
         identityMockService.verify()
+    }
+
+    def "MDC logging works as expected"() {
+        given: "a mocked Identity service for issue token endpoint"
+        def requestJson = JsonOutput.toJson([
+            client_id       : CLIENT_ID,
+            client_secret   : CLIENT_SECRET,
+            grant_type      : "client_credentials",
+            scope           : "internal public",
+            confidence_level: 12
+        ])
+
+        identityMockService.expectations {
+            post(ISSUE_TOKEN_PATH) {
+                body(requestJson, "application/json")
+                header("Accept", "application/vnd.tesco.identity.tokenresponse+json")
+                header("TraceId", "someTraceId")
+                header("Content-Type", "application/json")
+                called(1)
+
+                responder {
+                    header("Content-Type", "application/vnd.tesco.identity.tokenresponse+json")
+                    body("""
+                    {
+                        "access_token": "${ACCESS_TOKEN}",
+                        "token_type"  : "bearer",
+                        "expires_in"  : 1000,
+                        "scope"       : "some: scope: value"
+                    }
+                    """)
+                }
+            }
+        }
+
+        and: "identity issue token client bean"
+        IdentityIssueTokenClient identityIssueTokenClient = context.getBean(IdentityIssueTokenClient)
+
+        when: "get issued token through Identity client"
+        identityIssueTokenClient.retrieveIdentityToken(
+            "someTraceId", new IssueTokenRequest(CLIENT_ID, CLIENT_SECRET)
+        )
+
+        then: "metrics are logged"
+        TestAppender.getEvents().stream()
+            .anyMatch {
+                print (it.loggerName == "metrics" ? it.MDCPropertyMap : [:])
+                it.loggerName.contains("metrics") && it.MDCPropertyMap.get("method") == "retrieveIdentityToken"
+            }
     }
 
     def "Identity service circuit is opened when it returns 5xx to connect for given number of times"() {

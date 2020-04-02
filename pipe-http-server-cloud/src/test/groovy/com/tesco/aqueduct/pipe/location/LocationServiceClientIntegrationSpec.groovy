@@ -3,6 +3,7 @@ package com.tesco.aqueduct.pipe.location
 import com.stehno.ersatz.Decoders
 import com.stehno.ersatz.ErsatzServer
 import com.stehno.ersatz.junit.ErsatzServerRule
+import com.tesco.aqueduct.pipe.TestAppender
 import com.tesco.aqueduct.pipe.api.Cluster
 import groovy.json.JsonOutput
 import io.micronaut.context.ApplicationContext
@@ -108,6 +109,30 @@ class LocationServiceClientIntegrationSpec extends Specification {
 
         and: "identity service is called once"
         identityMockService.verify()
+    }
+
+    def "MDC logging work as expected"() {
+        given: "a location Uuid"
+        def locationUuid = "locationUuid"
+
+        and: "a mocked Identity service for issue token endpoint"
+        identityIssueTokenService()
+
+        and: "location service returning list of clusters for a given Uuid"
+        locationServiceReturningListOfClustersForGiven(locationUuid)
+
+        and: "location service bean is initialized"
+        def locationServiceClient = context.getBean(LocationServiceClient)
+
+        when: "get clusters for a location Uuid"
+        locationServiceClient.getClusters("someTraceId", locationUuid)
+
+        then: "metrics are logged"
+        TestAppender.getEvents().stream()
+            .anyMatch {
+                print (it.loggerName == "metrics" ? it.MDCPropertyMap : [:])
+                it.loggerName.contains("metrics") && it.MDCPropertyMap.get("method") == "getClusters"
+            }
     }
 
     def "location is cached"() {
