@@ -117,12 +117,12 @@ class LocationRoutingIntegrationSpec extends Specification {
         Long clusterB = insertCluster("Cluster_B")
 
         and: "messages in the storage for the clusters"
-        def message1 = message(1, "type1", "A", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
-        def message2 = message(2, "type2", "B", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
-        def message3 = message(3, "type3", "C", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
-        def message4 = message(4, "type2", "D", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
-        def message5 = message(5, "type1", "E", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
-        def message6 = message(6, "type3", "F", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
+        def message1 = message(1, "type1", "A", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message2 = message(2, "type2", "B", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message3 = message(3, "type3", "C", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message4 = message(4, "type2", "D", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message5 = message(5, "type1", "E", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message6 = message(6, "type3", "F", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
 
         insertWithCluster(message1, clusterA)
         insertWithCluster(message2, clusterB)
@@ -145,7 +145,97 @@ class LocationRoutingIntegrationSpec extends Specification {
         Arrays.asList(response.getBody().as(Message[].class)) == [message1, message4, message5, message6]
     }
 
-    private ZonedDateTime zoned(String dateTimeFormat) {
+    def "messages are routed for the given location's cluster and default cluster when both exists in storage"() {
+        given: "a location UUID"
+        def locationUuid = UUID.randomUUID().toString()
+
+        and: "location service returning clusters for the location uuid"
+        locationServiceReturningListOfClustersForGiven(locationUuid, ["Cluster_A"])
+
+        and: "clusters in the storage"
+        Long clusterA = insertCluster("Cluster_A")
+        Long clusterB = insertCluster("Cluster_B")
+
+        and: "messages in the storage for the clusters"
+        def message1 = message(1, "type1", "A", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message2 = message(2, "type2", "B", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message3 = message(3, "type3", "C", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message4 = message(4, "type2", "D", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message5 = message(5, "type1", "E", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message6 = message(6, "type3", "F", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        insertWithCluster(message1, clusterA)
+        insertWithCluster(message2, clusterB)
+        insertWithCluster(message3, clusterB)
+        insertWithCluster(message4, clusterA)
+        insertWithCluster(message5, clusterA)
+        insertWithCluster(message6, clusterA)
+
+        and: "some messages with default cluster"
+        def message7 = message(7, "type4", "G", "content-type", utcZoned("2000-12-03T10:00:00Z"), "data")
+        def message8 = message(8, "type5", "H", "content-type", utcZoned("2000-12-03T10:00:00Z"), "data")
+        insertWithoutCluster(message7)
+        insertWithoutCluster(message8)
+
+        when: "read messages for the given location"
+        def response = RestAssured.given()
+            .header("Authorization", "Bearer $ACCESS_TOKEN")
+            .get("/pipe/0?location=$locationUuid")
+
+        then: "http ok response code"
+        response
+            .then()
+            .statusCode(200)
+
+        and: "response body has messages only for the given location"
+        Arrays.asList(response.getBody().as(Message[].class)) == [message1, message4, message5, message6, message7, message8]
+    }
+
+    def "messages are routed for the given location belonging to multiple clusters"() {
+        given: "a location UUID"
+        def locationUuid = UUID.randomUUID().toString()
+
+        and: "location service returning clusters for the location uuid"
+        locationServiceReturningListOfClustersForGiven(locationUuid, ["Cluster_B", "Cluster_C"])
+
+        and: "clusters in the storage"
+        Long clusterA = insertCluster("Cluster_A")
+        Long clusterB = insertCluster("Cluster_B")
+        Long clusterC = insertCluster("Cluster_C")
+
+        and: "messages in storage for the clusters"
+        def message1 = message(1, "type1", "A", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message2 = message(2, "type2", "B", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message3 = message(3, "type3", "C", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message4 = message(4, "type2", "D", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message5 = message(5, "type1", "E", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message6 = message(6, "type3", "F", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
+        def message7 = message(7, "type4", "G", "content-type", utcZoned("2000-12-03T10:00:00Z"), "data")
+        def message8 = message(8, "type5", "H", "content-type", utcZoned("2000-12-03T10:00:00Z"), "data")
+
+        insertWithCluster(message1, clusterA)
+        insertWithCluster(message2, clusterB)
+        insertWithCluster(message3, clusterB)
+        insertWithCluster(message4, clusterA)
+        insertWithCluster(message5, clusterA)
+        insertWithCluster(message6, clusterA)
+        insertWithCluster(message7, clusterC)
+        insertWithCluster(message8, clusterC)
+
+        when: "read messages for the given location"
+        def response = RestAssured.given()
+            .header("Authorization", "Bearer $ACCESS_TOKEN")
+            .get("/pipe/0?location=$locationUuid")
+
+        then: "http ok response code"
+        response
+            .then()
+            .statusCode(200)
+
+        and: "response body has messages only for the given location"
+        Arrays.asList(response.getBody().as(Message[].class)) == [message2, message3, message7, message8]
+    }
+
+    private ZonedDateTime utcZoned(String dateTimeFormat) {
         ZonedDateTime.parse(dateTimeFormat).withZoneSameLocal(ZoneId.of("UTC"))
     }
 
@@ -160,6 +250,13 @@ class LocationRoutingIntegrationSpec extends Specification {
             offset,
             created ?: time,
             data ?: "data"
+        )
+    }
+
+    void insertWithoutCluster(Message msg, int maxMessageSize=0, def time = Timestamp.valueOf(msg.created.toLocalDateTime()) ) {
+        sql.execute(
+                "INSERT INTO EVENTS(msg_offset, msg_key, content_type, type, created_utc, data, event_size) VALUES(?,?,?,?,?,?,?);",
+                msg.offset, msg.key, msg.contentType, msg.type, time, msg.data, maxMessageSize
         )
     }
 
