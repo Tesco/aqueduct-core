@@ -12,7 +12,6 @@ dependencies {
     compile 'ch.qos.logback.contrib:logback-jackson:0.1.5'
     compile 'com.fasterxml.jackson.core:jackson-databind:2.9.8'
 
-    testCompile 'com.opentable.components:otj-pg-embedded:0.13.0'
     testCompile project(":pipe-storage-memory")
 }
 

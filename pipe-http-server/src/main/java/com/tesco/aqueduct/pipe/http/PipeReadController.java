@@ -5,6 +5,7 @@ import com.tesco.aqueduct.pipe.logger.PipeLogger;
 import com.tesco.aqueduct.pipe.metrics.Measure;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.core.convert.format.ReadableBytes;
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpResponse;
@@ -69,7 +70,7 @@ public class PipeReadController {
         @Nullable final List<String> type,
         @Nullable final String location
     ) {
-        if(offset < 0 || location == null) {
+        if(offset < 0 || StringUtils.isEmpty(location)) {
             return HttpResponse.badRequest();
         }
 

@@ -1,5 +1,3 @@
-
-
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
 import com.stehno.ersatz.Decoders
@@ -60,28 +58,28 @@ class LocationRoutingIntegrationSpec extends Specification {
         identityMockService.start()
 
         context = ApplicationContext
-                .build()
-                .properties(
-                    "pipe.server.url":                              "http://cloud.pipe",
-                    "persistence.read.limit":                       1000,
-                    "persistence.read.retry-after":                 10000,
-                    "persistence.read.max-batch-size":              "10485760",
+            .build()
+            .properties(
+                "pipe.server.url":                              "http://cloud.pipe",
+                "persistence.read.limit":                       1000,
+                "persistence.read.retry-after":                 10000,
+                "persistence.read.max-batch-size":              "10485760",
 
-                    "authentication.identity.url":                  "${identityMockService.getHttpUrl()}",
-                    "authentication.identity.validate.token.path":  "$VALIDATE_TOKEN_PATH",
-                    "authentication.identity.client.id":            "$CLIENT_ID",
-                    "authentication.identity.client.secret":        "$CLIENT_SECRET",
-                    "authentication.identity.issue.token.path":     "$ISSUE_TOKEN_PATH",
-                    "authentication.identity.attempts":             "3",
-                    "authentication.identity.delay":                "10ms",
+                "authentication.identity.url":                  "${identityMockService.getHttpUrl()}",
+                "authentication.identity.validate.token.path":  "$VALIDATE_TOKEN_PATH",
+                "authentication.identity.client.id":            "$CLIENT_ID",
+                "authentication.identity.client.secret":        "$CLIENT_SECRET",
+                "authentication.identity.issue.token.path":     "$ISSUE_TOKEN_PATH",
+                "authentication.identity.attempts":             "3",
+                "authentication.identity.delay":                "10ms",
 
-                    "location.url":                                 "${locationMockService.getHttpUrl() + "$LOCATION_BASE_PATH/"}",
-                    "location.attempts":                            3,
-                    "location.delay":                               "10ms"
-                )
-                .mainClass(EmbeddedServer)
-                .build()
-                .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("postgres"))
+                "location.url":                                 "${locationMockService.getHttpUrl() + "$LOCATION_BASE_PATH/"}",
+                "location.attempts":                            3,
+                "location.delay":                               "10ms"
+            )
+            .mainClass(EmbeddedServer)
+            .build()
+            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("postgres"))
 
         context.start()
 
@@ -107,7 +105,7 @@ class LocationRoutingIntegrationSpec extends Specification {
         context.close()
     }
 
-    def "messages are routed correctly for the given location when exist in storage"() {
+    def "messages are routed correctly for the given location when exists in storage"() {
         given: "a location UUID"
         def locationUuid = UUID.randomUUID().toString()
 
@@ -119,19 +117,19 @@ class LocationRoutingIntegrationSpec extends Specification {
         Long clusterB = insertCluster("Cluster_B")
 
         and: "messages in the storage for the clusters"
-        def message1_A = message(1, "type1", "A", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
-        def message4_A = message(4, "type2", "D", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
-        def message5_A = message(5, "type1", "E", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
-        def message6_A = message(6, "type3", "F", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
-        def message2_B = message(2, "type2", "B", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
-        def message3_B = message(3, "type3", "C", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
+        def message1 = message(1, "type1", "A", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
+        def message2 = message(2, "type2", "B", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
+        def message3 = message(3, "type3", "C", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
+        def message4 = message(4, "type2", "D", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
+        def message5 = message(5, "type1", "E", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
+        def message6 = message(6, "type3", "F", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
 
-        insertWithCluster(message1_A, clusterA)
-        insertWithCluster(message2_B, clusterB)
-        insertWithCluster(message3_B, clusterB)
-        insertWithCluster(message4_A, clusterA)
-        insertWithCluster(message5_A, clusterA)
-        insertWithCluster(message6_A, clusterA)
+        insertWithCluster(message1, clusterA)
+        insertWithCluster(message2, clusterB)
+        insertWithCluster(message3, clusterB)
+        insertWithCluster(message4, clusterA)
+        insertWithCluster(message5, clusterA)
+        insertWithCluster(message6, clusterA)
 
         when: "read messages for the given location"
         def response = RestAssured.given()
@@ -144,7 +142,7 @@ class LocationRoutingIntegrationSpec extends Specification {
             .statusCode(200)
 
         and: "response body has messages only for the given location"
-        Arrays.asList(response.getBody().as(Message[].class)) == [message1_A, message4_A, message5_A, message6_A]
+        Arrays.asList(response.getBody().as(Message[].class)) == [message1, message4, message5, message6]
     }
 
     private ZonedDateTime zoned(String dateTimeFormat) {

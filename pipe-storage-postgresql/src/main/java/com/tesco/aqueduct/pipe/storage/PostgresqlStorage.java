@@ -149,14 +149,14 @@ public class PostgresqlStorage implements CentralStorage {
 
             if (types == null || types.isEmpty()) {
                 query = connection.prepareStatement(getSelectEventsWithoutTypeQuery(maxBatchSize));
-                query.setLong(1, startOffset);
-                query.setString(2, strClusters);
+                query.setString(1, strClusters);
+                query.setLong(2, startOffset);
                 query.setLong(3, limit);
             } else {
                 final String strTypes = String.join(",", types);
-                query = connection.prepareStatement(getSelectEventsWithTypeAndClusterFilteringQuery(maxBatchSize));
-                query.setLong(1, startOffset);
-                query.setString(2, strClusters);
+                query = connection.prepareStatement(getSelectEventsWithTypeQuery(maxBatchSize));
+                query.setString(1, strClusters);
+                query.setLong(2, startOffset);
                 query.setString(3, strTypes);
                 query.setLong(4, limit);
             }
@@ -182,25 +182,6 @@ public class PostgresqlStorage implements CentralStorage {
         }
     }
 
-    //TODO: use parameter for batch size
-    private static String getSelectEventsWithTypeFilteringQuery(final long maxBatchSize) {
-        return
-            " SELECT type, msg_key, content_type, msg_offset, created_utc, data " +
-            " FROM " +
-            " ( " +
-            "   SELECT " +
-            "     type, msg_key, content_type, msg_offset, created_utc, data, " +
-            "     SUM(event_size) OVER (ORDER BY msg_offset ASC) AS running_size " +
-            "   FROM events " +
-            "   WHERE " +
-            "     msg_offset >= ? " +
-            "     AND type = ANY (string_to_array(?, ','))" +
-            " ORDER BY msg_offset " +
-            " LIMIT ?" +
-            " ) unused " +
-            " WHERE running_size <= " + maxBatchSize;
-    }
-
     private String getSelectEventsWithoutTypeQuery(long maxBatchSize) {
         return
             " SELECT type, msg_key, content_type, msg_offset, created_utc, data " +
@@ -210,17 +191,15 @@ public class PostgresqlStorage implements CentralStorage {
             "     type, msg_key, content_type, msg_offset, created_utc, data, " +
             "     SUM(event_size) OVER (ORDER BY msg_offset ASC) AS running_size " +
             "   FROM events " +
-            "   INNER JOIN clusters ON (events.cluster_id = clusters.cluster_id)" +
-            "   WHERE " +
-            "     events.msg_offset >= ? " +
-            "     AND clusters.cluster_uuid = ANY (string_to_array(?, ','))" +
+                  withInnerJoinToClusters() +
+            "   AND events.msg_offset >= ? " +
             " ORDER BY msg_offset " +
             " LIMIT ?" +
             " ) unused " +
             " WHERE running_size <= " + maxBatchSize;
     }
 
-    private String getSelectEventsWithTypeAndClusterFilteringQuery(long maxBatchSize) {
+    private String getSelectEventsWithTypeQuery(long maxBatchSize) {
         return
             " SELECT type, msg_key, content_type, msg_offset, created_utc, data " +
             " FROM " +
@@ -229,15 +208,20 @@ public class PostgresqlStorage implements CentralStorage {
             "     type, msg_key, content_type, msg_offset, created_utc, data, " +
             "     SUM(event_size) OVER (ORDER BY msg_offset ASC) AS running_size " +
             "   FROM events " +
-            "   INNER JOIN clusters ON (events.cluster_id = clusters.cluster_id)" +
-            "   WHERE " +
-            "     msg_offset >= ? " +
-            "     AND clusters.cluster_uuid = ANY (string_to_array(?, ','))" +
-            "     AND type = ANY (string_to_array(?, ','))" +
+                  withInnerJoinToClusters() +
+            "   AND events.msg_offset >= ? " +
+            "   AND type = ANY (string_to_array(?, ','))" +
             " ORDER BY msg_offset " +
             " LIMIT ?" +
             " ) unused " +
             " WHERE running_size <= " + maxBatchSize;
+    }
+
+    private String withInnerJoinToClusters() {
+        return
+            " INNER JOIN clusters ON (events.cluster_id = clusters.cluster_id)" +
+            " WHERE " +
+            " clusters.cluster_uuid = ANY (string_to_array(?, ',')) ";
     }
 
     private static String getSelectLatestOffsetWithTypeQuery() {

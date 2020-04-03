@@ -184,6 +184,8 @@ class PipeReadControllerIntegrationSpec extends Specification {
         query                           | statusCode | responseBody
         ""                              | 400        | ''
         "?type=type1"                   | 400        | ''
+        "?type=type1&location="         | 400        | ''
+        "?type=type1&location"          | 400        | ''
         "?type=type1&location=1234"     | 200        | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"}]'
     }
 
