@@ -1,4 +1,4 @@
-package com.tesco.aqueduct.pipe.http
+
 
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
@@ -31,6 +31,7 @@ class LocationRoutingIntegrationSpec extends Specification {
     private static final String CLIENT_ID = UUID.randomUUID().toString()
     private static final String CLIENT_SECRET = UUID.randomUUID().toString()
     private static final String CLIENT_ID_AND_SECRET = "trn:tesco:cid:${CLIENT_ID}:${CLIENT_SECRET}"
+    public static final String VALIDATE_TOKEN_PATH = "${VALIDATE_TOKEN_BASE_PATH}?client_id=${CLIENT_ID_AND_SECRET}"
 
     private final static String ISSUE_TOKEN_PATH = "/v4/issue-token/token"
     private final static String ACCESS_TOKEN = UUID.randomUUID().toString()
@@ -58,20 +59,27 @@ class LocationRoutingIntegrationSpec extends Specification {
         locationMockService.start()
         identityMockService.start()
 
-
-        // set the environment variables
-        System.setProperty("IDENTITY_URL", identityMockService.getHttpUrl())
-        System.setProperty("IDENTITY_VALIDATE_TOKEN_PATH", "${VALIDATE_TOKEN_BASE_PATH}?client_id=${CLIENT_ID_AND_SECRET}")
-        System.setProperty("IDENTITY_ISSUE_TOKEN_PATH", ISSUE_TOKEN_PATH)
-        System.setProperty("IDENTITY_CLIENT_ID", CLIENT_ID)
-        System.setProperty("IDENTITY_CLIENT_SECRET", CLIENT_SECRET)
-
-        System.setProperty("LOCATION_URL", locationMockService.getHttpUrl() + "$LOCATION_BASE_PATH/")
-
         context = ApplicationContext
                 .build()
+                .properties(
+                    "pipe.server.url":                              "http://cloud.pipe",
+                    "persistence.read.limit":                       1000,
+                    "persistence.read.retry-after":                 10000,
+                    "persistence.read.max-batch-size":              "10485760",
+
+                    "authentication.identity.url":                  "${identityMockService.getHttpUrl()}",
+                    "authentication.identity.validate.token.path":  "$VALIDATE_TOKEN_PATH",
+                    "authentication.identity.client.id":            "$CLIENT_ID",
+                    "authentication.identity.client.secret":        "$CLIENT_SECRET",
+                    "authentication.identity.issue.token.path":     "$ISSUE_TOKEN_PATH",
+                    "authentication.identity.attempts":             "3",
+                    "authentication.identity.delay":                "10ms",
+
+                    "location.url":                                 "${locationMockService.getHttpUrl() + "$LOCATION_BASE_PATH/"}",
+                    "location.attempts":                            3,
+                    "location.delay":                               "10ms"
+                )
                 .mainClass(EmbeddedServer)
-                .environments("integration")
                 .build()
                 .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("postgres"))
 
@@ -84,7 +92,7 @@ class LocationRoutingIntegrationSpec extends Specification {
     }
 
     void setup() {
-        setupPostgres()
+        setupPostgres(pg.embeddedPostgres.postgresDatabase)
         acceptIdentityTokenValidationRequest()
         issueValidTokenFromIdentity()
     }
@@ -111,12 +119,12 @@ class LocationRoutingIntegrationSpec extends Specification {
         Long clusterB = insertCluster("Cluster_B")
 
         and: "messages in the storage for the clusters"
-        def message1_A = message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data")
-        def message4_A = message(4, "type2", "D", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data")
-        def message5_A = message(5, "type1", "E", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data")
-        def message6_A = message(6, "type3", "F", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data")
-        def message2_B = message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data")
-        def message3_B = message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data")
+        def message1_A = message(1, "type1", "A", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
+        def message4_A = message(4, "type2", "D", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
+        def message5_A = message(5, "type1", "E", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
+        def message6_A = message(6, "type3", "F", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
+        def message2_B = message(2, "type2", "B", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
+        def message3_B = message(3, "type3", "C", "content-type", zoned("2000-12-01T10:00:00Z"), "data")
 
         insertWithCluster(message1_A, clusterA)
         insertWithCluster(message2_B, clusterB)
@@ -137,6 +145,10 @@ class LocationRoutingIntegrationSpec extends Specification {
 
         and: "response body has messages only for the given location"
         Arrays.asList(response.getBody().as(Message[].class)) == [message1_A, message4_A, message5_A, message6_A]
+    }
+
+    private ZonedDateTime zoned(String dateTimeFormat) {
+        ZonedDateTime.parse(dateTimeFormat).withZoneSameLocal(ZoneId.of("UTC"))
     }
 
     static ZonedDateTime time = ZonedDateTime.now(ZoneOffset.UTC).withZoneSameLocal(ZoneId.of("UTC"))
@@ -164,8 +176,8 @@ class LocationRoutingIntegrationSpec extends Specification {
         sql.executeInsert("INSERT INTO CLUSTERS(cluster_uuid) VALUES (?);", [clusterUuid]).first()[0] as Long
     }
 
-    private void setupPostgres() {
-        sql = new Sql(pg.embeddedPostgres.postgresDatabase.connection)
+    private void setupPostgres(DataSource dataSource) {
+        sql = new Sql(dataSource.connection)
         sql.execute("""
         DROP TABLE IF EXISTS EVENTS;
         DROP TABLE IF EXISTS CLUSTERS;
@@ -277,7 +289,6 @@ class LocationRoutingIntegrationSpec extends Specification {
             post(ISSUE_TOKEN_PATH) {
                 body(requestJson, "application/json")
                 header("Accept", "application/vnd.tesco.identity.tokenresponse+json")
-                header("TraceId", "someTraceId")
                 header("Content-Type", "application/json")
                 called(1)
 
