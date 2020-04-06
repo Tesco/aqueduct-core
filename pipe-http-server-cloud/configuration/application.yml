@@ -31,7 +31,7 @@ persistence:
     threshold: 3d
     schedule.cron: "0 14 2 1/1 * ?"
   read:
-    limit: 1000
+    limit: 20000
     max-batch-size: 2000000
     retry-after: 10
 
