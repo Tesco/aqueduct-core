@@ -154,8 +154,7 @@ public class ReadEventsQueryBenchmark {
 
     @Benchmark
     @BenchmarkMode(Mode.AverageTime) @OutputTimeUnit(TimeUnit.MILLISECONDS)
-    public void eventsQuery(PostgresDatabaseState postgresDatabaseState) {
-        System.out.println("Benchmark invoked");
+    public MessageResults eventsQuery(PostgresDatabaseState postgresDatabaseState) {
         List<String> clusters = IntStream.range(0, ThreadLocalRandom.current().nextInt(10) + 1)
                 .mapToObj(i -> postgresDatabaseState.randomClusterUuid()).collect(Collectors.toList());
 
@@ -165,11 +164,8 @@ public class ReadEventsQueryBenchmark {
         Collections.shuffle(clusters);
         Collections.shuffle(types);
 
-        System.out.println("Cluster range: " + clusters);
-        System.out.println("Types range: " + types);
-
         MessageResults messageResults = postgresDatabaseState.storage.read(types, 0, clusters);
-        System.out.println("Results size: " + messageResults.getMessages().size());
+        return messageResults;
     }
 
     private static final String MESSAGE_CONTENT = "{\n" +
