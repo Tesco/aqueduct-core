@@ -13,7 +13,7 @@ import java.time.ZonedDateTime
 abstract class StorageSpec extends Specification {
 
     static ZonedDateTime time = ZonedDateTime.now(ZoneOffset.UTC).withZoneSameLocal(ZoneId.of("UTC"))
-    protected static int limit = 1000
+    static limit = 1000
 
     @Shared
     def msg1 = message(offset: 102, key:"x", )
