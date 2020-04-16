@@ -1,3 +1,4 @@
+apply plugin: "me.champeau.gradle.jmh"
 
 dependencies {
     compile project(":pipe-api")
@@ -10,5 +11,4 @@ dependencies {
     testCompile project(":pipe-storage-test")
     testCompile 'com.opentable.components:otj-pg-embedded:0.13.0'
 }
-
 addPublish()

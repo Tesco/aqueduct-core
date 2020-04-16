@@ -1,5 +1,7 @@
 import com.stehno.ersatz.Decoders
 import com.stehno.ersatz.ErsatzServer
+import com.tesco.aqueduct.pipe.api.Cluster
+import com.tesco.aqueduct.pipe.api.LocationResolver
 import com.tesco.aqueduct.pipe.api.PipeStateResponse
 import com.tesco.aqueduct.pipe.api.Reader
 import com.tesco.aqueduct.pipe.http.PipeStateProvider
@@ -50,6 +52,11 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
             getState(_ as List, _ as Reader) >> new PipeStateResponse(true, 100)
         }
 
+        def locationResolver = Mock(LocationResolver) {
+            resolve(_) >> [new Cluster("cluster1")]
+        }
+
+
         identityMock.start()
 
         context = ApplicationContext
@@ -91,6 +98,7 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
         context
             .registerSingleton(Reader, storage, Qualifiers.byName("local"))
             .registerSingleton(pipeStateProvider)
+            .registerSingleton(locationResolver)
             .start()
 
         def server = context.getBean(EmbeddedServer)
@@ -115,7 +123,7 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
         when: 'A secured URL is accessed with the identity token as Bearer'
         RestAssured.given()
             .header("Authorization", "Bearer $identityToken")
-            .get("/pipe/0")
+            .get("/pipe/0?location=someLocation")
             .then()
             .statusCode(HttpStatus.OK.code)
 
@@ -131,7 +139,7 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
         when: 'A secured URL is accessed with the identity token as Bearer'
         RestAssured.given()
             .header("Authorization", "Bearer $identityToken")
-            .get("/pipe/0")
+            .get("/pipe/0?location=someLocation")
             .then()
             .statusCode(HttpStatus.FORBIDDEN.code)
 
@@ -143,7 +151,7 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
         expect: 'A secured URL is accessed with the basic auth'
         RestAssured.given()
             .header("Authorization", "Basic $encodedCredentials")
-            .get("/pipe/0")
+            .get("/pipe/0?location=someLocation")
             .then()
             .statusCode(HttpStatus.OK.code)
     }
@@ -151,7 +159,7 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
     def "Client receives unauthorised if no identity token provided."() {
         expect: 'Accessing a secured URL without authenticating'
         RestAssured.given()
-            .get("/pipe/0")
+            .get("/pipe/0?location=someLocation")
             .then()
             .statusCode(HttpStatus.UNAUTHORIZED.code)
     }
@@ -164,7 +172,7 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
         def identityToken = UUID.randomUUID().toString()
         RestAssured.given()
             .header("Authorization", "Bearer $identityToken")
-            .get("/pipe/0")
+            .get("/pipe/0?location=someLocation")
             .then()
             .statusCode(HttpStatus.UNAUTHORIZED.code)
 
@@ -181,7 +189,7 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
 
         RestAssured.given()
             .header("Authorization", "Basic $incorrectEncodedCredentials")
-            .get("/pipe/0")
+            .get("/pipe/0?location=someLocation")
             .then()
             .statusCode(HttpStatus.UNAUTHORIZED.code)
     }
@@ -219,7 +227,7 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
         when: 'A secured URL is accessed with the identity token as Bearer'
         RestAssured.given()
             .header("Authorization", "Bearer $identityToken")
-            .get("/pipe/0")
+            .get("/pipe/0?location=someLocation")
             .then()
             .statusCode(statusCode)
 
@@ -300,7 +308,7 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
     def makeValidRequest(String identityToken) {
         RestAssured.given()
             .header("Authorization", "Bearer $identityToken")
-            .get("/pipe/0")
+            .get("/pipe/0?location=someLocation")
             .then()
             .statusCode(HttpStatus.OK.code)
     }

@@ -5,6 +5,7 @@ import com.tesco.aqueduct.pipe.logger.PipeLogger;
 import com.tesco.aqueduct.pipe.metrics.Measure;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.core.convert.format.ReadableBytes;
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.http.HttpRequest;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.MutableHttpResponse;
@@ -12,7 +13,6 @@ import io.micronaut.http.annotation.Controller;
 import io.micronaut.http.annotation.Get;
 import io.micronaut.http.annotation.QueryValue;
 import io.micronaut.security.annotation.Secured;
-import lombok.val;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
@@ -50,12 +50,14 @@ public class PipeReadController {
     private int maxPayloadSizeBytes;
 
     @Get("/pipe/offset/latest")
+    @Deprecated // remove when its non-usage is confirmed
     public String latestOffset(@QueryValue final List<String> type) {
         final List<String> types = flattenRequestParams(type);
         return Long.toString(reader.getLatestOffsetMatching(types));
     }
 
     @Get("/pipe/state{?type}")
+    @Deprecated // remove when its non-usage is confirmed
     public PipeStateResponse state(@Nullable final List<String> type) {
         final List<String> types = flattenRequestParams(type);
         return pipeStateProvider.getState(types, reader);
@@ -66,9 +68,9 @@ public class PipeReadController {
         final long offset,
         final HttpRequest<?> request,
         @Nullable final List<String> type,
-        @Nullable final String location // TODO - make it non-optional once all tills are sending stores through
+        @Nullable final String location
     ) {
-        if(offset < 0) {
+        if(offset < 0 || StringUtils.isEmpty(location)) {
             return HttpResponse.badRequest();
         }
 

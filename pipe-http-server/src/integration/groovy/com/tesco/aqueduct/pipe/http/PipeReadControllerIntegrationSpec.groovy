@@ -1,252 +1,227 @@
 package com.tesco.aqueduct.pipe.http
 
-import com.tesco.aqueduct.pipe.api.Cluster
-import com.tesco.aqueduct.pipe.api.HttpHeaders
-import com.tesco.aqueduct.pipe.api.LocationResolver
-import com.tesco.aqueduct.pipe.api.Message
-import com.tesco.aqueduct.pipe.api.PipeState
-import com.tesco.aqueduct.pipe.api.PipeStateResponse
-import com.tesco.aqueduct.pipe.api.Reader
-import com.tesco.aqueduct.pipe.storage.CentralInMemoryStorage
-import io.micronaut.context.ApplicationContext
-import io.micronaut.context.env.PropertySource
-import io.micronaut.inject.qualifiers.Qualifiers
+import com.tesco.aqueduct.pipe.api.*
+import io.micronaut.context.annotation.Property
 import io.micronaut.runtime.server.EmbeddedServer
+import io.micronaut.test.annotation.MicronautTest
+import io.micronaut.test.annotation.MockBean
 import io.restassured.RestAssured
-import spock.lang.AutoCleanup
-import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import javax.inject.Inject
+import javax.inject.Named
 import java.time.ZonedDateTime
 
+import static java.util.Arrays.asList
+import static java.util.OptionalLong.of
 import static org.hamcrest.Matchers.equalTo
 
 @Newify(Message)
+@MicronautTest
+@Property(name="pipe.http.server.read.response-size-limit-in-bytes", value="200")
 class PipeReadControllerIntegrationSpec extends Specification {
-    static final String DATA_BLOB = "aaaaaaaaaaaaabbbbbbbbbbbbcccccccccccccdddddddeeeeeeeee"
-    static String type = "type1"
+
+    @Inject @Named("local")
+    Reader reader
+
+    @Inject
+    LocationResolver locationResolver
+
+    @Inject
+    PipeStateProvider pipeStateProvider
+
+    @Inject
+    EmbeddedServer server
+
     static int RETRY_AFTER_SECONDS = 600
-    public static final String SOME_CLUSTER = "someCluster"
-
-    @Shared CentralInMemoryStorage storage = new CentralInMemoryStorage(10, RETRY_AFTER_SECONDS)
-    @Shared @AutoCleanup("stop") ApplicationContext context
-    @Shared @AutoCleanup("stop") EmbeddedServer server
-    private static PipeStateProvider pipeStateProvider
-    private static LocationResolver locationResolver
-
-    // overloads of settings for this test
-    @Shared propertyOverloads = [
-        "pipe.http.server.read.response-size-limit-in-bytes": "200"
-    ]
-
-    void setupSpec() {
-        // There is nicer way in the works: https://github.com/micronaut-projects/micronaut-test
-        // but it is not handling some basic things yet and is not promoted yet
-        // Eventually this whole thing should be replaced with @MockBean(Reader) def provide(){ storage }
-        pipeStateProvider = Mock(PipeStateProvider)
-        locationResolver = Mock(LocationResolver) {
-            resolve(_) >> [new Cluster("cluster_A"), new Cluster("cluster_B")]
-        }
-
-        // SetupSpec cannot be overridden within specific features, hence we had to mock the conditional behaviour here
-        pipeStateProvider.getState(_ ,_) >> { args ->
-            def type = args[0]
-            return type.contains("OutOfDateType") ? new PipeStateResponse(false, 1000) : new PipeStateResponse(true, 1000)
-        }
-
-        context = ApplicationContext
-            .build()
-            .propertySources(PropertySource.of(propertyOverloads))
-            .mainClass(EmbeddedServer)
-            .build()
-
-        context.registerSingleton(Reader, storage, Qualifiers.byName("local"))
-
-        context.registerSingleton(pipeStateProvider)
-        context.registerSingleton(locationResolver)
-        context.start()
-
-        server = context.getBean(EmbeddedServer)
-        server.start()
-
-        RestAssured.port = server.port
-    }
+    static String type = "type1"
 
     void setup() {
-        storage.clear()
+        RestAssured.port = server.port
+        locationResolver.resolve(_) >> [new Cluster("cluster1")]
+        pipeStateProvider.getState(*_) >> new PipeStateResponse(true, 0)
     }
-
-    void cleanupSpec() {
-        RestAssured.port = RestAssured.DEFAULT_PORT
-    }
-
     @Unroll
     void "Test empty responses has Retry-After of #retryAfter seconds - #requestPath"() {
         given: "empty storage"
+        reader.read(*_) >> new MessageResults([], retryAfter, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get(requestPath)
+        def response = RestAssured.get(requestPath)
 
         then:
-        request
+        response
             .then()
             .statusCode(statusCode)
-            .content(equalTo(response))
+            .content(equalTo(responseBody))
             .header(HttpHeaders.RETRY_AFTER, "" + RETRY_AFTER_SECONDS)
 
         where:
-        requestPath | statusCode | retryAfter          | response
-        "/pipe/0"   | 200        | RETRY_AFTER_SECONDS | "[]"
-        "/pipe/1"   | 200        | RETRY_AFTER_SECONDS | "[]"
+        requestPath                         | statusCode | retryAfter          | responseBody
+        "/pipe/0?location='someLocation'"   | 200        | RETRY_AFTER_SECONDS | "[]"
+        "/pipe/1?location='someLocation'"   | 200        | RETRY_AFTER_SECONDS | "[]"
     }
 
     @Unroll
     void "Test bad requests do not have Retry-After header - #requestPath"() {
         given: "empty storage"
+        reader.read(*_) >> new MessageResults([], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get(requestPath)
+        def response = RestAssured.get(requestPath)
 
         then:
-        request
+        response
             .then()
             .statusCode(statusCode)
 
-        request.getHeader(HttpHeaders.RETRY_AFTER) == null
+        response.getHeader(HttpHeaders.RETRY_AFTER) == null
 
         where:
-        requestPath    | statusCode
-        "/pipe/-1"     | 400
-        "/pipe/type"   | 400
-        "/pipe"        | 404
-        "/pipe/"       | 404
-        "/piipe/0"     | 404
-        "/pipe/type/0" | 404
-        "/"            | 404
-        ""             | 404
+        requestPath                             | statusCode
+        "/pipe/-1?location='someLocation'"      | 400
+        "/pipe/type?location='someLocation'"    | 400
+        "/pipe?location='someLocation'"         | 404
+        "/pipe/?location='someLocation'"        | 404
+        "/piipe/0?location='someLocation'"      | 404
+        "/pipe/type/0?location='someLocation'"  | 404
+        "/"                                     | 404
+        ""                                      | 404
     }
 
     @Unroll
     void "Check responses has correct payload and that Retry-After header has a value of 0 - #requestPath"() {
         given:
-        storage.write(Message(type, "a", "ct", 100, null, null), SOME_CLUSTER)
+        reader.read(*_) >> new MessageResults(
+            [Message(type, "a", "ct", 100, null, null)], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get(requestPath)
-        then:
+        def response = RestAssured.get(requestPath)
 
-        String expectedResponse = """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
-        request
+        then:
+        String expectedResponseBody = """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
+        response
             .then()
             .statusCode(statusCode)
-            .content(equalTo(expectedResponse))
+            .content(equalTo(expectedResponseBody))
             .header(HttpHeaders.RETRY_AFTER, "0")
 
         where:
-        requestPath | statusCode | response
-        "/pipe/0"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
-        "/pipe/1"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
+        requestPath                          | statusCode
+        "/pipe/0?location='someLocation'"    | 200
+        "/pipe/1?location='someLocation'"    | 200
     }
 
     @Unroll
     void "non empty response returns first available element - #requestPath"() {
         given:
-        storage.write(Message(type, "a", "ct", 100, null, null), SOME_CLUSTER)
+        reader.read(_ as List, 0, _ as List) >> new MessageResults(
+            [Message(type, "a", "ct", 100, null, null)], 0, of(0), PipeState.UP_TO_DATE)
+
+        reader.read(_ as List, 1, _ as List) >> new MessageResults(
+            [Message(type, "a", "ct", 100, null, null)], 0, of(0), PipeState.UP_TO_DATE)
+
+        reader.read(_ as List, 101, _ as List) >> new MessageResults([], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get(requestPath)
+        def response = RestAssured.get(requestPath)
 
         then:
-        request
+        response
             .then()
             .statusCode(statusCode)
-            .body(equalTo((String) response))
+            .body(equalTo((String) responseBody))
 
         where:
-        requestPath | statusCode | response
-        "/pipe/0"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
-        "/pipe/1"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
-        "/pipe/101" | 200        | '[]'
+        requestPath                       | statusCode | responseBody
+        "/pipe/0?location=someLocation"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
+        "/pipe/1?location=someLocation"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
+        "/pipe/101?location=someLocation" | 200        | '[]'
     }
 
     @Unroll
     void "filtering by type: #types"() {
         given:
-        storage.write([
-            new CentralInMemoryStorage.ClusteredMessage(Message("type1", "a", "ct", 100, null, null), SOME_CLUSTER),
-            new CentralInMemoryStorage.ClusteredMessage(Message("type2", "b", "ct", 101, null, null), SOME_CLUSTER)
-        ])
+        def typeList = asList(types.split(","))
+        def offset = of(messages.isEmpty() ? 0 : messages.last().offset)
+        reader.read(typeList, 0, _ as List) >> new MessageResults(messages, 0, offset, PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get("/pipe/0?type=$types")
+        def response = RestAssured.get("/pipe/0?type=$types&location=someLocation")
 
         then:
-        request
+        response
             .then()
             .statusCode(statusCode)
-            .body(equalTo(response))
+            .body(equalTo(responseBody))
 
         where:
-        types               | statusCode | response
-        "type1"             | 200        | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"}]'
-        "type2"             | 200        | '[{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
-        "type3"             | 200        | '[]'
-        "type1,type2"       | 200        | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"},{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
-        "type1,type2,type3" | 200        | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"},{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
+        types               | statusCode | messages                                                                                     | responseBody
+        "type1"             | 200        | [Message("type1", "a", "ct", 100, null, null)]                                               | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"}]'
+        "type2"             | 200        | [Message("type2", "b", "ct", 101, null, null)]                                               | '[{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
+        "type3"             | 200        | []                                                                                           | '[]'
+        "type1,type2"       | 200        | [Message("type1", "a", "ct", 100, null, null), Message("type2", "b", "ct", 101, null, null)] | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"},{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
+        "type1,type2,type3" | 200        | [Message("type1", "a", "ct", 100, null, null), Message("type2", "b", "ct", 101, null, null)] | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"},{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
     }
 
     @Unroll
-    void "filtering by location: #query"() {
+    void "filtering by location and type: #query"() {
         given:
-        storage.write([
-            new CentralInMemoryStorage.ClusteredMessage(Message("type1", "a", "ct", 100, null, null), "cluster_A"),
-            new CentralInMemoryStorage.ClusteredMessage(Message("type1", "b", "ct", 101, null, null), SOME_CLUSTER)
-        ])
+        reader.read(["type1"], 0, _ as List) >> new MessageResults(
+            [Message("type1", "a", "ct", 100, null, null)], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get("/pipe/0?$query")
+        def response = RestAssured.get("/pipe/0$query")
 
         then:
-        request
+        response
             .then()
             .statusCode(statusCode)
-            .body(equalTo(response))
+            .body(equalTo(responseBody))
 
         where:
-        query                          | statusCode | response
-        "type=type1&location=1234"     | 200        | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"}]'
-        "type=type1"                   | 200        | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"},{"type":"type1","key":"b","contentType":"ct","offset":"101"}]'
+        query                           | statusCode | responseBody
+        ""                              | 400        | ''
+        "?type=type1"                   | 400        | ''
+        "?type=type1&location="         | 400        | ''
+        "?type=type1&location"          | 400        | ''
+        "?type=type1&location=1234"     | 200        | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"}]'
     }
 
     @Unroll
     void "pipe signals next offset despite messages not routed"() {
         given:
-        storage.write(Message("type2", "b", "ct", 101, null, null), SOME_CLUSTER)
+        reader.read(["type1"], 0, _ as List) >> new MessageResults([], 0, of(headerValue), PipeState.UP_TO_DATE)
+
+        reader.read(["type2"], 0, _ as List) >> new MessageResults(
+            [Message("type2", "b", "ct", headerValue, null, null)], 0, of(headerValue), PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get("/pipe/0?type=$type")
+        def response = RestAssured.get("/pipe/0?type=$type&location=someLocation")
 
         then:
-        request
+        response
             .then()
             .statusCode(statusCode)
-            .header(headerName, headerValue)
-            .body(equalTo(response))
+            .header(headerName, headerValue.toString())
+            .body(equalTo(responseBody))
 
         where:
-        type    | statusCode    | headerName                              | headerValue           | response
-        'type1' |  200          | HttpHeaders.GLOBAL_LATEST_OFFSET        | '101'                 | '[]'
-        'type2' |  200          | HttpHeaders.GLOBAL_LATEST_OFFSET        | '101'                 | '[{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
+        type    | statusCode    | headerName                              | headerValue         | responseBody
+        'type1' |  200          | HttpHeaders.GLOBAL_LATEST_OFFSET        | 101                 | '[]'
+        'type2' |  200          | HttpHeaders.GLOBAL_LATEST_OFFSET        | 101                 | '[{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
     }
 
     void "pipe signals pipe state in response header"() {
         given:
+        reader.read(["type1"], 0, _ as List) >> new MessageResults([], 0, of(0), PipeState.UP_TO_DATE)
+
         when:
-        def request = RestAssured.get("/pipe/0?type=type1")
+        def response = RestAssured.get("/pipe/0?type=type1&location=someLocation")
 
         then:
-        request
+        response
             .then()
             .statusCode(200)
             .header(HttpHeaders.PIPE_STATE, PipeState.UP_TO_DATE.toString())
@@ -254,10 +229,11 @@ class PipeReadControllerIntegrationSpec extends Specification {
 
     @Unroll
     void "the header does not contain Global-Latest-Offset when no global latest offset is stored"() {
-        given:
+        given: "no global offset from storage"
+        reader.read(["type1"], 0, _ as List) >> new MessageResults([], 0, OptionalLong.empty(), PipeState.UP_TO_DATE)
 
         when:
-        def response = RestAssured.get("/pipe/0?type=type1")
+        def response = RestAssured.get("/pipe/0?type=type1&location=someLocation")
 
         then:
         response
@@ -268,38 +244,17 @@ class PipeReadControllerIntegrationSpec extends Specification {
         response.getHeader(HttpHeaders.GLOBAL_LATEST_OFFSET) == null
     }
 
-    @Unroll
-    void "responds with messages - #requestPath"() {
-        given:
-        storage.write(
-            Message(type, "a", "contentType", 100, null, data),
-            "cluster_A"
-        )
-
-        when:
-        def request = RestAssured.get(requestPath)
-
-        then:
-        request
-            .then()
-            .statusCode(statusCode)
-            .body("[0].offset", equalTo(offset))
-            .body("[0].key", equalTo(key))
-            .body("[0].data", equalTo(data))
-
-        where:
-        requestPath | statusCode | offset | key | data
-        "/pipe/0"   | 200        | "100"  | "a" | '{"x":"1"}'
-        "/pipe/100" | 200        | "100"  | "a" | '{"x":"1"}'
-    }
-
     void "A single message that is over the payload size is still transported"() {
+        def dataBlob = "some very big data blob with more than 200 bytes of size"
         given:
-        Message message1 = Message(type, "a", "contentType", 100, null, DATA_BLOB)
-        storage.write(message1, SOME_CLUSTER)
+        reader.read([], 100, _ as List) >> new MessageResults(
+            [Message(null, "a", "contentType", 100, null, dataBlob)],
+            0,
+            OptionalLong.empty(),
+            PipeState.UP_TO_DATE)
 
         when:
-        def response = RestAssured.get("/pipe/100")
+        def response = RestAssured.get("/pipe/100?location=someLocation")
 
         then:
         response
@@ -308,88 +263,44 @@ class PipeReadControllerIntegrationSpec extends Specification {
             .body("[0].offset", equalTo("100"))
             .body("[0].key", equalTo("a"))
             .body("[0].contentType", equalTo("contentType"))
-            .body("[0].data", equalTo(DATA_BLOB))
+            .body("[0].data", equalTo(dataBlob))
             .body("size", equalTo(1))
     }
 
     def "assert response schema"() {
         given:
-        storage.write([
-            new CentralInMemoryStorage.ClusteredMessage(Message(type, "a", "contentType", 100, ZonedDateTime.parse("2018-12-20T15:13:01Z"), "data"), SOME_CLUSTER),
-            new CentralInMemoryStorage.ClusteredMessage(Message(type, "b", null, 101, null, null), SOME_CLUSTER)
-        ])
+        reader.read([], 100, _ as List) >> new MessageResults(
+                [Message(type, "a", "contentType", 100, ZonedDateTime.parse("2018-12-20T15:13:01Z"), "data"),
+                 Message(type, "b", null, 101, null, null)],
+                0, OptionalLong.empty(), PipeState.UP_TO_DATE)
 
         when:
-        def request = RestAssured.get("/pipe/100")
+        def response = RestAssured.get("/pipe/100?location=someLocation")
 
         then:
-        request
+        response
             .then()
             .content(equalTo("""
-            [
-                {"type":"type1","key":"a","contentType":"contentType","offset":"100","created":"2018-12-20T15:13:01Z","data":"data"},
-                {"type":"type1","key":"b","offset":"101"}
-            ]
+                [
+                    {"type":"type1","key":"a","contentType":"contentType","offset":"100","created":"2018-12-20T15:13:01Z","data":"data"},
+                    {"type":"type1","key":"b","offset":"101"}
+                ]
             """.replaceAll("\\s", "")))
     }
 
-    @Unroll
-    def "Returns latest offset of #types"() {
-        given:
-        storage.write([
-            Message("a", "a", "contentType", 100, ZonedDateTime.parse("2018-12-20T15:13:01Z"), "data"),
-            Message("b", "b", "contentType", 101, ZonedDateTime.parse("2018-12-20T15:13:01Z"), "data"),
-            Message("c", "c", "contentType", 102, ZonedDateTime.parse("2018-12-20T15:13:01Z"), "data")
-        ])
-
-        when:
-        def request = RestAssured.get("/pipe/offset/latest?type=$types")
-
-        then:
-        request
-            .then()
-            .content(equalTo(offset))
-
-        where:
-        types   | offset
-        "a"     | "100"
-        "b"     | "101"
-        "c"     | "102"
-        "b,a"   | "101"
-        "a,c"   | "102"
-        "a,b,c" | "102"
+    @MockBean(Reader)
+    @Named("local")
+    Reader reader() {
+        Mock(Reader)
     }
 
-    def "Latest offset endpoint requires types"() {
-        given:
-        storage.write([
-            new CentralInMemoryStorage.ClusteredMessage(Message("a", "a", "contentType", 100, ZonedDateTime.parse("2018-12-20T15:13:01Z"), "data"), SOME_CLUSTER),
-            new CentralInMemoryStorage.ClusteredMessage(Message("b", "b", "contentType", 101, ZonedDateTime.parse("2018-12-20T15:13:01Z"), "data"), SOME_CLUSTER),
-            new CentralInMemoryStorage.ClusteredMessage(Message("c", "c", "contentType", 102, ZonedDateTime.parse("2018-12-20T15:13:01Z"), "data"), SOME_CLUSTER)
-        ])
-
-        when:
-        def request = RestAssured.get("/pipe/offset/latest")
-
-        then:
-        def response = """{"message":"Required QueryValue [type] not specified","path":"/type","_links":{"self":{"href":"/pipe/offset/latest","templated":false}}}"""
-        request
-            .then()
-            .statusCode(400)
-            .body(equalTo(response))
+    @MockBean(PipeStateProvider)
+    PipeStateProvider pipeStateProvider() {
+        Mock(PipeStateProvider)
     }
 
-    def "state endpoint returns result of state provider"() {
-        given: "A pipe state provider mocked"
-
-        when: "we call to get state"
-        def request = RestAssured.get("/pipe/state")
-
-        then: "response is serialised correctly"
-        def response = """{"upToDate":true,"localOffset":"1000"}"""
-        request
-            .then()
-            .statusCode(200)
-            .body(equalTo(response))
+    @MockBean(LocationResolver)
+    LocationResolver locationResolver() {
+        Mock(LocationResolver)
     }
 }

@@ -1,5 +1,6 @@
 package com.tesco.aqueduct.pipe.http
 
+import com.tesco.aqueduct.pipe.api.Cluster
 import com.tesco.aqueduct.pipe.api.LocationResolver
 import com.tesco.aqueduct.pipe.api.Message
 import com.tesco.aqueduct.pipe.api.PipeStateResponse
@@ -11,6 +12,7 @@ import io.micronaut.context.env.yaml.YamlPropertySourceLoader
 import io.micronaut.http.HttpStatus
 import io.micronaut.inject.qualifiers.Qualifiers
 import io.micronaut.runtime.server.EmbeddedServer
+import io.micronaut.test.annotation.MicronautTest
 import io.restassured.RestAssured
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -19,6 +21,7 @@ import spock.lang.Specification
 import static org.hamcrest.Matchers.equalTo
 
 @Newify(Message)
+@MicronautTest
 class PipeReadAuthenticationProviderIntegrationSpec extends Specification {
 
     static final int RETRY_AFTER_SECONDS = 600
@@ -35,27 +38,29 @@ class PipeReadAuthenticationProviderIntegrationSpec extends Specification {
     @Shared LocationResolver locationResolver = Mock()
 
     void setupSpec() {
+        locationResolver.resolve(_) >> [new Cluster("cluster1")]
+
         context = ApplicationContext
-                .build()
-                .properties(
-                    parseYamlConfig(
-                        """
-                        micronaut.security.enabled: true
-                        authentication:
-                          users:
-                            $USERNAME:
-                              password: $PASSWORD
-                              roles:
-                                - PIPE_READ
-                            $RUNSCOPE_USERNAME:
-                              password: $RUNSCOPE_PASSWORD
-                              roles:
-                                - PIPE_READ
-                        """
-                    )
+            .build()
+            .properties(
+                parseYamlConfig(
+                    """
+                    micronaut.security.enabled: true
+                    authentication:
+                      users:
+                        $USERNAME:
+                          password: $PASSWORD
+                          roles:
+                            - PIPE_READ
+                        $RUNSCOPE_USERNAME:
+                          password: $RUNSCOPE_PASSWORD
+                          roles:
+                            - PIPE_READ
+                    """
                 )
-                .mainClass(PipeReadController)
-                .build()
+            )
+            .mainClass(PipeReadController)
+            .build()
 
         context.registerSingleton(Reader, storage, Qualifiers.byName("local"))
         def pipeStateProvider = Mock(PipeStateProvider) {
@@ -88,13 +93,13 @@ class PipeReadAuthenticationProviderIntegrationSpec extends Specification {
 
     def 'username and password authentication allows access to the data on the pipe'(){
         given: "a message on the pipe"
-        storage.write(Message("type", "a", "ct", 100, null, null), "someCluster")
+        storage.write(Message("type", "a", "ct", 100, null, null), "cluster1")
 
         expect: "to receive the message when authorized"
         def encodedCredentials = "${USERNAME}:${PASSWORD}".bytes.encodeBase64().toString()
         RestAssured.given()
             .header("Authorization", "Basic $encodedCredentials")
-            .get("/pipe/0")
+            .get("/pipe/0?location=someLocation")
             .then()
             .statusCode(HttpStatus.OK.code)
             .content(equalTo('[{"type":"type","key":"a","contentType":"ct","offset":"100"}]'))
@@ -102,16 +107,16 @@ class PipeReadAuthenticationProviderIntegrationSpec extends Specification {
 
     def 'runscope username and password authentication allows access to the data on the pipe'(){
         given: "a message on the pipe"
-        storage.write(Message("type", "a", "ct", 100, null, null), "someCluster")
+        storage.write(Message("type", "a", "ct", 100, null, null), "cluster1")
 
         expect: "to receive the message when authorized"
         def encodedCredentials = "${RUNSCOPE_USERNAME}:${RUNSCOPE_PASSWORD}".bytes.encodeBase64().toString()
         RestAssured.given()
-                .header("Authorization", "Basic $encodedCredentials")
-                .get("/pipe/0")
-                .then()
-                .statusCode(HttpStatus.OK.code)
-                .content(equalTo('[{"type":"type","key":"a","contentType":"ct","offset":"100"}]'))
+            .header("Authorization", "Basic $encodedCredentials")
+            .get("/pipe/0?location=someLocation")
+            .then()
+            .statusCode(HttpStatus.OK.code)
+            .content(equalTo('[{"type":"type","key":"a","contentType":"ct","offset":"100"}]'))
     }
 
     Map<String, Object> parseYamlConfig(String str) {
