@@ -1,11 +1,15 @@
+apply plugin: "me.champeau.gradle.jmh"
+
 dependencies {
     compile project(":registry-core")
 
     addMicronautDependencies()
 
     compile 'io.micronaut:micronaut-http-server-netty'
+
     compile 'ch.qos.logback:logback-classic:1.2.3'
     testCompile 'com.opentable.components:otj-pg-embedded:0.13.0'
+    testCompile group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.17.4'
 }
 
 addPublish()
