@@ -128,7 +128,7 @@ public class ReadEventsQueryBenchmark {
                 "CREATE INDEX cluster_uuid_idx ON CLUSTERS (cluster_uuid);"
             );
 
-            storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0, );
+            storage = new PostgresqlStorage(dataSource, limit, batchSize, 0, retryAfter, 0);
         }
 
         void insertWithCluster(Message msg, Long clusterId) throws SQLException {

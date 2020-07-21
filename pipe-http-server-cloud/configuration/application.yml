@@ -38,6 +38,7 @@ persistence:
     limit: 20000
     max-batch-size: 2000000
     retry-after: 10
+    retry-after-with-messages: "${RETRY_AFTER_WITH_MESSAGES:10}"
 
 datasources:
   postgres:

@@ -31,6 +31,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     private static final long CLUSTER_A = 1L
     private static final long CLUSTER_B = 2L
     long retryAfter = 5000
+    long retryAfterWithMessages = 0
     long batchSize = 1000
     long maxOverheadBatchSize = (Message.MAX_OVERHEAD_SIZE * limit) + batchSize
 
@@ -66,7 +67,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         INSERT INTO CLUSTERS (cluster_uuid) VALUES ('NONE');
         """)
 
-        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0,)
+        storage = new PostgresqlStorage(dataSource, limit, batchSize, 0, retryAfter, retryAfterWithMessages)
     }
 
     @Unroll
@@ -106,7 +107,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         given: "there is postgres storage"
         def limit = 1
         def dataSourceWithMockedConnection = Mock(DataSource)
-        def postgresStorage = new PostgresqlStorage(dataSourceWithMockedConnection, limit, 0, batchSize, 0,)
+        def postgresStorage = new PostgresqlStorage(dataSourceWithMockedConnection, limit, batchSize, 0, 0, retryAfterWithMessages)
 
         and: "a mock connection is provided when requested"
         def connection = Mock(Connection)
@@ -168,7 +169,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         result.messages.size() == 2
     }
 
-    def "retry-after is zero if the pipe is not empty"() {
+    def "retry-after is configured zero if the pipe is not empty"() {
         given: "I have some records in the integrated database"
         insert(message(key: "z"))
         insert(message(key: "y"))
@@ -178,7 +179,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         MessageResults result = storage.read([], 0, ["clusterId"])
 
         then:
-        result.retryAfterSeconds == 10
+        result.retryAfterSeconds == 0
         result.messages.size() == 3
     }
 
@@ -455,7 +456,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     def "pipe should return messages if available from the given offset instead of empty set"() {
         given: "there is postgres storage"
         def limit = 3
-        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0,)
+        storage = new PostgresqlStorage(dataSource, limit, batchSize, 0, retryAfter, 0)
 
         and: 'an existing data store with two different types of messages'
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
@@ -490,7 +491,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     def "getMessageCountByType should return the count of messages by type"() {
         given: "there is postgres storage"
         def limit = 3
-        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0,)
+        storage = new PostgresqlStorage(dataSource, limit, batchSize, 0,  retryAfter, 0)
 
         and: 'an existing data store with two different types of messages'
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
