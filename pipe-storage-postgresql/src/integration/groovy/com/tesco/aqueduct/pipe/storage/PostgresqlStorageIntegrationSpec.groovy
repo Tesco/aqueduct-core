@@ -66,7 +66,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         INSERT INTO CLUSTERS (cluster_uuid) VALUES ('NONE');
         """)
 
-        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0)
+        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0,)
     }
 
     @Unroll
@@ -106,7 +106,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         given: "there is postgres storage"
         def limit = 1
         def dataSourceWithMockedConnection = Mock(DataSource)
-        def postgresStorage = new PostgresqlStorage(dataSourceWithMockedConnection, limit, 0, batchSize, 0)
+        def postgresStorage = new PostgresqlStorage(dataSourceWithMockedConnection, limit, 0, batchSize, 0,)
 
         and: "a mock connection is provided when requested"
         def connection = Mock(Connection)
@@ -455,7 +455,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     def "pipe should return messages if available from the given offset instead of empty set"() {
         given: "there is postgres storage"
         def limit = 3
-        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0)
+        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0,)
 
         and: 'an existing data store with two different types of messages'
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
@@ -490,7 +490,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     def "getMessageCountByType should return the count of messages by type"() {
         given: "there is postgres storage"
         def limit = 3
-        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0)
+        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0,)
 
         and: 'an existing data store with two different types of messages'
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))

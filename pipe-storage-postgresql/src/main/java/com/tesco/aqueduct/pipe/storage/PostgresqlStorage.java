@@ -19,17 +19,20 @@ public class PostgresqlStorage implements CentralStorage {
     private final int limit;
     private final DataSource dataSource;
     private final long maxBatchSize;
-    private final long retryAfter;
+    private final long retryAfterNoResults;
+    private final long retryAfterWithResults;
     private final PGInterval readDelay;
 
     public PostgresqlStorage(
         final DataSource dataSource,
         final int limit,
-        final long retryAfter,
+        final long retryAfterNoResults,
         final long maxBatchSize,
-        final int readDelaySeconds
+        final int readDelaySeconds,
+        final long retryAfterWithResults
     ) {
-        this.retryAfter = retryAfter;
+        this.retryAfterNoResults = retryAfterNoResults;
+        this.retryAfterWithResults = retryAfterWithResults;
         this.limit = limit;
         this.dataSource = dataSource;
         this.readDelay = new PGInterval(0, 0, 0, 0, 0, readDelaySeconds);
@@ -55,7 +58,7 @@ public class PostgresqlStorage implements CentralStorage {
             start = System.currentTimeMillis();
 
             final long globalLatestOffset = getLatestOffsetWithConnection(connection);
-            final long retry = startOffset >= globalLatestOffset ? retryAfter : 10;
+            final long retry = startOffset >= globalLatestOffset ? retryAfterNoResults : retryAfterWithResults;
 
             try(PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, clusterUuids)) {
                 final List<Message> messages = runMessagesQuery(messagesQuery);
