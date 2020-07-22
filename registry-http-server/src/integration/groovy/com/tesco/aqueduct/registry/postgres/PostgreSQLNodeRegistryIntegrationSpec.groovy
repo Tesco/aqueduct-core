@@ -8,6 +8,7 @@ import com.tesco.aqueduct.registry.model.Status
 import groovy.sql.Sql
 import org.junit.ClassRule
 import spock.lang.AutoCleanup
+import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -480,6 +481,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         nodesState.get(0).id == "x|http://second"
     }
 
+    @Ignore
     def "the second node in the group with different version to first node should get its own hierarchy"() {
         given: "We have one node registered"
         def firstNode = registerNode("groupA", "http://a1", 123, FOLLOWING, [], ["v": "1.0"])
@@ -492,6 +494,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         secondNode == [cloudURL]
     }
 
+    @Ignore
     def "having third node in the group with different version to first and second node should make three hierarchies"() {
         given: "We have two nodes registered with different version"
         def firstNode = registerNode("groupA", "http://a1", 123, FOLLOWING, [], ["v": "1.0"])
@@ -519,6 +522,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         secondNode == [new URL("http://a1"), cloudURL]
     }
 
+    @Ignore
     def "on new version appearing for an existing node, the hierarchy splits into two trees"() {
         given: "2 nodes"
         long offset = 12345
@@ -560,6 +564,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         followers[1].requestedToFollow == [cloudURL]
     }
 
+    @Ignore
     def "registry marks nodes offline and sorts based on status within their hierarchies"() {
         given: "a registry with a short offline delta"
         registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(5))
@@ -642,6 +647,90 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
 
         // version 2.0
         followers[5].requestedToFollow == [cloudURL]
+    }
+
+    def "registry marks nodes offline and sorts nodes ignoring version"() {
+        given: "a registry with a short offline delta"
+        registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(5))
+
+        and: "6 nodes with different versions"
+        long offset = 12345
+
+        URL url1 = new URL("http://1.1.1.1")
+        Node node1 = createNode("group", url1, offset, FOLLOWING, [cloudURL], null, ["v":"1.0"])
+
+        URL url2 = new URL("http://2.2.2.2")
+        Node node2 = createNode("group", url2, offset, FOLLOWING, [cloudURL], null, ["v":"1.1"])
+
+        URL url3 = new URL("http://3.3.3.3")
+        Node node3 = createNode("group", url3, offset, FOLLOWING, [cloudURL], null, ["v":"1.0"])
+
+        URL url4 = new URL("http://4.4.4.4")
+        Node node4 = createNode("group", url4, offset, FOLLOWING, [cloudURL], null, ["v":"1.1"])
+
+        URL url5 = new URL("http://5.5.5.5")
+        Node node5 = createNode("group", url5, offset, FOLLOWING, [cloudURL], null, ["v":"1.0"])
+
+        URL url6 = new URL("http://6.6.6.6")
+        Node node6 = createNode("group", url6, offset, FOLLOWING, [cloudURL], null, ["v":"2.0"])
+
+        when: "nodes are registered"
+        registry.register(node1)
+        registry.register(node2)
+        registry.register(node3)
+        registry.register(node4)
+        registry.register(node5)
+        registry.register(node6)
+
+        and: "half fail to re-register within the offline delta"
+        sleep 5000
+        registry.register(node3)
+        registry.register(node4)
+        registry.register(node5)
+
+        and: "get summary"
+        def followers = registry.getSummary(
+            offset,
+            FOLLOWING,
+            []
+        ).followers
+
+        then: "nodes are marked as offline and sorted accordingly"
+        // version 1.0
+        followers[0].getLocalUrl() == url3
+        followers[1].getLocalUrl() == url4
+        followers[2].getLocalUrl() == url5
+
+        // version 1.1
+        followers[3].getLocalUrl() == url1
+        followers[4].getLocalUrl() == url2
+
+        // version 2.0
+        followers[5].getLocalUrl() == url6
+
+        // version 1.0
+        followers[0].status == FOLLOWING
+        followers[1].status == FOLLOWING
+        followers[2].status == FOLLOWING
+
+        // version 1.1
+        followers[3].status == OFFLINE
+        followers[4].status == OFFLINE
+
+        // version 2.0
+        followers[5].status == OFFLINE
+
+        // version 1.0
+        followers[0].requestedToFollow == [cloudURL]
+        followers[1].requestedToFollow == [url3, cloudURL]
+        followers[2].requestedToFollow == [url3, cloudURL]
+
+        // version 1.1
+        followers[3].requestedToFollow == [url4, url3, cloudURL]
+        followers[4].requestedToFollow == [url4, url3, cloudURL]
+
+        // version 2.0
+        followers[5].requestedToFollow == [url5, url3, cloudURL]
     }
 
     // provided hierarchy, vs expected hierarchy

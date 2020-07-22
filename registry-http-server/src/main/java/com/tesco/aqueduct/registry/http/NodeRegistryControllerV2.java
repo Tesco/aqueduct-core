@@ -3,13 +3,13 @@ package com.tesco.aqueduct.registry.http;
 import com.tesco.aqueduct.pipe.api.OffsetName;
 import com.tesco.aqueduct.pipe.api.Reader;
 import com.tesco.aqueduct.pipe.metrics.Measure;
-import com.tesco.aqueduct.registry.model.*;
 import com.tesco.aqueduct.registry.model.Status;
+import com.tesco.aqueduct.registry.model.*;
 import com.tesco.aqueduct.registry.utils.RegistryLogger;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.HttpStatus;
-import io.micronaut.http.annotation.*;
 import io.micronaut.http.annotation.Error;
+import io.micronaut.http.annotation.*;
 import io.micronaut.http.hateoas.JsonError;
 import io.micronaut.security.annotation.Secured;
 import io.micronaut.security.rules.SecurityRule;
@@ -19,7 +19,6 @@ import javax.annotation.Nullable;
 import java.net.URL;
 import java.sql.SQLException;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Measure
 @Controller("/v2/registry")

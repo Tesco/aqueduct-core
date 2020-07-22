@@ -20,6 +20,7 @@ import io.restassured.RestAssured
 import org.hamcrest.Matcher
 import org.junit.ClassRule
 import spock.lang.AutoCleanup
+import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -224,6 +225,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
             )
     }
 
+    @Ignore
     def "post to registry without version is a bad request"() {
         expect: "posting to registry without version fails with 422"
         given()
@@ -237,9 +239,9 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
                 "status": "$INITIALISING",
                 "following": ["$CLOUD_PIPE_URL"]
             }""")
-            .when()
+        .when()
             .post("/v2/registry")
-            .then()
+        .then()
             .statusCode(422)
             .body("message", equalTo("Sub group id needs to be available for localhost"))
     }
