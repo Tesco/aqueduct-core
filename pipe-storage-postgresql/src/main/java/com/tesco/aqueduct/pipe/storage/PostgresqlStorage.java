@@ -22,16 +22,17 @@ public class PostgresqlStorage implements CentralStorage {
     private final long retryAfter;
     private final PGInterval readDelay;
     private final int nodeCount;
-    private final int clusterDBPoolSize;
+    private final long clusterDBPoolSize;
 
     public PostgresqlStorage(
-            final DataSource dataSource,
-            final int limit,
-            final long retryAfter,
-            final long maxBatchSize,
-            final int readDelaySeconds,
-            int nodeCount,
-            int clusterDBPoolSize) {
+        final DataSource dataSource,
+        final int limit,
+        final long retryAfter,
+        final long maxBatchSize,
+        final int readDelaySeconds,
+        int nodeCount,
+        long clusterDBPoolSize
+    ) {
         this.retryAfter = retryAfter;
         this.limit = limit;
         this.dataSource = dataSource;

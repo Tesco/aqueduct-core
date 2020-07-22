@@ -36,7 +36,7 @@ public class Bindings {
         @Property(name = "persistence.read.max-batch-size") final int maxBatchSize,
         @Value("${persistence.read.read-delay-seconds:0}") final int readDelaySeconds,
         @Value("${persistence.read.expected-node-count}") final int expectedNodeCount,
-        @Value("${persistence.read.cluster-db-pool-size}") final int clusterDBPoolSize,
+        @Value("${persistence.read.cluster-db-pool-size}") final long clusterDBPoolSize,
         @Named("postgres") final DataSource dataSource
         ) {
         return new PostgresqlStorage(
