@@ -566,7 +566,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
             )
 
         then: "logs contain trace_id in them"
-        TestAppender.getEvents().stream()
+        TestAppender.getEvents()
             .filter { it.loggerName.contains("com.tesco.aqueduct") }
             .allMatch() { it.MDCPropertyMap.get("trace_id") == "someTraceId" }
     }
@@ -590,7 +590,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
             )
 
         then: "logs contain trace_id in them with the correct prefix"
-        TestAppender.getEvents().stream()
+        TestAppender.getEvents()
             .filter { it.loggerName.contains("com.tesco.aqueduct") }
             .allMatch() { it.MDCPropertyMap.get("trace_id").startsWith("aq-") }
     }

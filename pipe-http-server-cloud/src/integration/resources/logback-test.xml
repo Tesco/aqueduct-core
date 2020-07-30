@@ -19,8 +19,22 @@
         </encoder>
     </appender>
 
-    <root level="${LOG_LEVEL:-info}">
-        <appender-ref ref="test-appender"/>
+    <appender name="async_stdout" class="ch.qos.logback.classic.AsyncAppender">
+        <!-- <discardingThreshold>0</discardingThreshold>-->
+        <maxFlushTime>5000</maxFlushTime>
+        <neverBlock>true</neverBlock>
         <appender-ref ref="stdout"/>
+    </appender>
+
+    <appender name="async_test-appender" class="ch.qos.logback.classic.AsyncAppender">
+        <!-- <discardingThreshold>0</discardingThreshold>-->
+        <maxFlushTime>5000</maxFlushTime>
+        <neverBlock>true</neverBlock>
+        <appender-ref ref="test-appender"/>
+    </appender>
+
+    <root level="${LOG_LEVEL:-info}">
+        <appender-ref ref="async_stdout"/>
+        <appender-ref ref="async_test-appender"/>
     </root>
 </configuration>

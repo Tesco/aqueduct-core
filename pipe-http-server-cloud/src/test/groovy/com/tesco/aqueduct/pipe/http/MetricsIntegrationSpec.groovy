@@ -47,7 +47,7 @@ class MetricsIntegrationSpec extends Specification {
 
     def "Metrics are dumped through logs using DumpMetrics component"() {
         expect: "metrics are logged"
-        TestAppender.getEvents().stream()
+        TestAppender.getEvents()
             .anyMatch {
                 it.loggerName.contains("metrics")
             }
