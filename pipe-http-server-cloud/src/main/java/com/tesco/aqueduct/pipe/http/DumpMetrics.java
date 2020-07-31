@@ -60,10 +60,13 @@ public class DumpMetrics {
         details.getMeasurements().forEach(sample -> {
             MDC.put("statistic", sample.getStatistic().name());
             MDC.put("value", String.format("%.2f", sample.getValue()));
+            MDC.put("env", "perf");
         });
 
         LOG.info(metricName);
 
         MDC.remove("statistic");
-        MDC.remove("value");    }
+        MDC.remove("value");
+        MDC.remove("env");
+    }
 }
