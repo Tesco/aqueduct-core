@@ -26,7 +26,7 @@ micronaut:
   server:
     netty:
       worker:
-        threads: 1
+        threads: 100
 
 endpoints:
   all:
