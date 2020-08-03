@@ -23,6 +23,10 @@ micronaut:
     io:
       type: fixed
       nThreads: 20
+  server:
+    netty:
+      worker:
+        threads: 1
 
 endpoints:
   all:
