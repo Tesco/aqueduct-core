@@ -25,5 +25,5 @@ USER aqueductpipe
 ENV BIN_ROOT /opt/aqueduct/pipe
 
 # Run Aqueduct Pipe
-ENTRYPOINT ["/bin/bash", "-c", "java -Xmx10000m -Xms10000m -XX:+UseG1GC -Dmicronaut.config.files=/etc/aqueduct/pipe/application.yml -jar /opt/aqueduct/pipe/pipe-http-server-cloud-*all.jar"]
+ENTRYPOINT ["/bin/bash", "-c", "java -Xmx10000m -Xms10000m -XX:+UseG1GC -Dcom.sun.management.jmxremote -Dcom.sun.management.jmxremote.authenticate=false -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote.local.only=false -Dcom.sun.management.jmxremote.port=1099 -Dcom.sun.management.jmxremote.rmi.port=1099 -Djava.rmi.server.hostname=127.0.0.1 -Dmicronaut.config.files=/etc/aqueduct/pipe/application.yml -jar /opt/aqueduct/pipe/pipe-http-server-cloud-*all.jar"]
 
