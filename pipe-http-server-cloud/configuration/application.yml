@@ -22,7 +22,7 @@ micronaut:
   executors:
     io:
       type: fixed
-      nThreads: 20
+      nThreads: 8
   server:
     netty:
       worker:
@@ -51,7 +51,7 @@ datasources:
     username: "${POSTGRE_USERNAME}"
     password: "${POSTGRE_PASSWORD}"
     driver-class-name: org.postgresql.Driver
-    maximum-pool-size: 20
+    maximum-pool-size: 8
 
 authentication:
   identity:
