@@ -6,6 +6,9 @@ micronaut:
     jdbc.enabled: false
   security:
     enabled: true
+    token.jwt:
+      enabled: false
+      bearer.enabled: true
   caches:
     identity-cache:
       expire-after-write: 10m
