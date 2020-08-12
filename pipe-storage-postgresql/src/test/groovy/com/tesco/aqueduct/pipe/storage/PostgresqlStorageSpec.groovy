@@ -27,12 +27,12 @@ class PostgresqlStorageSpec extends Specification {
         timeOfQueryMs |  noOfMessages | result
         100           |  0            | retryAfter
         1234          |  0            | retryAfter
-        100           |  10000        | 5
-        200           |  10000        | 10
-        10            |  10000        | 1
-        50            |  10000        | 3
-        0             |  10000        | 1
-        1             |  10000        | 1
+        100           |  10000        | retryAfter
+        200           |  10000        | retryAfter
+        10            |  10000        | retryAfter
+        50            |  10000        | retryAfter
+        0             |  10000        | retryAfter
+        1             |  10000        | retryAfter
         700           |  10000        | retryAfter
         1000          |  10000        | retryAfter
     }
