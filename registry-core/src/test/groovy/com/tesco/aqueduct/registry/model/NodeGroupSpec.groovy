@@ -249,7 +249,7 @@ class NodeGroupSpec extends Specification {
         NodeGroup group = new NodeGroup([n1, n2, n3, n4, n5, n6])
 
         when: "sort based on status is called"
-        group.sortOfflineNodes(cloudUrl)
+        group.sortNodes(cloudUrl)
 
         then: "nodes that are offline are sorted to be leaves"
         group.subGroups.get(0).nodes.stream().map({ n -> n.getLocalUrl() }).collect() == [n3Url, n4Url, n5Url, n1Url, n2Url, n6Url]
@@ -313,7 +313,7 @@ class NodeGroupSpec extends Specification {
         NodeGroup group = new NodeGroup([n1, n2, n3, n4, n5, n6])
 
         when: "sort based on status is called"
-        group.sortOfflineNodes(cloudUrl)
+        group.sortNodes(cloudUrl)
 
         then: "the sort order is unchanged"
         group.subGroups.get(0).nodes == [n1, n2, n3, n4, n5, n6]

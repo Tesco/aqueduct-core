@@ -4,11 +4,13 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
+import com.tesco.aqueduct.pipe.api.PipeState;
 import lombok.Builder;
 import lombok.Data;
 
 import java.net.URL;
 import java.time.ZonedDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -109,5 +111,18 @@ public class Node {
     @JsonIgnore
     public boolean isSubGroupIdDifferent(Node node) {
         return !node.getSubGroupId().equals(getSubGroupId());
+    }
+
+    @JsonIgnore
+    public PipeState getPipeState() {
+        if (!pipe.containsKey("pipeState")) {
+            return PipeState.UNKNOWN;
+        }
+
+        if (Arrays.stream(PipeState.class.getEnumConstants()).noneMatch(e -> e.name().equals(pipe.get("pipeState")))) {
+            return PipeState.UNKNOWN;
+        }
+
+        return PipeState.valueOf(pipe.get("pipeState"));
     }
 }

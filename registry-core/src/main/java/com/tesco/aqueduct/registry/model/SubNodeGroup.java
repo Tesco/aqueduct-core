@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.tesco.aqueduct.registry.model.Status.OFFLINE;
+import static java.util.Comparator.comparing;
 
 @EqualsAndHashCode
 public class SubNodeGroup {
@@ -104,12 +105,13 @@ public class SubNodeGroup {
         return nodes.get(index);
     }
 
-    public void sortOfflineNodes(URL cloudUrl) {
-        nodes.sort(this::comparingStatus);
+    public void sortNodes(URL cloudUrl) {
+        nodes.sort(comparing(Node::getPipeState));
+        nodes.sort(this::comparingOfflineStatus);
         updateGetFollowing(cloudUrl);
     }
 
-    private int comparingStatus(Node node1, Node node2) {
+    private int comparingOfflineStatus(Node node1, Node node2) {
         if (node1.isOffline() && !node2.isOffline()) {
             return 1;
         } else if (!node1.isOffline() && node2.isOffline()) {

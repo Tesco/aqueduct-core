@@ -1,6 +1,8 @@
 package com.tesco.aqueduct.registry.model
 
+import com.tesco.aqueduct.pipe.api.PipeState
 import spock.lang.Specification
+import spock.lang.Unroll
 
 class NodeSpec extends Specification {
     def "Node has id"() {
@@ -35,5 +37,26 @@ class NodeSpec extends Specification {
         def result = testNode.getHost()
         then: "the result is the host from the URL"
         result == "test-url"
+    }
+
+    @Unroll
+    def "Can get pipeState"() {
+        given: "A node with pipeState in pipe"
+        def node = Node.builder().pipe(map).build()
+
+        when: "get pipeState"
+        PipeState result = node.getPipeState()
+
+        then:
+        result == expectedValue
+
+        where:
+        map                          | expectedValue
+        ["pipeState": "UP_TO_DATE"]  | PipeState.UP_TO_DATE
+        ["pipeState": "OUT_OF_DATE"] | PipeState.OUT_OF_DATE
+        ["pipeState": "UNKNOWN"]     | PipeState.UNKNOWN
+        ["":""]                      | PipeState.UNKNOWN
+        ["pipeState": "gibberish"]   | PipeState.UNKNOWN
+        ["v": "1.0"]                 | PipeState.UNKNOWN
     }
 }

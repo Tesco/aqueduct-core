@@ -64,10 +64,6 @@ public class NodeGroup {
         subGroups.forEach(subGroup -> subGroup.markNodesOfflineIfNotSeenSince(threshold));
     }
 
-    private void sortOfflineNodes(final URL cloudUrl) {
-        subGroups.forEach(subGroup -> subGroup.sortOfflineNodes(cloudUrl));
-    }
-
     public Node upsert(final Node nodeToRegister, final URL cloudUrl) {
         SubNodeGroup subGroup = findOrCreateSubGroupFor(nodeToRegister);
 
@@ -106,8 +102,12 @@ public class NodeGroup {
         }
     }
 
-    public void processOfflineNodes(ZonedDateTime threshold, URL cloudUrl) {
+    public void processNodes(ZonedDateTime threshold, URL cloudUrl) {
         markNodesOfflineIfNotSeenSince(threshold);
-        sortOfflineNodes(cloudUrl);
+        sortNodes(cloudUrl);
+    }
+
+    private void sortNodes(final URL cloudUrl) {
+        subGroups.forEach(subGroup -> subGroup.sortNodes(cloudUrl));
     }
 }
