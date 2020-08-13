@@ -57,8 +57,8 @@ public class PostgreSQLNodeRegistry implements NodeRegistry {
             Node node = group.upsert(nodeToRegister, cloudUrl);
             LOG.info("upsert", Long.toString(System.currentTimeMillis() - start));
 
-            group.processOfflineNodes(ZonedDateTime.now().minus(offlineDelta), cloudUrl);
-            LOG.info("process offline node", Long.toString(System.currentTimeMillis() - start));
+            group.processNodes(ZonedDateTime.now().minus(offlineDelta), cloudUrl);
+            LOG.info("process node", Long.toString(System.currentTimeMillis() - start));
 
             group.persist(connection);
             LOG.info("persist group", Long.toString(System.currentTimeMillis() - start));

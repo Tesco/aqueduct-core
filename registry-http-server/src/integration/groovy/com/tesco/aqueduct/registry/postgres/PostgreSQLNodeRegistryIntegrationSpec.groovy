@@ -97,7 +97,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         followers.size() == 1
     }
 
-    def "registry marks nodes offline and sorts based on status"() {
+    def "registry marks nodes offline and sorts based on status and pipeState"() {
         given: "a registry with a short offline delta"
         registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(5))
 
@@ -105,22 +105,22 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         long offset = 12345
 
         URL url1 = new URL("http://1.1.1.1")
-        Node node1 = createNode("group", url1, offset, FOLLOWING, [cloudURL])
+        Node node1 = createNode("group", url1, offset, FOLLOWING, [cloudURL], null,["v":"2.0","pipeState":"UNKNOWN"])
 
         URL url2 = new URL("http://2.2.2.2")
-        Node node2 = createNode("group", url2, offset, FOLLOWING, [cloudURL])
+        Node node2 = createNode("group", url2, offset, FOLLOWING, [cloudURL], null,["v":"2.0","pipeState":"UP_TO_DATE"])
 
         URL url3 = new URL("http://3.3.3.3")
-        Node node3 = createNode("group", url3, offset, FOLLOWING, [cloudURL])
+        Node node3 = createNode("group", url3, offset, FOLLOWING, [cloudURL], null,["v":"2.0","pipeState":"UP_TO_DATE"])
 
         URL url4= new URL("http://4.4.4.4")
-        Node node4 = createNode("group", url4, offset, FOLLOWING, [cloudURL])
+        Node node4 = createNode("group", url4, offset, FOLLOWING, [cloudURL], null,["v":"2.0","pipeState":"OUT_OF_DATE"])
 
         URL url5 = new URL("http://5.5.5.5")
-        Node node5 = createNode("group", url5, offset, FOLLOWING, [cloudURL])
+        Node node5 = createNode("group", url5, offset, FOLLOWING, [cloudURL], null,["v":"2.0","pipeState":"UP_TO_DATE"])
 
         URL url6 = new URL("http://6.6.6.6")
-        Node node6 = createNode("group", url6, offset, FOLLOWING, [cloudURL])
+        Node node6 = createNode("group", url6, offset, FOLLOWING, [cloudURL], null,["v":"2.0","pipeState":"OUT_OF_DATE"])
 
         when: "nodes are registered"
         registry.register(node1)
@@ -146,11 +146,11 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
 
         then: "nodes are marked as offline and sorted accordingly"
         followers[0].getLocalUrl() == url3
-        followers[1].getLocalUrl() == url4
-        followers[2].getLocalUrl() == url5
-        followers[3].getLocalUrl() == url1
-        followers[4].getLocalUrl() == url2
-        followers[5].getLocalUrl() == url6
+        followers[1].getLocalUrl() == url5
+        followers[2].getLocalUrl() == url4
+        followers[3].getLocalUrl() == url2
+        followers[4].getLocalUrl() == url6
+        followers[5].getLocalUrl() == url1
 
         followers[0].status == FOLLOWING
         followers[1].status == FOLLOWING
@@ -162,9 +162,9 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         followers[0].requestedToFollow == [cloudURL]
         followers[1].requestedToFollow == [url3, cloudURL]
         followers[2].requestedToFollow == [url3, cloudURL]
-        followers[3].requestedToFollow == [url4, url3, cloudURL]
-        followers[4].requestedToFollow == [url4, url3, cloudURL]
-        followers[5].requestedToFollow == [url5, url3, cloudURL]
+        followers[3].requestedToFollow == [url5, url3, cloudURL]
+        followers[4].requestedToFollow == [url5, url3, cloudURL]
+        followers[5].requestedToFollow == [url4, url3, cloudURL]
     }
 
     @Unroll
