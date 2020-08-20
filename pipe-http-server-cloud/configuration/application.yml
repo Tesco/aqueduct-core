@@ -41,8 +41,6 @@ datasources:
     password: "${POSTGRE_PASSWORD}"
     driver-class-name: org.postgresql.Driver
     maximum-pool-size: 6
-    max-lifetime: 600000
-    leak-detection-threshold: 60000
 
 authentication:
   identity:

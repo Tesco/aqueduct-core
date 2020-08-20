@@ -1,6 +1,16 @@
 dependencies {
     compile project(":pipe-api")
     compile project(":pipe-logger")
+
+    compile 'com.github.java-json-tools:json-patch:1.13'
+
+    compile 'com.nixxcode.jvmbrotli:jvmbrotli:0.2.0'
+
+    // it would be nicer if done as optional
+    compile 'com.nixxcode.jvmbrotli:jvmbrotli-linux-x86-amd64:0.2.0'
+    testCompile 'com.nixxcode.jvmbrotli:jvmbrotli-win32-x86-amd64:0.2.0'
+    testCompile 'com.nixxcode.jvmbrotli:jvmbrotli-darwin-x86-amd64:0.2.0'
+
     testCompile project(":pipe-storage-test")
 }
 

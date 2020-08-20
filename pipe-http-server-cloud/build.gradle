@@ -1,3 +1,5 @@
+import org.gradle.internal.os.OperatingSystem;
+
 apply plugin: 'application'
 apply plugin: 'com.github.johnrengelman.shadow'
 
@@ -17,6 +19,13 @@ dependencies {
 
     compile 'io.micronaut:micronaut-http-client'
     compile 'com.sun.activation:javax.activation:1.2.0'
+
+    compile 'com.nixxcode.jvmbrotli:jvmbrotli:0.2.0'
+    // it would be nicer if done as optional
+    compile 'com.nixxcode.jvmbrotli:jvmbrotli-linux-x86-amd64:0.2.0'
+    testCompile 'com.nixxcode.jvmbrotli:jvmbrotli-win32-x86-amd64:0.2.0'
+    testCompile 'com.nixxcode.jvmbrotli:jvmbrotli-darwin-x86-amd64:0.2.0'
+
     testCompile 'com.opentable.components:otj-pg-embedded:0.13.0'
     testCompile project(":pipe-storage-memory")
 }

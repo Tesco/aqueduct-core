@@ -5,12 +5,12 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import lombok.Data;
-import lombok.experimental.Wither;
+import lombok.With;
 
 import java.time.ZonedDateTime;
 
 @Data
-@Wither
+@With
 public class Message {
     private final String type;
     private final String key;
