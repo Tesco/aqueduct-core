@@ -1,4 +1,4 @@
-package com.tesco.aqueduct.pipe
+
 
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
@@ -63,7 +63,7 @@ class CloudAqueductConfigIntegrationSpec extends Specification {
                 if (beanDefinition.getAnnotation(Named) != null) {
                     loadNamed(beanDefinition, context)
                 } else {
-                    context.getBean(beanDefinition.beanType)
+                    context.getBeansOfType(beanDefinition.beanType)
                 }
             }
     }

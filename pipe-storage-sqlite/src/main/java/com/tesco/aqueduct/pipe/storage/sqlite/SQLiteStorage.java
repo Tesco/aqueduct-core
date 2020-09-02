@@ -148,15 +148,113 @@ public class SQLiteStorage implements DistributedStorage {
         execute(SQLiteQueries.INSERT_EVENT,
             (connection, statement) -> {
                 connection.setAutoCommit(false);
-
-                for (final Message message : messages) {
-                    setStatementParametersForInsertMessageQuery(statement, message);
-                    statement.addBatch();
-                }
-
-                statement.executeBatch();
+                insertMessagesAsBatch(statement, messages);
                 connection.commit();
             });
+    }
+
+    @Override
+    public void write(final PipeEntity pipeEntity) {
+        if (pipeEntity == null || nothingToWriteIn(pipeEntity)) {
+            throw new IllegalArgumentException("Pipe entity data cannot be null.");
+        }
+
+        Connection connection = null;
+
+        try {
+            connection = dataSource.getConnection();
+
+            try (final PreparedStatement insertMessageStmt = connection.prepareStatement(SQLiteQueries.INSERT_EVENT);
+                 final PreparedStatement upsertOffsetStmt = connection.prepareStatement(SQLiteQueries.UPSERT_OFFSET);
+                 final PreparedStatement upsertPipeStateStmt = connection.prepareStatement(SQLiteQueries.UPSERT_PIPE_STATE)
+            ) {
+                // Start transaction
+                connection.setAutoCommit(false);
+
+                // Insert messages
+                if (pipeEntity.getMessages() != null && !pipeEntity.getMessages().isEmpty()) {
+                    insertMessagesAsBatch(insertMessageStmt, pipeEntity.getMessages());
+                }
+
+                // Insert offsets
+                if (pipeEntity.getOffsets() != null && !pipeEntity.getOffsets().isEmpty()) {
+                    upsertOffsetsAsBatch(upsertOffsetStmt, pipeEntity.getOffsets());
+                }
+
+                // Insert pipe state
+                if (pipeEntity.getPipeState() != null) {
+                    upsertPipeState(upsertPipeStateStmt, pipeEntity.getPipeState());
+                }
+
+                // commit transaction
+                connection.commit();
+            }
+        } catch (final Exception exception) { // Catch all exceptions so that data is rolled back and connection's mode is reset
+            rollback(connection);
+            throw new RuntimeException(exception);
+
+        } finally {
+            close(connection);
+        }
+    }
+
+    private void close(Connection connection) {
+        try {
+            if (connection != null) {
+                connection.close();
+            }
+        } catch (SQLException sqlException) {
+            LOG.error("write", "Error while closing connection", sqlException);
+            throw new RuntimeException(sqlException);
+        }
+    }
+
+    private boolean nothingToWriteIn(PipeEntity pipeEntity) {
+        return pipeEntity.getPipeState() == null
+                && (pipeEntity.getOffsets() == null || pipeEntity.getOffsets().isEmpty())
+                && (pipeEntity.getMessages() == null || pipeEntity.getMessages().isEmpty());
+    }
+
+    private void upsertPipeState(PreparedStatement upsertPipeStateStmt, PipeState pipeState) throws SQLException {
+        upsertPipeStateStmt.setString(1, "pipe_state");
+        upsertPipeStateStmt.setString(2, pipeState.toString());
+        upsertPipeStateStmt.setString(3, pipeState.toString());
+        upsertPipeStateStmt.execute();
+    }
+
+    private void rollback(Connection connection) {
+        if (connection != null) {
+            try {
+                if (!connection.getAutoCommit()) {
+                    connection.rollback();
+                }
+            } catch (SQLException sqlException) {
+                LOG.error("write", "Could not rollback pipe entity transaction.", sqlException);
+                throw new RuntimeException(sqlException);
+            }
+        }
+    }
+
+    private void upsertOffsetsAsBatch(PreparedStatement insertOffsetStmt, List<OffsetEntity> offsets) throws SQLException {
+        for (final OffsetEntity offset : offsets) {
+            setStatementParametersForOffsetQuery(insertOffsetStmt, offset);
+            insertOffsetStmt.addBatch();
+        }
+        insertOffsetStmt.executeBatch();
+    }
+
+    private void insertMessagesAsBatch(PreparedStatement insertMessageStmt, Iterable<Message> messages) throws SQLException {
+        for (final Message message : messages) {
+            setStatementParametersForInsertMessageQuery(insertMessageStmt, message);
+            insertMessageStmt.addBatch();
+        }
+        insertMessageStmt.executeBatch();
+    }
+
+    private void setStatementParametersForOffsetQuery(PreparedStatement insertOffsetStmt, OffsetEntity offset) throws SQLException {
+        insertOffsetStmt.setString(1, offset.getName().toString());
+        insertOffsetStmt.setLong(2, offset.getValue().getAsLong());
+        insertOffsetStmt.setLong(3, offset.getValue().getAsLong());
     }
 
     @Override
@@ -175,9 +273,7 @@ public class SQLiteStorage implements DistributedStorage {
         execute(
             SQLiteQueries.UPSERT_OFFSET,
             (connection, statement) -> {
-                statement.setString(1, offset.getName().toString());
-                statement.setLong(2, offset.getValue().getAsLong());
-                statement.setLong(3, offset.getValue().getAsLong());
+                setStatementParametersForOffsetQuery(statement, offset);
                 statement.execute();
             }
         );
@@ -188,10 +284,7 @@ public class SQLiteStorage implements DistributedStorage {
         execute(
             SQLiteQueries.UPSERT_PIPE_STATE,
             ((connection, statement) -> {
-                statement.setString(1, "pipe_state");
-                statement.setString(2, pipeState.toString());
-                statement.setString(3, pipeState.toString());
-                statement.execute();
+                upsertPipeState(statement, pipeState);
             })
         );
     }

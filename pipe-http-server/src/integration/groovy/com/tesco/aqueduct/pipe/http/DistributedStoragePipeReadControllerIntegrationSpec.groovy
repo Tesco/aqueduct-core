@@ -30,7 +30,8 @@ class DistributedStoragePipeReadControllerIntegrationSpec extends Specification 
 
     // overloads of settings for this test
     @Shared propertyOverloads = [
-        "pipe.http.server.read.response-size-limit-in-bytes": "200"
+        "pipe.http.server.read.response-size-limit-in-bytes": "200",
+        "micronaut.security.enabled": "false"
     ]
 
     void setupSpec() {

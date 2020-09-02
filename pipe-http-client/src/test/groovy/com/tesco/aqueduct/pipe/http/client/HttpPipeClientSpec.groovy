@@ -1,22 +1,13 @@
 package com.tesco.aqueduct.pipe.http.client
 
-import com.tesco.aqueduct.pipe.api.HttpHeaders
-import com.tesco.aqueduct.pipe.api.Message
-import com.tesco.aqueduct.pipe.api.MessageResults
-import com.tesco.aqueduct.pipe.api.OffsetName
-import com.tesco.aqueduct.pipe.api.PipeState
-import io.micronaut.cache.CacheManager
-import io.micronaut.cache.SyncCache
+import com.tesco.aqueduct.pipe.api.*
 import io.micronaut.http.HttpResponse
 import spock.lang.Specification
 
 class HttpPipeClientSpec extends Specification {
 
     InternalHttpPipeClient internalClient = Mock()
-    CacheManager cacheManager = Mock() {
-        getCache(_) >> Mock(SyncCache)
-    }
-    HttpPipeClient client = new HttpPipeClient(internalClient, cacheManager)
+    HttpPipeClient client = new HttpPipeClient(internalClient)
 
     def "a read from the implemented interface method returns a result with the retry after and messages"() {
         given: "call returns a http response with retry after header"

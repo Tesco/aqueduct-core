@@ -88,10 +88,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         offset.getAsLong() == 3
 
         where:
-        offsetName                      | _
-        OffsetName.GLOBAL_LATEST_OFFSET | _
-        OffsetName.PIPE_OFFSET          | _
-        OffsetName.LOCAL_LATEST_OFFSET  | _
+        offsetName << [OffsetName.GLOBAL_LATEST_OFFSET, OffsetName.PIPE_OFFSET, OffsetName.LOCAL_LATEST_OFFSET]
     }
 
     def "get pipe state as up to date always"() {
@@ -121,7 +118,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         postgresStorage.read(["some_type"], 0, ["clusterId"])
 
         then: "a query is created that contain given type and cluster including default cluster in the where clause"
-        1 * preparedStatement.setLong(_, 0)
+        2 * preparedStatement.setLong(_, 0)
         1 * preparedStatement.setString(_, "some_type")
         1 * preparedStatement.setString(_, "clusterId,NONE")
     }
@@ -327,10 +324,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.globalLatestOffset == OptionalLong.of(3)
 
         where:
-        type    | _
-        "type1" | _
-        "type2" | _
-        "type3" | _
+        type << ["type1", "type2", "type3"]
     }
 
     def 'pipe should return all messages when no types are provided and all messages have default cluster'(){
@@ -498,6 +492,54 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         result.get("type2") == 3
 
         noExceptionThrown()
+    }
+
+    @Unroll
+    def "when messages have out of order created_utc, we read up to the message with minimum offset outside the limit"() {
+        given:
+        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0, 1, 1)
+        storage.currentTimestamp = "TO_TIMESTAMP( '2000-12-01 10:00:01', 'YYYY-MM-DD HH:MI:SS' )"
+
+        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+        insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+        insert(message(3, "type1", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+
+        // messages out of order
+        insert(message(4, "type1", "D", "content-type", ZonedDateTime.parse("2000-12-01T10:00:01Z"), "data"))
+        insert(message(5, "type1", "E", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+        insert(message(6, "type1", "F", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+        insert(message(7, "type1", "G", "content-type", ZonedDateTime.parse("2000-12-01T10:00:01Z"), "data"))
+        insert(message(8, "type1", "H", "content-type", ZonedDateTime.parse("2000-12-01T10:00:01Z"), "data"))
+
+        when: 'reading all messages'
+        def messageResults = storage.read(types, 1, [])
+
+        then: 'messages are provided for the given type'
+        messageResults.messages.size() == 3
+        messageResults.messages*.key == ["A", "B", "C"]
+        messageResults.messages*.offset*.intValue() == [1, 2, 3]
+        messageResults.globalLatestOffset == OptionalLong.of(3)
+
+        where:
+        types << [ [], ["type1"] ]
+    }
+
+    @Unroll
+    def "read up to the last message in the pipe when all are in the visibility window"() {
+        given:
+        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+
+        when: 'reading all messages'
+        def messageResults = storage.read(types, 1, [])
+
+        then: 'messages are provided for the given type'
+        messageResults.messages.size() == 1
+        messageResults.messages*.key == ["A"]
+        messageResults.messages*.offset*.intValue() == [1]
+        messageResults.globalLatestOffset == OptionalLong.of(1)
+
+        where:
+        types << [ [], ["type1"] ]
     }
 
     @Override

@@ -1,6 +1,6 @@
 dependencies {
-    compile project(":pipe-api")
-    compile project(":pipe-logger")
+    implementation project(":pipe-api")
+    implementation project(":pipe-logger")
     addMicronautDependencies()
 }
 

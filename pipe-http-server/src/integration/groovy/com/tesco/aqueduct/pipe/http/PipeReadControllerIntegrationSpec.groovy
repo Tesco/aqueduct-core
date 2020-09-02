@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.equalTo
 @Newify(Message)
 @MicronautTest
 @Property(name="pipe.http.server.read.response-size-limit-in-bytes", value="200")
+@Property(name="micronaut.security.enabled", value="false")
 class PipeReadControllerIntegrationSpec extends Specification {
 
     @Inject @Named("local")
@@ -39,6 +40,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
 
     void setup() {
         RestAssured.port = server.port
+
         locationResolver.resolve(_) >> ["cluster1"]
         pipeStateProvider.getState(*_) >> new PipeStateResponse(true, 0)
     }

@@ -74,6 +74,8 @@ class LocationRoutingIntegrationSpec extends Specification {
                 "authentication.identity.issue.token.path":     "$ISSUE_TOKEN_PATH",
                 "authentication.identity.attempts":             "3",
                 "authentication.identity.delay":                "10ms",
+                "authentication.identity.users.userA.clientId": "someClientUserId",
+                "authentication.identity.users.userA.roles":    "PIPE_READ",
 
                 "location.url":                                 "${locationMockService.getHttpUrl() + "$LOCATION_BASE_PATH/"}",
                 "location.attempts":                            3,

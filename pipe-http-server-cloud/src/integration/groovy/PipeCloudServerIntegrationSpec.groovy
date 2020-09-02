@@ -73,8 +73,8 @@ class PipeCloudServerIntegrationSpec extends Specification {
                 "persistence.read.retry-after": 10000,
                 "persistence.read.max-batch-size": "10485760",
                 "persistence.read.expected-node-count": 2,
-                "persistence.read.cluster-db-pool-size": 10
-
+                "persistence.read.cluster-db-pool-size": 10,
+                "micronaut.security.enabled": "false"
             )
             .mainClass(EmbeddedServer)
             .build()

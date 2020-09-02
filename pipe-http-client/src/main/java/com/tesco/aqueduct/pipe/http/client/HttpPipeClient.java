@@ -1,7 +1,6 @@
 package com.tesco.aqueduct.pipe.http.client;
 
 import com.tesco.aqueduct.pipe.api.*;
-import io.micronaut.cache.CacheManager;
 import io.micronaut.http.HttpResponse;
 
 import javax.annotation.Nullable;
@@ -15,12 +14,10 @@ import java.util.OptionalLong;
 public class HttpPipeClient implements Reader {
 
     private final InternalHttpPipeClient client;
-    private final CacheManager cacheManager;
 
     @Inject
-    public HttpPipeClient(final InternalHttpPipeClient client, final CacheManager cacheManager) {
+    public HttpPipeClient(final InternalHttpPipeClient client) {
         this.client = client;
-        this.cacheManager = cacheManager;
     }
 
     @Override

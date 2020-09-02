@@ -3,8 +3,8 @@ import io.micronaut.context.ApplicationContext
 import io.micronaut.inject.qualifiers.Qualifiers
 import io.micronaut.runtime.server.EmbeddedServer
 import io.restassured.RestAssured
-import org.junit.Ignore
 import spock.lang.AutoCleanup
+import spock.lang.Ignore
 import spock.lang.Specification
 
 import javax.sql.DataSource
@@ -25,7 +25,8 @@ class SwaggerIntegrationSpec extends Specification {
                 "persistence.read.retry-after": 10000,
                 "persistence.read.max-batch-size": "10485760",
                 "micronaut.router.static-resources.swagger.paths": "classpath:META-INF/swagger",
-                "micronaut.router.static-resources.swagger.mapping": "/swagger/**"
+                "micronaut.router.static-resources.swagger.mapping": "/swagger/**",
+                "micronaut.security.enabled": "false"
             )
             .mainClass(PipeStatusController)
             .build()
@@ -52,8 +53,8 @@ class SwaggerIntegrationSpec extends Specification {
         then: "response is correct"
         def response = """{"upToDate":true,"localOffset":"100"}"""
         request
-                .then()
-                .statusCode(200)
-                .body(equalTo(response))
+            .then()
+            .statusCode(200)
+            .body(equalTo(response))
     }
 }

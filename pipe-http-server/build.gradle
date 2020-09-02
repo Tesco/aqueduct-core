@@ -1,18 +1,12 @@
 dependencies {
-    compile project(":pipe-api")
-    compile project(":pipe-logger")
+    implementation project(":pipe-api")
+    implementation project(":pipe-logger")
 
     addMicronautDependencies()
 
-    compile 'io.micronaut:micronaut-http-server-netty'
+    implementation 'io.micronaut:micronaut-http-server-netty'
 
-    compile 'org.slf4j:slf4j-api:1.7.25'
-    compile 'ch.qos.logback:logback-classic:1.2.3'
-    compile 'ch.qos.logback.contrib:logback-json-classic:0.1.5'
-    compile 'ch.qos.logback.contrib:logback-jackson:0.1.5'
-    compile 'com.fasterxml.jackson.core:jackson-databind:2.9.8'
-
-    testCompile project(":pipe-storage-memory")
+    testImplementation project(":pipe-storage-memory")
 }
 
 addPublish()

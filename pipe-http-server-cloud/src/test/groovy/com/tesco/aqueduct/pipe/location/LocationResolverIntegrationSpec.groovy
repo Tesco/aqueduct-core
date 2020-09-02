@@ -56,7 +56,7 @@ class LocationResolverIntegrationSpec extends Specification {
                 .properties(
                     parseYamlConfig(
                     """
-                    micronaut.caches.cluster-cache..expire-after-write: $CACHE_EXPIRY_HOURS
+                    micronaut.caches.cluster-cache.expire-after-write: $CACHE_EXPIRY_HOURS
                     location:
                         url:                    $locationBasePath
                         attempts:               3
@@ -75,8 +75,8 @@ class LocationResolverIntegrationSpec extends Specification {
                 )
                 .build()
         context.start()
-        context.registerSingleton(new CloudLocationResolver(context.getBean(LocationServiceClient)))
-        context.registerSingleton(new IdentityIssueTokenProvider(context.getBean(IdentityIssueTokenClient), CLIENT_ID, CLIENT_SECRET))
+        context.registerSingleton(new CloudLocationResolver(() -> context.getBean(LocationServiceClient)))
+        context.registerSingleton(new IdentityIssueTokenProvider(() -> context.getBean(IdentityIssueTokenClient), CLIENT_ID, CLIENT_SECRET))
 
         def server = context.getBean(EmbeddedServer)
         server.start()

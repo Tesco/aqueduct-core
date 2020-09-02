@@ -1,10 +1,11 @@
 dependencies {
-    compile project (":registry-core")
+    implementation project (":registry-core")
+    implementation project (":pipe-api")
 
     addMicronautDependencies()
 
-    compile 'io.micronaut:micronaut-http-client'
-    compile "org.slf4j:slf4j-api:1.7.25"
+    implementation 'io.micronaut:micronaut-http-client'
+    addSlf4jDependencies()
 }
 
 addPublish()

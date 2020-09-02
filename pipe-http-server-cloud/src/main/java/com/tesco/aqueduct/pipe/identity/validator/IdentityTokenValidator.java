@@ -2,11 +2,13 @@ package com.tesco.aqueduct.pipe.identity.validator;
 
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityServiceUnavailableException;
 import com.tesco.aqueduct.pipe.logger.PipeLogger;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import io.micronaut.cache.annotation.Cacheable;
 import io.micronaut.context.annotation.Requires;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.core.async.annotation.SingleResult;
 import io.micronaut.core.order.Ordered;
+import io.micronaut.http.HttpRequest;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import io.micronaut.scheduling.TaskExecutors;
 import io.micronaut.security.authentication.Authentication;
@@ -52,10 +54,15 @@ public class IdentityTokenValidator implements TokenValidator {
         this.users = users;
     }
 
+    @Override // Deprecated, hence remove at some point
+    public Publisher<Authentication> validateToken(String token) {
+        return validateToken(token, null);
+    }
+
     @Override
     @SingleResult
-    @Cacheable("identity-cache")
-    public Publisher<Authentication> validateToken(String token) {
+    @Cacheable(value="identity-cache", parameters = "token")
+    public Publisher<Authentication> validateToken(String token, @Nullable HttpRequest<?> request) {
 
         if (token == null) {
             LOG.error("token validator", "null token", "");
@@ -64,7 +71,7 @@ public class IdentityTokenValidator implements TokenValidator {
 
         return identityTokenValidatorClient
             .validateToken(traceId(), new ValidateTokenRequest(token), clientIdAndSecret)
-            .doOnError(this::handleError)
+            .doOnError(error -> handleError(error))
             // Need to observe on configured thread pool so our blocking controller continues on this thread pool too.
             // @executeOn annotation supported by Micronaut 2.0 doesn't seem to work in conjunction with Micronaut TokenValidator
             // we raised an issue to Micronaut: https://github.com/micronaut-projects/micronaut-security/issues/313
@@ -101,7 +108,7 @@ public class IdentityTokenValidator implements TokenValidator {
 
         UserDetails userDetails = new UserDetails(clientId, roles);
 
-        return new AuthenticationUserDetailsAdapter(userDetails, "roles");
+        return new AuthenticationUserDetailsAdapter(userDetails, "roles", "user");
     }
 
     //lowest precedence chosen so it is used after others

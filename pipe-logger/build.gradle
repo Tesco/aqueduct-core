@@ -1,11 +1,11 @@
 dependencies {
-    compile project(":pipe-api")
+    implementation project(":pipe-api")
     
-    compile 'org.slf4j:slf4j-api:1.7.25'
-    compile 'ch.qos.logback:logback-classic:1.2.3'
-    compile 'ch.qos.logback.contrib:logback-json-classic:0.1.5'
-    compile 'ch.qos.logback.contrib:logback-jackson:0.1.5'
-    compile 'com.google.code.gson:gson:2.8.5'
+    addSlf4jDependencies()
+    implementation 'ch.qos.logback:logback-classic:1.2.3'
+    implementation 'ch.qos.logback.contrib:logback-json-classic:0.1.5'
+    implementation 'ch.qos.logback.contrib:logback-jackson:0.1.5'
+    implementation 'com.google.code.gson:gson:2.8.5'
 }
 
 addPublish()

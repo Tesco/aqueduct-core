@@ -24,7 +24,7 @@ class IdentityIssueTokenProviderSpec extends Specification {
         identityIssueTokenClient = Mock()
 
         identityIssueTokenProvider = new IdentityIssueTokenProvider(
-            identityIssueTokenClient,
+            () -> identityIssueTokenClient,
             IDENTITY_CLIENT_ID,
             IDENTITY_CLIENT_SECRET
         )

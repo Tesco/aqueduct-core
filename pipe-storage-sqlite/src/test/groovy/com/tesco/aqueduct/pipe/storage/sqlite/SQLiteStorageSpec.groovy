@@ -1,9 +1,6 @@
 package com.tesco.aqueduct.pipe.storage.sqlite
 
-import com.tesco.aqueduct.pipe.api.Message
-import com.tesco.aqueduct.pipe.api.MessageResults
-import com.tesco.aqueduct.pipe.api.OffsetEntity
-import com.tesco.aqueduct.pipe.api.PipeState
+import com.tesco.aqueduct.pipe.api.*
 import spock.lang.Shared
 import spock.lang.Specification
 
@@ -165,5 +162,60 @@ class SQLiteStorageSpec extends Specification {
 
         then: 'global offset that is read is not the concurrently written one, but a consistent one'
         messageResults.globalLatestOffset.asLong == 1L
+    }
+
+    def "Illegal argument error when pipe entity is null"() {
+        given:
+        sqliteStorage = new SQLiteStorage(dataSource, 1, 1, 1)
+
+        when:
+        sqliteStorage.write((PipeEntity)null)
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
+    def "Illegal argument error when pipe entity data is null"() {
+        given:
+        sqliteStorage = new SQLiteStorage(dataSource, 1, 1, 1)
+
+        when:
+        sqliteStorage.write(new PipeEntity(null, null, null))
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
+    def "Illegal argument error when messages within pipe entity is empty"() {
+        given:
+        sqliteStorage = new SQLiteStorage(dataSource, 1, 1, 1)
+
+        when:
+        sqliteStorage.write(new PipeEntity([], null, null))
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
+    def "Illegal argument error when messages and offsets within pipe entity is empty"() {
+        given:
+        sqliteStorage = new SQLiteStorage(dataSource, 1, 1, 1)
+
+        when:
+        sqliteStorage.write(new PipeEntity([], [], null))
+
+        then:
+        thrown(IllegalArgumentException)
+    }
+
+    def "Illegal argument error when only offsets within pipe entity is empty"() {
+        given:
+        sqliteStorage = new SQLiteStorage(dataSource, 1, 1, 1)
+
+        when:
+        sqliteStorage.write(new PipeEntity(null, [], null))
+
+        then:
+        thrown(IllegalArgumentException)
     }
 }

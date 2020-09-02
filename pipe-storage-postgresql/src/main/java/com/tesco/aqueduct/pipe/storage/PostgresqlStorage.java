@@ -2,7 +2,6 @@ package com.tesco.aqueduct.pipe.storage;
 
 import com.tesco.aqueduct.pipe.api.*;
 import com.tesco.aqueduct.pipe.logger.PipeLogger;
-import org.postgresql.util.PGInterval;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
@@ -20,9 +19,10 @@ public class PostgresqlStorage implements CentralStorage {
     private final DataSource dataSource;
     private final long maxBatchSize;
     private final long retryAfter;
-    private final PGInterval readDelay;
+    private final int readDelaySeconds;
     private final int nodeCount;
     private final long clusterDBPoolSize;
+    private String currentTimestamp = "CURRENT_TIMESTAMP";
 
     public PostgresqlStorage(
         final DataSource dataSource,
@@ -36,7 +36,7 @@ public class PostgresqlStorage implements CentralStorage {
         this.retryAfter = retryAfter;
         this.limit = limit;
         this.dataSource = dataSource;
-        this.readDelay = new PGInterval(0, 0, 0, 0, 0, readDelaySeconds);
+        this.readDelaySeconds = readDelaySeconds;
         this.nodeCount = nodeCount;
         this.clusterDBPoolSize = clusterDBPoolSize;
         this.maxBatchSize = maxBatchSize + (((long)Message.MAX_OVERHEAD_SIZE) * limit);
@@ -58,17 +58,15 @@ public class PostgresqlStorage implements CentralStorage {
         long start = System.currentTimeMillis();
         try (Connection connection = dataSource.getConnection()) {
             LOG.info("getConnection:time", Long.toString(System.currentTimeMillis() - start));
-            start = System.currentTimeMillis();
 
             final long globalLatestOffset = getLatestOffsetWithConnection(connection);
 
-            try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, clusterUuids)) {
+            try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, globalLatestOffset, clusterUuids)) {
 
-                long queryStart = System.currentTimeMillis();
                 final List<Message> messages = runMessagesQuery(messagesQuery);
-                long queryEnd = System.currentTimeMillis();
+                long end = System.currentTimeMillis();
 
-                final long retry = calculateRetryAfter(queryEnd - queryStart, messages.size());
+                final long retry = calculateRetryAfter(end - start, messages.size());
 
                 LOG.info("PostgresSqlStorage:retry", String.valueOf(retry));
                 LOG.info("PostgresSqlStorage:retryAfter", String.valueOf(retryAfter));
@@ -173,9 +171,7 @@ public class PostgresqlStorage implements CentralStorage {
 
     private PreparedStatement getLatestOffsetStatement(final Connection connection) {
         try {
-            PreparedStatement query = connection.prepareStatement(getSelectLatestOffsetQuery());
-            query.setObject(1, readDelay);
-            return query;
+            return connection.prepareStatement(getSelectLatestOffsetQuery());
         } catch (SQLException exception) {
             LOG.error("postgresql storage", "get latest offset statement", exception);
             throw new RuntimeException(exception);
@@ -183,8 +179,11 @@ public class PostgresqlStorage implements CentralStorage {
     }
 
     private PreparedStatement getMessagesStatement(
-        final Connection connection, final List<String> types, final long startOffset, final List<String> clusterUuids) {
-
+            final Connection connection,
+            final List<String> types,
+            final long startOffset,
+            long endOffset,
+            final List<String> clusterUuids) {
         try {
             PreparedStatement query;
 
@@ -194,14 +193,14 @@ public class PostgresqlStorage implements CentralStorage {
                 query = connection.prepareStatement(getSelectEventsWithoutTypeQuery(maxBatchSize));
                 query.setString(1, strClusters);
                 query.setLong(2, startOffset);
-                query.setObject(3, readDelay);
+                query.setLong(3, endOffset);
                 query.setLong(4, limit);
             } else {
                 final String strTypes = String.join(",", types);
                 query = connection.prepareStatement(getSelectEventsWithTypeQuery(maxBatchSize));
                 query.setString(1, strClusters);
                 query.setLong(2, startOffset);
-                query.setObject(3, readDelay);
+                query.setLong(3, endOffset);
                 query.setString(4, strTypes);
                 query.setLong(5, limit);
             }
@@ -246,7 +245,7 @@ public class PostgresqlStorage implements CentralStorage {
             "   FROM events " +
                   withInnerJoinToClusters() +
             "   AND events.msg_offset >= ? " +
-            "   AND created_utc < CURRENT_TIMESTAMP - ? " +
+            "   AND events.msg_offset <= ?" +
             " ORDER BY msg_offset " +
             " LIMIT ?" +
             " ) unused " +
@@ -262,9 +261,9 @@ public class PostgresqlStorage implements CentralStorage {
             "     type, msg_key, content_type, msg_offset, created_utc, data, " +
             "     SUM(event_size) OVER (ORDER BY msg_offset ASC) AS running_size " +
             "   FROM events " +
-                  withInnerJoinToClusters() +
+            withInnerJoinToClusters() +
             "   AND events.msg_offset >= ? " +
-            "   AND created_utc < CURRENT_TIMESTAMP - ? " +
+            "   AND events.msg_offset <= ?" +
             "   AND type = ANY (string_to_array(?, ','))" +
             " ORDER BY msg_offset " +
             " LIMIT ?" +
@@ -279,8 +278,14 @@ public class PostgresqlStorage implements CentralStorage {
             " clusters.cluster_uuid = ANY (string_to_array(?, ',')) ";
     }
 
-    private static String getSelectLatestOffsetQuery() {
-        return " SELECT coalesce(max(msg_offset),0) as last_offset FROM events WHERE created_utc < CURRENT_TIMESTAMP - ?;";
+    private String getSelectLatestOffsetQuery() {
+        String filterCondition = "WHERE created_utc >= %s - INTERVAL '%s SECONDS'";
+        return
+            "SELECT coalesce (" +
+                " (SELECT min(msg_offset) - 1 FROM events " + String.format(filterCondition, currentTimestamp, readDelaySeconds) + "), " +
+                " (SELECT max(msg_offset) FROM events), " +
+                " 0 " +
+            ") as last_offset;";
     }
 
     private static String getCompactionQuery() {

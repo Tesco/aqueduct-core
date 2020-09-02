@@ -8,6 +8,7 @@ import io.reactivex.Single;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+import javax.inject.Provider;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -15,14 +16,14 @@ public class IdentityIssueTokenProvider implements TokenProvider {
 
     private static final PipeLogger LOG = new PipeLogger(LoggerFactory.getLogger(IdentityIssueTokenProvider.class));
 
-    private final IdentityIssueTokenClient identityIssueTokenClient;
+    private final Provider<IdentityIssueTokenClient> identityIssueTokenClient;
     private final String identityClientId;
     private final String identityClientSecret;
     // identityToken is a mutable value shared across different threads, hence why we are using an AtomicReference
     private AtomicReference<IssueTokenResponse> identityToken;
 
     public IdentityIssueTokenProvider(
-        IdentityIssueTokenClient identityIssueTokenClient,
+        Provider<IdentityIssueTokenClient> identityIssueTokenClient,
         String identityClientId,
         String identityClientSecret
     ) {
@@ -42,7 +43,7 @@ public class IdentityIssueTokenProvider implements TokenProvider {
                 return Single.just(identityTokenIssueResponse);
             }
 
-            return identityIssueTokenClient
+            return identityIssueTokenClient.get()
                 .retrieveIdentityToken(traceId(), new IssueTokenRequest(identityClientId, identityClientSecret))
                 .doOnSuccess(issueResponse -> identityToken.set(issueResponse))
                 .doOnError(this::handleError);

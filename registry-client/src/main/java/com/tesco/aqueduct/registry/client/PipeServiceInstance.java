@@ -2,9 +2,9 @@ package com.tesco.aqueduct.registry.client;
 
 import com.tesco.aqueduct.registry.utils.RegistryLogger;
 import io.micronaut.discovery.ServiceInstance;
-import io.micronaut.http.client.DefaultHttpClient;
 import io.micronaut.http.client.HttpClientConfiguration;
 import io.micronaut.http.client.RxHttpClient;
+import io.micronaut.http.client.netty.DefaultHttpClient;
 import io.micronaut.http.uri.UriBuilder;
 import io.reactivex.Completable;
 import io.reactivex.Flowable;

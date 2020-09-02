@@ -19,6 +19,7 @@ import io.micronaut.context.annotation.Value;
 import io.opentracing.Tracer;
 
 import javax.inject.Named;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.sql.DataSource;
 import java.net.URL;
@@ -67,7 +68,7 @@ public class Bindings {
 
     @Singleton
     TokenProvider bindTokenProvider(
-        final IdentityIssueTokenClient identityIssueTokenClient,
+        final Provider<IdentityIssueTokenClient> identityIssueTokenClient,
         @Property(name = "authentication.identity.client.id") String identityClientId,
         @Property(name = "authentication.identity.client.secret") String identityClientSecret
     ) {
@@ -75,7 +76,7 @@ public class Bindings {
     }
 
     @Singleton
-    LocationResolver bindLocationResolver(final LocationServiceClient locationServiceClient) {
+    LocationResolver bindLocationResolver(final Provider<LocationServiceClient> locationServiceClient) {
         return new CloudLocationResolver(locationServiceClient);
     }
 

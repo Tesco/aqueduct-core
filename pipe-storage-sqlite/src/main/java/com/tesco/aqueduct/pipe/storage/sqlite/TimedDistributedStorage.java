@@ -46,6 +46,11 @@ public class TimedDistributedStorage implements DistributedStorage {
     }
 
     @Override
+    public void write(PipeEntity pipeEntity) {
+        writeMessagesTimer.record(() -> storage.write(pipeEntity));
+    }
+
+    @Override
     public void write(final Message message) {
         writeMessagesTimer.record(() -> storage.write(message));
     }

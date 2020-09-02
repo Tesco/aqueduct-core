@@ -1,15 +1,13 @@
 package com.tesco.aqueduct.pipe.storage.sqlite
 
-import com.tesco.aqueduct.pipe.api.JsonHelper
-import com.tesco.aqueduct.pipe.api.Message
-import com.tesco.aqueduct.pipe.api.MessageResults
-import com.tesco.aqueduct.pipe.api.OffsetEntity
-import com.tesco.aqueduct.pipe.api.PipeState
+import com.tesco.aqueduct.pipe.api.*
 import groovy.sql.Sql
 import org.sqlite.SQLiteDataSource
+import org.sqlite.SQLiteException
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import java.sql.SQLException
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
@@ -173,13 +171,254 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage.write(messages)
 
         then: 'all messages are written to the data store'
-        def size = 0
-        sql.query("SELECT COUNT(*) FROM EVENT", {
+        readMessagesCount(sql) == 2
+    }
+
+    def 'offsets are not written to database when message write fails due to file lock'() {
+        given: 'multiple messages to be stored'
+        def messages = [message(1), message(2)]
+
+        and: 'pipe and local offsets'
+        def pipeOffset = new OffsetEntity(PIPE_OFFSET, OptionalLong.of(10))
+        def localLatestOffset = new OffsetEntity(LOCAL_LATEST_OFFSET, OptionalLong.of(6))
+
+        and: 'a database table exists to be written to'
+        def sql = Sql.newInstance(connectionUrl)
+
+        and: 'obtains write lock on the database by starting a transaction so no other writes can be made until this finishes'
+        sql.execute("BEGIN IMMEDIATE TRANSACTION;")
+
+        when: 'messages written with offsets'
+        sqliteStorage.write(new PipeEntity(messages, [pipeOffset, localLatestOffset], PipeState.UP_TO_DATE))
+
+        then: 'fail with error and offsets are not written to the database'
+        def exception = thrown(RuntimeException)
+        exception.cause instanceof SQLException
+        exception.message.contains("[SQLITE_BUSY]")
+
+        and: 'no record exists for pipe offset'
+        getOffsetCountFor(pipeOffset.name.name(), sql) == 0
+
+        and: 'no record exists for local latest offset'
+        getOffsetCountFor(localLatestOffset.name.name(), sql) == 0
+
+        and: 'no messages are written'
+        readMessagesCount(sql) == 0
+
+        cleanup:
+        sql.execute("COMMIT;")
+    }
+
+    def 'offsets are not written to database when message write fails due to primary key constraint'() {
+        given: 'multiple messages to be stored'
+        def messages = [message(1), message(2)]
+
+        and: 'pipe and local offsets'
+        def pipeOffset = new OffsetEntity(PIPE_OFFSET, OptionalLong.of(10))
+        def localLatestOffset = new OffsetEntity(LOCAL_LATEST_OFFSET, OptionalLong.of(6))
+
+        and: 'a database table exists to be written to'
+        def sql = Sql.newInstance(connectionUrl)
+
+        and: 'messages exists already for the given offsets'
+        sql.execute(insertQuery(messages[0]))
+        sql.execute(insertQuery(messages[1]))
+
+        when: 'messages written with offsets'
+        sqliteStorage.write(new PipeEntity(messages, [pipeOffset, localLatestOffset], PipeState.UP_TO_DATE))
+
+        then: 'failure with primay key constraint error'
+        def exception = thrown(RuntimeException)
+        exception.cause instanceof SQLiteException
+        exception.message.contains("[SQLITE_CONSTRAINT_PRIMARYKEY]")
+
+        and: 'pipe offset is not written'
+        getOffsetCountFor(pipeOffset.name.name(), sql) == 0
+
+        and: 'local latest offset is not written'
+        getOffsetCountFor(localLatestOffset.name.name(), sql) == 0
+
+        and: 'pre-written messages exists and no new messages written'
+        readMessagesCount(sql) == 2
+    }
+
+    def 'messages are not written to database when message write works but offset write fails'() {
+        given: 'multiple messages to be stored'
+        def messages = [message(1), message(2)]
+
+        and: 'offsets with incorrect local offset that will fail the offset write'
+        def pipeOffset = new OffsetEntity(PIPE_OFFSET, OptionalLong.of(10))
+        def localLatestOffset = new OffsetEntity(null, OptionalLong.of(6)) // incorrect offset
+
+        and: 'a database table exists to be written to'
+        def sql = Sql.newInstance(connectionUrl)
+
+        when: 'messages written with offsets'
+        sqliteStorage.write(new PipeEntity(messages, [pipeOffset, localLatestOffset], PipeState.UP_TO_DATE))
+
+        then: 'fail with error'
+        thrown(RuntimeException)
+
+        and: "Pipe offset is not written"
+        getOffsetCountFor(pipeOffset.name.name(), sql) == 0
+
+        and: "local latest offset is not written"
+        getOffsetCountFor(LOCAL_LATEST_OFFSET.name(), sql) == 0
+
+        and: "messages are not written to database"
+        readMessagesCount(sql) == 0
+    }
+
+    private Object getOffsetCountFor(String offsetName, Sql sql) {
+        def size = -1
+        sql.query("SELECT COUNT(*) FROM OFFSET WHERE NAME=$offsetName", {
             it.next()
             size = it.getInt(1)
         })
+        size
+    }
 
-        size == 2
+    def 'messages are not written when empty but offset and pipeState are written when present'() {
+        given: 'empty messages to write'
+        def messages = []
+
+        and: 'offset and Pipe state to be written'
+        def pipeOffset = new OffsetEntity(GLOBAL_LATEST_OFFSET, OptionalLong.of(10))
+        def pipeState = PipeState.UP_TO_DATE
+
+        and: 'a database table exists to be written to'
+        def sql = Sql.newInstance(connectionUrl)
+
+        when: 'pipe entity is written'
+        sqliteStorage.write(new PipeEntity(messages, [pipeOffset], pipeState))
+
+        then: "One Pipe offset entry exists"
+        getOffsetCountFor(pipeOffset.name.name(), sql) == 1
+
+        and: "Pipe offset value as expected"
+        def value = -1
+        sql.query("SELECT value FROM OFFSET WHERE NAME=${pipeOffset.name.name()}", {
+            it.next()
+            value = it.getInt(1)
+        })
+        value == 10
+
+        and: "One Pipe state entry exists"
+        def pipeStateSize = -1
+        sql.query("SELECT count(*) FROM PIPE_STATE WHERE NAME='pipe_state'", {
+            it.next()
+            pipeStateSize = it.getInt(1)
+        })
+        pipeStateSize == 1
+
+        and: "Pipe state entry as expected"
+        def pipeStateEntry = null
+        sql.query("SELECT value FROM PIPE_STATE WHERE name='pipe_state';", {
+            it.next()
+            pipeStateEntry = it.getString(1)
+        })
+        pipeStateEntry == pipeState.name()
+
+        and: "no messages written to database"
+        readMessagesCount(sql) == 0
+    }
+
+    def 'Only pipeState is written when present'() {
+        given: 'empty messages to write'
+        def messages = []
+
+        and: 'Pipe state to be written'
+        def pipeState = PipeState.OUT_OF_DATE
+
+        and: 'a database table exists to be written to'
+        def sql = Sql.newInstance(connectionUrl)
+
+        and: "no entry exists in pipe offset"
+        sql.execute("DELETE FROM OFFSET")
+
+        when: 'pipe entity is written'
+        sqliteStorage.write(new PipeEntity(messages, [], pipeState))
+
+        then: "No Pipe offset entry exists"
+        getOffsetCount(sql) == 0
+
+        and: "One Pipe state entry exists"
+        def pipeStateSize = -1
+        sql.query("SELECT count(*) FROM PIPE_STATE WHERE NAME='pipe_state'", {
+            it.next()
+            pipeStateSize = it.getInt(1)
+        })
+        pipeStateSize == 1
+
+        and: "Pipe state entry as expected"
+        def pipeStateEntry = null
+        sql.query("SELECT value FROM PIPE_STATE WHERE name='pipe_state';", {
+            it.next()
+            pipeStateEntry = it.getString(1)
+        })
+        pipeStateEntry == pipeState.name()
+
+        and: "no messages written to database"
+        readMessagesCount(sql) == 0
+    }
+
+    def 'Only offset is written when present'() {
+        given: 'empty messages to write'
+        def messages = []
+
+        and: 'offset to be written'
+        def pipeOffset = new OffsetEntity(GLOBAL_LATEST_OFFSET, OptionalLong.of(10))
+
+        and: 'a database table exists to be written to'
+        def sql = Sql.newInstance(connectionUrl)
+
+        and: "no entry exists in pipe offset"
+        sql.execute("DELETE FROM OFFSET")
+
+        when: 'pipe entity is written'
+        sqliteStorage.write(new PipeEntity(messages, [pipeOffset], null))
+
+        then: "One Pipe offset entry exists"
+        getOffsetCount(sql) == 1
+
+        and: "Pipe offset value as expected"
+        def value = -1
+        sql.query("SELECT value FROM OFFSET WHERE NAME=${pipeOffset.name.name()}", {
+            it.next()
+            value = it.getInt(1)
+        })
+        value == 10
+
+        and: "No Pipe state entry exists"
+        def pipeStateSize = -1
+        sql.query("SELECT count(*) FROM PIPE_STATE WHERE NAME='pipe_state'", {
+            it.next()
+            pipeStateSize = it.getInt(1)
+        })
+        pipeStateSize == 0
+
+        and: "no messages written to database"
+        readMessagesCount(sql) == 0
+    }
+
+    private String insertQuery(Message message) {
+        "INSERT INTO EVENT VALUES (" +
+            "${message.offset}, " +
+            "'${message.key}', " +
+            "'${message.contentType}', " +
+            "'${message.type}', " +
+            "'${message.created}', " +
+            "'${message.data}', " +
+            "${message.size} " +
+        ")"
+    }
+
+    private String insertOffset(OffsetEntity offset, int id) {
+        "INSERT INTO OFFSET VALUES (" +
+            "$id, " +
+            "'${offset.name.name()}', " +
+            "${offset.value.getAsLong()}" +
+        ")"
     }
 
     def 'pipe state is successfully written to the database'() {
@@ -340,10 +579,12 @@ class SQLiteStorageIntegrationSpec extends Specification {
 
     def 'read all messages of multiple specified types after the given offset'() {
         given: 'multiple messages to be stored'
-        def messages = [message(1),
-                        message(2, 'type-1'),
-                        message(3, 'type-2'),
-                        message(4)]
+        def messages = [
+            message(1),
+            message(2, 'type-1'),
+            message(3, 'type-2'),
+            message(4)
+        ]
 
         and: 'these messages are stored'
         sqliteStorage.write(messages)
@@ -409,9 +650,9 @@ class SQLiteStorageIntegrationSpec extends Specification {
     def 'All duplicate messages are compacted for whole data store'() {
         given: 'an existing data store with duplicate messages for the same key'
         def messages = [
-                message(1, "A", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
-                message(2, "B", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
-                message(3, "A", ZonedDateTime.parse("2000-12-01T10:00:00Z"))
+            message(1, "A", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
+            message(2, "B", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
+            message(3, "A", ZonedDateTime.parse("2000-12-01T10:00:00Z"))
         ]
         sqliteStorage.write(messages)
 
@@ -433,10 +674,10 @@ class SQLiteStorageIntegrationSpec extends Specification {
     def 'All duplicate messages are compacted to a given offset with 3 duplicates'() {
         given: 'an existing data store with duplicate messages for the same key'
         def messages = [
-                message(1, "A", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
-                message(2, "A", ZonedDateTime.parse("2000-12-03T10:00:00Z")),
-                message(3, "A", ZonedDateTime.parse("2000-12-03T10:00:00Z")),
-                message(4, "B", ZonedDateTime.parse("2000-12-03T10:00:00Z"))
+            message(1, "A", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
+            message(2, "A", ZonedDateTime.parse("2000-12-03T10:00:00Z")),
+            message(3, "A", ZonedDateTime.parse("2000-12-03T10:00:00Z")),
+            message(4, "B", ZonedDateTime.parse("2000-12-03T10:00:00Z"))
         ]
         sqliteStorage.write(messages)
 
@@ -455,14 +696,14 @@ class SQLiteStorageIntegrationSpec extends Specification {
     def 'All duplicate messages are compacted to a given offset, complex case'() {
         given: 'an existing data store with duplicate messages for the same key'
         def messages = [
-                message(1, "A", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
-                message(2, "B", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
-                message(3, "C", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
-                message(4, "C", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
-                message(5, "A", ZonedDateTime.parse("2000-12-03T10:00:00Z")),
-                message(6, "B", ZonedDateTime.parse("2000-12-03T10:00:00Z")),
-                message(7, "B", ZonedDateTime.parse("2000-12-03T10:00:00Z")),
-                message(8, "D", ZonedDateTime.parse("2000-12-03T10:00:00Z"))
+            message(1, "A", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
+            message(2, "B", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
+            message(3, "C", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
+            message(4, "C", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
+            message(5, "A", ZonedDateTime.parse("2000-12-03T10:00:00Z")),
+            message(6, "B", ZonedDateTime.parse("2000-12-03T10:00:00Z")),
+            message(7, "B", ZonedDateTime.parse("2000-12-03T10:00:00Z")),
+            message(8, "D", ZonedDateTime.parse("2000-12-03T10:00:00Z"))
         ]
         sqliteStorage.write(messages)
 
@@ -491,22 +732,10 @@ class SQLiteStorageIntegrationSpec extends Specification {
         this.sqliteStorage.write(messages)
 
         and: 'all messages are written to the data store'
-        def messagesFirstSize = 0
-        sql.query("SELECT COUNT(*) FROM EVENT", {
-            it.next()
-            messagesFirstSize = it.getInt(1)
-        })
-
-        assert messagesFirstSize == 2
+        assert readMessagesCount(sql) == 2
 
         and: 'offset exists in the OFFSET table'
-        def offsetFirstSize = 0
-        sql.query("SELECT COUNT(*) FROM OFFSET", {
-            it.next()
-            offsetFirstSize = it.getInt(1)
-        })
-
-        assert offsetFirstSize == 1
+        assert getOffsetCount(sql) == 1
 
         and: 'pipe state exists in PIPE_STATE table'
         this.sqliteStorage.write(PipeState.UP_TO_DATE)
@@ -522,22 +751,10 @@ class SQLiteStorageIntegrationSpec extends Specification {
         this.sqliteStorage.deleteAll()
 
         then: 'no messages exists in EVENT'
-        def messagesSecondSize = 0
-        sql.query("SELECT COUNT(*) FROM EVENT", {
-            it.next()
-            messagesSecondSize = it.getInt(1)
-        })
-
-        messagesSecondSize == 0
+        readMessagesCount(sql) == 0
 
         and: 'no offset exists in the table'
-        def offsetSecondSize = 0
-        sql.query("SELECT COUNT(*) FROM OFFSET", {
-            it.next()
-            offsetSecondSize = it.getInt(1)
-        })
-
-        offsetSecondSize == 0
+        getOffsetCount(sql) == 0
 
         and: 'no pipe state exists in table'
         def pipeStateSecondSize = 0
@@ -547,6 +764,24 @@ class SQLiteStorageIntegrationSpec extends Specification {
         })
 
         pipeStateSecondSize == 0
+    }
+
+    private int getOffsetCount(Sql sql) {
+        def offsetSecondSize = 0
+        sql.query("SELECT COUNT(*) FROM OFFSET", {
+            it.next()
+            offsetSecondSize = it.getInt(1)
+        })
+        offsetSecondSize
+    }
+
+    private int readMessagesCount(Sql sql) {
+        def messagesFirstSize = 0
+        sql.query("SELECT COUNT(*) FROM EVENT", {
+            it.next()
+            messagesFirstSize = it.getInt(1)
+        })
+        messagesFirstSize
     }
 
     @Unroll
@@ -606,7 +841,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         given: "the offset entity exists in the offset table"
         def sql = Sql.newInstance(connectionUrl)
         sql.execute("INSERT INTO OFFSET (name, value) VALUES (${offsetName.toString()}, ${offsetValue.asLong})" +
-                " ON CONFLICT(name) DO UPDATE SET VALUE = ${offsetValue.asLong};")
+            " ON CONFLICT(name) DO UPDATE SET VALUE = ${offsetValue.asLong};")
 
         when: "we retrieve the offset"
         def result = sqliteStorage.getOffset(offsetName)
@@ -626,7 +861,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         given: "the pipeState entity exists in the offset table"
         def sql = Sql.newInstance(connectionUrl)
         sql.execute("INSERT INTO PIPE_STATE (name, value) VALUES ('pipe_state', ${pipeState.toString()})" +
-                " ON CONFLICT(name) DO UPDATE SET VALUE = ${pipeState.toString()};")
+            " ON CONFLICT(name) DO UPDATE SET VALUE = ${pipeState.toString()};")
 
         when: "we retrieve the pipe state"
         def result = sqliteStorage.getPipeState()

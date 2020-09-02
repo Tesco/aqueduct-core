@@ -6,8 +6,8 @@ import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
+import javax.inject.Provider;
 import javax.validation.constraints.NotNull;
-import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,16 +15,16 @@ public class CloudLocationResolver implements LocationResolver {
 
     private static final PipeLogger LOG = new PipeLogger(LoggerFactory.getLogger(CloudLocationResolver.class));
 
-    private final LocationServiceClient locationServiceClient;
+    private final Provider<LocationServiceClient> locationServiceClient;
 
-    public CloudLocationResolver(@NotNull LocationServiceClient locationServiceClient) {
+    public CloudLocationResolver(@NotNull Provider<LocationServiceClient> locationServiceClient) {
         this.locationServiceClient = locationServiceClient;
     }
 
     @Override
     public List<String> resolve(@NotNull String locationId) {
         try {
-            return locationServiceClient.getClusters(traceId(), locationId)
+            return locationServiceClient.get().getClusters(traceId(), locationId)
                 .getBody()
                 .map(LocationServiceClusterResponse::getClusters)
                 .orElseThrow(() -> new LocationServiceException("Unexpected response body, please check location service contract for this endpoint."));
