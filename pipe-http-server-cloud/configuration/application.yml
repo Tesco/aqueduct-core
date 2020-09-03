@@ -27,6 +27,7 @@ micronaut:
     netty:
       worker:
         threads: 100
+    thread-selection: AUTO
 
 endpoints:
   all:

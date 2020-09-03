@@ -15,6 +15,8 @@ import static com.tesco.aqueduct.registry.model.Status.INITIALISING
 
 class SelfRegistrationTaskSpec extends Specification {
     private static final URL MY_HOST = new URL("http://localhost")
+    private static final String REGISTRATION_INTERVAL = "1s";
+    private static final int BOOTSTRAP_DELAY = 500;
 
     private static final Node MY_NODE = Node.builder()
         .group("1234")
@@ -34,7 +36,7 @@ class SelfRegistrationTaskSpec extends Specification {
         def startedLatch = new CountDownLatch(1)
 
         given: "a registry client"
-        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe)
+        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
 
         when: "register() is called"
         registryClient.register()
@@ -49,7 +51,7 @@ class SelfRegistrationTaskSpec extends Specification {
 
     def 'check registryHitList defaults to cloud pipe if register call fails'() {
         given: "a registry client"
-        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe)
+        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
 
         and: "when called, upstreamClient will throw an exception"
         upstreamClient.register(_ as Node) >> { throw new RuntimeException() }
@@ -63,7 +65,7 @@ class SelfRegistrationTaskSpec extends Specification {
 
     def 'check register doesnt default to cloud pipe if previously it succeeded'() {
         given: "a registry client"
-        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe)
+        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
         upstreamClient.register(_ as Node) >> new RegistryResponse(["http://1.2.3.4", "http://5.6.7.8"], BootstrapType.NONE) >> { throw new RuntimeException() }
 
         when: "register() is called successfully"
@@ -78,7 +80,7 @@ class SelfRegistrationTaskSpec extends Specification {
 
     def 'null response to register call doesnt result in null hit list update update'() {
         given: "a registry client"
-        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe)
+        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
 
         and: "upstream client will return null"
         upstreamClient.register(_ as Node) >> { null }
@@ -95,7 +97,7 @@ class SelfRegistrationTaskSpec extends Specification {
         def startedLatch = new CountDownLatch(1)
 
         given: "a registry client"
-        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe)
+        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
 
         when: "register() is called"
         registryClient.register()
@@ -116,5 +118,7 @@ class SelfRegistrationTaskSpec extends Specification {
         BootstrapType.PROVIDER          | 1                         | 0
         BootstrapType.PIPE_AND_PROVIDER | 1                         | 1
         BootstrapType.NONE              | 0                         | 0
+        BootstrapType.PIPE              | 0                         | 1
+        BootstrapType.PIPE_WITH_DELAY   | 0                         | 1
     }
 }

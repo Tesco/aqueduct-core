@@ -91,7 +91,7 @@ class PostgresSQLNodeRequestStorageIntegrationSpec extends Specification {
     }
 
     @Unroll
-    def "when I read with host-id it should return the BootstrapType"() {
+    def "when I read with host-id it should return the BootstrapType #bootstrapType"() {
         given: "data is stored within a postgres node request storage"
         LocalDateTime now = LocalDateTime.now()
         nodeRequestStorage.save(new NodeRequest("host-id", new Bootstrap(bootstrapType, now)))
@@ -103,7 +103,7 @@ class PostgresSQLNodeRequestStorageIntegrationSpec extends Specification {
         returnedBootstrap == bootstrapType
 
         where:
-        bootstrapType << [BootstrapType.PROVIDER, BootstrapType.PIPE_AND_PROVIDER, BootstrapType.NONE]
+        bootstrapType << BootstrapType.values()
     }
 
     def "bootstrap request is only sent once"() {

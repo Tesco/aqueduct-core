@@ -22,20 +22,20 @@ public class PostgresNodeGroup extends NodeGroup {
     private static final RegistryLogger LOG = new RegistryLogger(LoggerFactory.getLogger(PostgresNodeGroup.class));
 
     private static final String QUERY_INSERT_GROUP =
-            "INSERT INTO registry (group_id, entry, version)" +
-                    "VALUES (" +
-                    "?, " +
-                    "?::JSON, " +
-                    "0 " +
-                    ")" +
-                    "ON CONFLICT DO NOTHING; ";
+        "INSERT INTO registry (group_id, entry, version)" +
+                "VALUES (" +
+                "?, " +
+                "?::JSON, " +
+                "0 " +
+                ")" +
+                "ON CONFLICT DO NOTHING; ";
     private static final String QUERY_UPDATE_GROUP =
-            "UPDATE registry SET " +
-                    "entry = ?::JSON , " +
-                    "version = registry.version + 1 " +
-                    "WHERE " +
-                    "registry.group_id = ? " +
-                    "; ";
+        "UPDATE registry SET " +
+                "entry = ?::JSON , " +
+                "version = registry.version + 1 " +
+                "WHERE " +
+                "registry.group_id = ? " +
+                "; ";
     private static final String QUERY_DELETE_GROUP =
         "DELETE from registry where group_id = ? and version = ? ;";
 

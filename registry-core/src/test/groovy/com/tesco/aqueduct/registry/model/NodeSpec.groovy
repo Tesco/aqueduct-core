@@ -39,6 +39,19 @@ class NodeSpec extends Specification {
         result == "test-url"
     }
 
+    def "Node version defaults to '0.0.0' when null"() {
+        given: "Node constructed with null version"
+        def testNode = Node.builder()
+            .localUrl(new URL("http://test-url"))
+            .pipe(["v":null])
+            .build()
+        when: "get the version"
+        def version = testNode.getPipeVersion()
+
+        then: "version is 0.0.0"
+        version == "0.0.0"
+    }
+
     @Unroll
     def "Can get pipeState"() {
         given: "A node with pipeState in pipe"
