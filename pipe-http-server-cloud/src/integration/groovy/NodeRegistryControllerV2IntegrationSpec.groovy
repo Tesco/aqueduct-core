@@ -145,6 +145,8 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
                     $USERNAME_TWO:
                       password: $PASSWORD_TWO
                   identity:
+                    attempts: 3
+                    delay: 500ms
                     url: ${identityMock.getHttpUrl()}
                     validate.token.path: $validateTokenPath
                     client:

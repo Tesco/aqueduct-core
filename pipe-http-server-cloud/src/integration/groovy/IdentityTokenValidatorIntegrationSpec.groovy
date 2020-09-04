@@ -70,6 +70,8 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
                       roles:
                         - PIPE_READ
                   identity:
+                    attempts: 3
+                    delay: 500ms
                     url: ${identityMock.getHttpUrl()}
                     validate.token.path: $validateTokenPath
                     client:
