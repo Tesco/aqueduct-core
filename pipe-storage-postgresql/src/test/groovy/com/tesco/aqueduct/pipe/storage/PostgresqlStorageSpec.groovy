@@ -24,16 +24,18 @@ class PostgresqlStorageSpec extends Specification {
         storage.calculateRetryAfter(timeOfQueryMs, noOfMessages) == result
 
         where:
-        timeOfQueryMs |  noOfMessages | result
-        100           |  0            | retryAfter
-        1234          |  0            | retryAfter
-        100           |  10000        | 5
-        200           |  10000        | 10
-        10            |  10000        | 1
-        50            |  10000        | 3
-        0             |  10000        | 1
-        1             |  10000        | 1
-        700           |  10000        | retryAfter
-        1000          |  10000        | retryAfter
+        timeOfQueryMs | noOfMessages | result
+        100           | 0            | retryAfter
+        1234          | 0            | retryAfter
+        100           | 10000        | 5
+        200           | 10000        | 10
+        10            | 10000        | 1
+        50            | 10000        | 3
+        0             | 10000        | 0
+        1             | 10000        | 0
+        700           | 10000        | retryAfter
+        1000          | 10000        | retryAfter
+        11            | 10000        | 1         // test rounding
+        9             | 10000        | 0         // test rounding
     }
 }
