@@ -1,7 +1,6 @@
-import com.stehno.ersatz.Decoders
+import Helper.IdentityMock
 import com.stehno.ersatz.ErsatzServer
 import com.tesco.aqueduct.pipe.api.LocationResolver
-import groovy.json.JsonOutput
 import io.micronaut.context.ApplicationContext
 import io.micronaut.inject.qualifiers.Qualifiers
 import io.micronaut.runtime.server.EmbeddedServer
@@ -27,16 +26,12 @@ class ServerRequestTimeoutIntegrationSpec extends Specification {
     @Shared @AutoCleanup ApplicationContext context
 
     def setup() {
-        identityMockService = new ErsatzServer({
-            decoder('application/json', Decoders.utf8String)
-            reportToConsole()
-        })
-        identityMockService.start()
+        def identityMock = new IdentityMock(CLIENT_ID, CLIENT_SECRET, ACCESS_TOKEN)
 
         def mockLocationResolver = Mock(LocationResolver)
 
         mockLocationResolver.resolve(_) >> {
-            sleep(3000) // Mocking method processing to be longer than server idle timeout
+            sleep(3000) // Mocking method processing to take longer than server idle timeout
             ["someLocation"]
         }
 
@@ -50,7 +45,7 @@ class ServerRequestTimeoutIntegrationSpec extends Specification {
                 "persistence.read.expected-node-count":         2,
                 "persistence.read.cluster-db-pool-size":        10,
 
-                "authentication.identity.url":                  "${identityMockService.getHttpUrl()}",
+                "authentication.identity.url":                  "${identityMock.getUrl()}",
                 "authentication.identity.validate.token.path":  "$VALIDATE_TOKEN_PATH",
                 "authentication.identity.client.id":            "$CLIENT_ID",
                 "authentication.identity.client.secret":        "$CLIENT_SECRET",
@@ -77,7 +72,7 @@ class ServerRequestTimeoutIntegrationSpec extends Specification {
         server.start()
 
         RestAssured.port = server.port
-        acceptIdentityTokenValidationRequest()
+        identityMock.acceptIdentityTokenValidationRequest()
     }
 
     def "No response from server when it is taking longer than configured server idle timeout"() {
@@ -91,49 +86,5 @@ class ServerRequestTimeoutIntegrationSpec extends Specification {
 
         then: "a no http response error is returned"
         thrown(NoHttpResponseException)
-    }
-
-    def acceptIdentityTokenValidationRequest() {
-        def json = JsonOutput.toJson([access_token: ACCESS_TOKEN])
-
-        identityMockService.expectations {
-            post(VALIDATE_TOKEN_BASE_PATH) {
-                queries("client_id": [CLIENT_ID_AND_SECRET])
-                body(json, "application/json")
-                called(1)
-
-                responder {
-                    header("Content-Type", "application/json;charset=UTF-8")
-                    body("""
-                        {
-                          "UserId": "someClientUserId",
-                          "Status": "VALID",
-                          "Claims": [
-                            {
-                              "claimType": "http://schemas.tesco.com/ws/2011/12/identity/claims/clientid",
-                              "value": "trn:tesco:cid:${UUID.randomUUID()}"
-                            },
-                            {
-                              "claimType": "http://schemas.tesco.com/ws/2011/12/identity/claims/scope",
-                              "value": "oob"
-                            },
-                            {
-                              "claimType": "http://schemas.tesco.com/ws/2011/12/identity/claims/userkey",
-                              "value": "trn:tesco:uid:uuid:${UUID.randomUUID()}"
-                            },
-                            {
-                              "claimType": "http://schemas.tesco.com/ws/2011/12/identity/claims/confidencelevel",
-                              "value": "12"
-                            },
-                            {
-                              "claimType": "http://schemas.microsoft.com/ws/2008/06/identity/claims/expiration",
-                              "value": "1548413702"
-                            }
-                          ]
-                        }
-                    """)
-                }
-            }
-        }
     }
 }
