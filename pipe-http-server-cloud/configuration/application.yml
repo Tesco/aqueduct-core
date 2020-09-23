@@ -28,6 +28,7 @@ micronaut:
       worker:
         threads: 100
     thread-selection: AUTO
+    idle-timeout: 20s
 
 endpoints:
   all:
