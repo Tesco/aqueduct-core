@@ -41,6 +41,7 @@ persistence:
     read-delay-seconds: 10
     expected-node-count: 3000
     cluster-db-pool-size: 60
+    work-mem-mb: 512
 
 datasources:
   pipe:

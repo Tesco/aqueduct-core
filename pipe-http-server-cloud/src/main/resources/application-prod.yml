@@ -41,7 +41,7 @@ pipe:
 persistence:
   compact:
     threshold: 3d
-    schedule.cron: "0 14 2 1/1 * ?"
+    schedule.cron: "0 14 12 1/1 * ?"
   read:
     limit: 10000
     max-batch-size: 1000000
@@ -49,3 +49,4 @@ persistence:
     expected-node-count: 7000
     cluster-db-pool-size: 24
     read-delay-seconds: 60
+    work-mem-mb: 512

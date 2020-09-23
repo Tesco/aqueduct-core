@@ -24,10 +24,10 @@ class CompactionTask {
     private final LongTaskTimer longTaskTimer;
 
     public CompactionTask(
-            final MeterRegistry registry,
-            final PostgresqlStorage postgresqlStorage,
-            @Property(name = "persistence.compact.threshold") final Duration threshold,
-            @Property(name = "persistence.compact.schedule.cron") final String cronExpression
+        final MeterRegistry registry,
+        final PostgresqlStorage postgresqlStorage,
+        @Property(name = "persistence.compact.threshold") final Duration threshold,
+        @Property(name = "persistence.compact.schedule.cron") final String cronExpression
     ) {
         this.postgresqlStorage = postgresqlStorage;
         this.threshold = threshold;
@@ -43,6 +43,8 @@ class CompactionTask {
             postgresqlStorage.compactUpTo(ZonedDateTime.now(ZoneId.of("UTC")).minus(threshold));
             LOG.info("compaction", "compaction finished");
         });
+
+        postgresqlStorage.vacuumAnalyseEvents();
 
         postgresqlStorage.runVisibilityCheck();
     }

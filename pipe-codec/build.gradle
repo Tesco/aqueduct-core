@@ -6,6 +6,8 @@ dependencies {
 
     implementation('com.nixxcode.jvmbrotli:jvmbrotli:0.2.0')
     implementation('com.nixxcode.jvmbrotli:jvmbrotli-linux-x86-amd64:0.2.0')
+    implementation('com.nixxcode.jvmbrotli:jvmbrotli-win32-x86-amd64:0.2.0')
+    implementation('com.nixxcode.jvmbrotli:jvmbrotli-win32-x86:0.2.0')
 
     addBrotliTestDependencies()
 }

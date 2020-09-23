@@ -27,6 +27,7 @@ class NodeGroupSpec extends Specification {
         group.subGroups.get(0).nodes == [node1, node2]
     }
 
+    @Ignore
     def "two subGroups are created for nodes belonging to different versions"() {
         given: "two nodes"
         def node1 = createNode("group", new URL("http://1.1.1.1"), 0, INITIALISING, [], null, ["v":"1.0"])
@@ -168,6 +169,7 @@ class NodeGroupSpec extends Specification {
         group.subGroups.get(0).nodes.get(1).getId() == updatedNode2.getId()
     }
 
+    @Ignore
     def "Nodes are correctly rebalanced"() {
         given: "a cloud url"
         URL cloudUrl = new URL("http://cloud")
@@ -199,7 +201,7 @@ class NodeGroupSpec extends Specification {
         group.subGroups.get(1).nodes.get(0).requestedToFollow == [cloudUrl]
     }
 
-    def "Nodes are sorted based on status"() {
+    def "Nodes are sorted based on provider status"() {
         given: "a cloud url"
         URL cloudUrl = new URL("http://cloud")
 
@@ -253,14 +255,14 @@ class NodeGroupSpec extends Specification {
         group.sortNodes(cloudUrl)
 
         then: "nodes that are offline are sorted to be leaves"
-        group.subGroups.get(0).nodes.stream().map({ n -> n.getLocalUrl() }).collect() == [n3Url, n4Url, n5Url, n1Url, n2Url, n6Url]
+        group.subGroups.get(0).nodes.stream().map({ n -> n.getLocalUrl() }).collect() == [n3Url, n5Url, n4Url, n1Url, n2Url, n6Url]
 
         group.subGroups.get(0).nodes.get(0).requestedToFollow == [cloudUrl]
         group.subGroups.get(0).nodes.get(1).requestedToFollow == [n3Url, cloudUrl]
         group.subGroups.get(0).nodes.get(2).requestedToFollow == [n3Url, cloudUrl]
-        group.subGroups.get(0).nodes.get(3).requestedToFollow == [n4Url, n3Url, cloudUrl]
-        group.subGroups.get(0).nodes.get(4).requestedToFollow == [n4Url, n3Url, cloudUrl]
-        group.subGroups.get(0).nodes.get(5).requestedToFollow == [n5Url, n3Url, cloudUrl]
+        group.subGroups.get(0).nodes.get(3).requestedToFollow == [n5Url, n3Url, cloudUrl]
+        group.subGroups.get(0).nodes.get(4).requestedToFollow == [n5Url, n3Url, cloudUrl]
+        group.subGroups.get(0).nodes.get(5).requestedToFollow == [n4Url, n3Url, cloudUrl]
     }
 
     def "Nodes maintain sort order when none are offline"() {
@@ -316,8 +318,8 @@ class NodeGroupSpec extends Specification {
         when: "sort based on status is called"
         group.sortNodes(cloudUrl)
 
-        then: "the sort order is unchanged"
-        group.subGroups.get(0).nodes == [n1, n2, n3, n4, n5, n6]
+        then: "the sort is based on status"
+        group.subGroups.get(0).nodes.stream().map({ n -> n.getLocalUrl() }).collect() == [n1Url, n3Url, n6Url, n5Url, n2Url, n4Url]
     }
 
     def "NodeGroup nodes json format is correct"() {
@@ -382,6 +384,7 @@ class NodeGroupSpec extends Specification {
         group.subGroups.get(0).nodes.get(0).status == FOLLOWING
     }
 
+    @Ignore
     def "A new subgroup is created if it does not exist"(){
         given: "a node"
         def url1 = new URL("http://node-1")
@@ -413,6 +416,7 @@ class NodeGroupSpec extends Specification {
         group.subGroups.get(1).nodes.get(0).localUrl == url2
     }
 
+    @Ignore
     def "A node with a version for an already existing subgroup is added to the subgroup"() {
         given: "a node"
         def cloudUrl = CLOUD_URL
@@ -445,6 +449,7 @@ class NodeGroupSpec extends Specification {
         group.subGroups.get(0).nodes.get(1).localUrl == url2
     }
 
+    @Ignore
     def "A node with new version is added to a new subgroup and removed from the old one"() {
         given: "a node"
         def cloudUrl = CLOUD_URL
@@ -489,6 +494,7 @@ class NodeGroupSpec extends Specification {
         group.subGroups.get(1).nodes.get(0).localUrl == url2
     }
 
+    @Ignore
     def "Empty subgroups should be removed when nodes migrate across subgroups"() {
         given: "a node in a nodegroup"
         def cloudUrl = CLOUD_URL
@@ -524,7 +530,6 @@ class NodeGroupSpec extends Specification {
         group.subGroups.get(0).subGroupId == "2.0"
     }
 
-    @Ignore
     def "Only one subgroup should exist per store regardless of node version"() {
         given: "a node"
         def cloudUrl = CLOUD_URL

@@ -38,10 +38,11 @@ public class Bindings {
         @Value("${persistence.read.read-delay-seconds:0}") final int readDelaySeconds,
         @Value("${persistence.read.expected-node-count}") final int expectedNodeCount,
         @Value("${persistence.read.cluster-db-pool-size}") final long clusterDBPoolSize,
+        @Value("${persistence.read.work-mem-mb:4}") final int workMemMb,
         @Named("pipe") final DataSource dataSource
-        ) {
+    ) {
         return new PostgresqlStorage(
-            dataSource, limit, retryAfter, maxBatchSize, readDelaySeconds, expectedNodeCount, clusterDBPoolSize
+            dataSource, limit, retryAfter, maxBatchSize, readDelaySeconds, expectedNodeCount, clusterDBPoolSize, workMemMb
         );
     }
 

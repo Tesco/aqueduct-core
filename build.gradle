@@ -142,22 +142,10 @@ subprojects {
         addBrotliTestDependencies = {
             project.dependencies {
                 testImplementation('com.nixxcode.jvmbrotli:jvmbrotli:0.2.0') {
-                    switch (osdetector.os) {
-                        case "osx":
-                            testImplementation('com.nixxcode.jvmbrotli:jvmbrotli-darwin-x86-amd64:0.2.0')
-                            break
-                        case "linux":
-                            if (osdetector.arch == 'x86_64')
-                                testImplementation('com.nixxcode.jvmbrotli:jvmbrotli-linux-x86-amd64:0.2.0')
-                            if (osdetector.arch == 'arm_32')
-                                testImplementation('com.nixxcode.jvmbrotli:jvmbrotli-linux-arm32-vfp-hflt:0.2.0')
-                            break
-                        case "windows":
-                            if (osdetector.arch == 'x86_64')
-                                testImplementation('com.nixxcode.jvmbrotli:jvmbrotli-win32-x86-amd64:0.2.0')
-                            if (osdetector.arch == 'x86_32')
-                                testImplementation('com.nixxcode.jvmbrotli:jvmbrotli-win32-x86:0.2.0')
-                    }
+                        testImplementation('com.nixxcode.jvmbrotli:jvmbrotli-darwin-x86-amd64:0.2.0')
+                        testImplementation('com.nixxcode.jvmbrotli:jvmbrotli-linux-x86-amd64:0.2.0')
+                        testImplementation('com.nixxcode.jvmbrotli:jvmbrotli-win32-x86-amd64:0.2.0')
+                        testImplementation('com.nixxcode.jvmbrotli:jvmbrotli-win32-x86:0.2.0')
                 }
             }
         }
@@ -261,6 +249,8 @@ subprojects {
         testImplementation 'io.micronaut:micronaut-inject-groovy'
         testAnnotationProcessor 'io.micronaut:micronaut-inject-groovy' // allows testing using MicronautTest framework
         testImplementation 'io.micronaut.test:micronaut-test-spock'
+
+        testImplementation 'com.sun.activation:javax.activation:1.2.0'
     }
 
     // add -parameters to java compile have Jackson happy

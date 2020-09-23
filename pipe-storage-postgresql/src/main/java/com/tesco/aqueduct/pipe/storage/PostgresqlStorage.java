@@ -23,6 +23,7 @@ public class PostgresqlStorage implements CentralStorage {
     private final int nodeCount;
     private final long clusterDBPoolSize;
     private String currentTimestamp = "CURRENT_TIMESTAMP";
+    private final int workMemMb;
 
     public PostgresqlStorage(
         final DataSource dataSource,
@@ -31,7 +32,8 @@ public class PostgresqlStorage implements CentralStorage {
         final long maxBatchSize,
         final int readDelaySeconds,
         int nodeCount,
-        long clusterDBPoolSize
+        long clusterDBPoolSize,
+        int workMemMb
     ) {
         this.retryAfter = retryAfter;
         this.limit = limit;
@@ -40,6 +42,7 @@ public class PostgresqlStorage implements CentralStorage {
         this.nodeCount = nodeCount;
         this.clusterDBPoolSize = clusterDBPoolSize;
         this.maxBatchSize = maxBatchSize + (((long)Message.MAX_OVERHEAD_SIZE) * limit);
+        this.workMemMb = workMemMb;
 
         //initialise connection pool eagerly
         try (Connection connection = this.dataSource.getConnection()) {
@@ -59,6 +62,9 @@ public class PostgresqlStorage implements CentralStorage {
         try (Connection connection = dataSource.getConnection()) {
             LOG.info("getConnection:time", Long.toString(System.currentTimeMillis() - start));
 
+            connection.setAutoCommit(false);
+            setWorkMem(connection);
+
             final long globalLatestOffset = getLatestOffsetWithConnection(connection);
 
             try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, globalLatestOffset, clusterUuids)) {
@@ -77,6 +83,15 @@ public class PostgresqlStorage implements CentralStorage {
         } finally {
             long end = System.currentTimeMillis();
             LOG.info("read:time", Long.toString(end - start));
+        }
+    }
+
+    // Setting work_mem here to avoid disk based sorts in Postgres
+    private void setWorkMem(Connection connection) {
+        try (PreparedStatement statement = connection.prepareStatement(getWorkMemQuery())) {
+            statement.executeUpdate();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -194,11 +209,12 @@ public class PostgresqlStorage implements CentralStorage {
     }
 
     private PreparedStatement getMessagesStatement(
-            final Connection connection,
-            final List<String> types,
-            final long startOffset,
-            long endOffset,
-            final List<String> clusterUuids) {
+        final Connection connection,
+        final List<String> types,
+        final long startOffset,
+        long endOffset,
+        final List<String> clusterUuids
+    ) {
         try {
             PreparedStatement query;
 
@@ -237,13 +253,23 @@ public class PostgresqlStorage implements CentralStorage {
     }
 
     public void compactUpTo(final ZonedDateTime thresholdDate) {
-        try(Connection connection = dataSource.getConnection();
+        try (Connection connection = dataSource.getConnection();
             PreparedStatement statement = connection.prepareStatement(getCompactionQuery())) {
                 Timestamp threshold = Timestamp.valueOf(thresholdDate.withZoneSameInstant(ZoneId.of("UTC")).toLocalDateTime());
                 statement.setTimestamp(1, threshold);
                 statement.setTimestamp(2, threshold);
                 final int rowsAffected = statement.executeUpdate();
                 LOG.info("compaction", "compacted " + rowsAffected + " rows");
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void vacuumAnalyseEvents() {
+        try (Connection connection = dataSource.getConnection();
+            PreparedStatement statement = connection.prepareStatement(getVacuumAnalyseQuery())) {
+            statement.executeUpdate();
+            LOG.info("vacuum analyse", "vacuum analyse complete");
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -297,7 +323,9 @@ public class PostgresqlStorage implements CentralStorage {
         String filterCondition = "WHERE created_utc >= %s - INTERVAL '%s SECONDS'";
         return
             "SELECT coalesce (" +
-                " (SELECT min(msg_offset) - 1 FROM events " + String.format(filterCondition, currentTimestamp, readDelaySeconds) + "), " +
+                " (SELECT min(msg_offset) - 1 from events where msg_offset in " +
+                "   (SELECT msg_offset FROM events " + String.format(filterCondition, currentTimestamp, readDelaySeconds) + ")" +
+                " ), " +
                 " (SELECT max(msg_offset) FROM events), " +
                 " 0 " +
             ") as last_offset;";
@@ -322,6 +350,14 @@ public class PostgresqlStorage implements CentralStorage {
             "     created_utc <= ? " +
             "     AND e.msg_key = x.msg_key AND e.cluster_id = x.cluster_id AND e.msg_offset <> x.max_offset " +
             " );";
+    }
+
+    private static String getVacuumAnalyseQuery() {
+        return "VACUUM ANALYSE EVENTS;";
+    }
+
+    private String getWorkMemQuery() {
+        return " SET LOCAL work_mem TO '" + workMemMb + "MB';";
     }
     
     private static String getMessageCountByTypeQuery() {

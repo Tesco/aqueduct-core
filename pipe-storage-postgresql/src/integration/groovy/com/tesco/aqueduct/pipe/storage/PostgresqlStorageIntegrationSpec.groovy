@@ -66,7 +66,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         INSERT INTO CLUSTERS (cluster_uuid) VALUES ('NONE');
         """)
 
-        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0, 1, 1)
+        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0, 1, 1, 4)
     }
 
     @Unroll
@@ -103,7 +103,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         given: "there is postgres storage"
         def limit = 1
         def dataSourceWithMockedConnection = Mock(DataSource)
-        def postgresStorage = new PostgresqlStorage(dataSourceWithMockedConnection, limit, 0, batchSize, 0, 1, 1)
+        def postgresStorage = new PostgresqlStorage(dataSourceWithMockedConnection, limit, 0, batchSize, 0, 1, 1, 4)
 
         and: "a mock connection is provided when requested"
         def connection = Mock(Connection)
@@ -435,7 +435,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     def "pipe should return messages if available from the given offset instead of empty set"() {
         given: "there is postgres storage"
         def limit = 3
-        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0, 1, 1)
+        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0, 1, 1, 4)
 
         and: 'an existing data store with two different types of messages'
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
@@ -470,7 +470,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     def "getMessageCountByType should return the count of messages by type"() {
         given: "there is postgres storage"
         def limit = 3
-        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0, 1, 1)
+        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0, 1, 1, 4)
 
         and: 'an existing data store with two different types of messages'
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
@@ -497,7 +497,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     @Unroll
     def "when messages have out of order created_utc, we read up to the message with minimum offset outside the limit"() {
         given:
-        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0, 1, 1)
+        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, 0, 1, 1, 4)
         storage.currentTimestamp = "TO_TIMESTAMP( '2000-12-01 10:00:01', 'YYYY-MM-DD HH:MI:SS' )"
 
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
@@ -540,6 +540,16 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
 
         where:
         types << [ [], ["type1"] ]
+    }
+    
+    def "vacuum analyse query is valid"() {
+        given: "a database"
+
+        when: "vacuum analyse is called"
+        storage.vacuumAnalyseEvents()
+
+        then: "no exception thrown"
+        noExceptionThrown()
     }
 
     @Override

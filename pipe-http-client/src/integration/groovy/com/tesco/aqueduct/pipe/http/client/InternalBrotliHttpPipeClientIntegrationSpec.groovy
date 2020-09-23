@@ -17,14 +17,14 @@ import spock.lang.Unroll
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*
 
-class InternalHttpPipeClientIntegrationSpec extends Specification {
+class InternalBrotliHttpPipeClientIntegrationSpec extends Specification {
 
     @Shared @AutoCleanup("stop") ApplicationContext context
 
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(8089)
 
-    InternalHttpPipeClient client
+    InternalBrotliHttpPipeClient client
 
     def setup() {
         context = ApplicationContext
@@ -47,7 +47,7 @@ class InternalHttpPipeClientIntegrationSpec extends Specification {
                 File.createTempFile("provider", "properties")
             ))
             .start()
-        client = context.getBean(InternalHttpPipeClient)
+        client = context.getBean(InternalBrotliHttpPipeClient)
     }
 
     def "Client is calling correct link with proper parameters with Brotli encoding"() {
