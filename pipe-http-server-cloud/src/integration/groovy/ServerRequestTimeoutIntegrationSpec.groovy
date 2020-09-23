@@ -1,5 +1,4 @@
 import Helper.IdentityMock
-import com.stehno.ersatz.ErsatzServer
 import com.tesco.aqueduct.pipe.api.LocationResolver
 import io.micronaut.context.ApplicationContext
 import io.micronaut.inject.qualifiers.Qualifiers
@@ -22,7 +21,6 @@ class ServerRequestTimeoutIntegrationSpec extends Specification {
 
     private final static String ACCESS_TOKEN = UUID.randomUUID().toString()
 
-    @Shared @AutoCleanup ErsatzServer identityMockService
     @Shared @AutoCleanup ApplicationContext context
 
     def setup() {
