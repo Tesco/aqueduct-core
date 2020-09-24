@@ -13,5 +13,6 @@ include ':pipe-api',
         ':registry-core',
         ':registry-http-server',
         ':registry-client',
+        ':pipe-codec',
         ':telemetry'
 

@@ -1,24 +1,12 @@
 package com.tesco.aqueduct.pipe.http.client;
 
-import com.tesco.aqueduct.pipe.api.Message;
 import io.micronaut.http.HttpResponse;
-import io.micronaut.http.annotation.Consumes;
-import io.micronaut.http.annotation.Get;
-import io.micronaut.http.annotation.Header;
-import io.micronaut.http.client.annotation.Client;
-import io.micronaut.retry.annotation.Retryable;
 
 import javax.annotation.Nullable;
 import java.util.List;
 
-@Retryable(attempts = "3")
-@Client(id = "pipe")
 public interface InternalHttpPipeClient {
-
-    @Get("/pipe/{offset}{?type,location}")
-    @Consumes
-    @Header(name="Accept-Encoding", value="gzip, deflate")
-    HttpResponse<List<Message>> httpRead(
+    HttpResponse<byte[]> httpRead(
         @Nullable List<String> type,
         long offset,
         String location

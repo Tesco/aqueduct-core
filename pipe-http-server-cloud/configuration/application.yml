@@ -28,6 +28,7 @@ micronaut:
       worker:
         threads: 100
     thread-selection: AUTO
+    idle-timeout: 20s
 
 endpoints:
   all:
@@ -36,12 +37,20 @@ endpoints:
     sensitive: true
 
 datasources:
-  postgres:
+  pipe:
     jdbc-url: "jdbc:postgresql://${POSTGRE_SERVER}/${POSTGRE_DATABASE}"
     username: "${POSTGRE_USERNAME}"
     password: "${POSTGRE_PASSWORD}"
     driver-class-name: org.postgresql.Driver
-    maximum-pool-size: 6
+    maximum-pool-size: 4
+    max-lifetime: 600000
+    leak-detection-threshold: 60000
+  registry:
+    jdbc-url: "jdbc:postgresql://${POSTGRE_SERVER}/${POSTGRE_DATABASE}"
+    username: "${POSTGRE_USERNAME}"
+    password: "${POSTGRE_PASSWORD}"
+    driver-class-name: org.postgresql.Driver
+    maximum-pool-size: 2
     max-lifetime: 600000
     leak-detection-threshold: 60000
 
@@ -54,5 +63,16 @@ location:
   delay: 500ms
   attempts: 3
 
+pipe:
+  delay: 500ms
+  attempts: 1
+  reset: 240s
+
+metrics.interceptor.enabled: true
+
 registry:
   mark-offline-after: 25m
+
+compression:
+  threshold-in-bytes: 1024
+  logging: true

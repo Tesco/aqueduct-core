@@ -106,19 +106,8 @@ public class SubNodeGroup {
     }
 
     public void sortNodes(URL cloudUrl) {
-        nodes.sort(comparing(Node::getPipeState));
-        nodes.sort(this::comparingOfflineStatus);
+        nodes.sort(comparing(Node::getStatus));
         updateGetFollowing(cloudUrl);
-    }
-
-    private int comparingOfflineStatus(Node node1, Node node2) {
-        if (node1.isOffline() && !node2.isOffline()) {
-            return 1;
-        } else if (!node1.isOffline() && node2.isOffline()) {
-            return -1;
-        } else {
-            return 0;
-        }
     }
 
     public Optional<Node> findAndUpdate(Node nodeToRegister) {

@@ -1,9 +1,9 @@
 package com.tesco.aqueduct.registry.model;
 
 public enum Status {
-    PENDING,
-    INITIALISING,
+    OK,
     FOLLOWING,
-    OFFLINE,
-    OK
+    INITIALISING,
+    PENDING,
+    OFFLINE
 }

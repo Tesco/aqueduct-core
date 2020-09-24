@@ -2,9 +2,12 @@ dependencies {
     implementation project(":pipe-api")
     implementation project(":pipe-logger")
     implementation project(":registry-client")
+    implementation project(":pipe-codec")
 
     addMicronautDependencies()
     implementation 'io.micronaut:micronaut-http-client'
+    testImplementation 'com.github.tomakehurst:wiremock-jre8:2.27.1'
+    addBrotliTestDependencies()
 }
 
 addPublish()

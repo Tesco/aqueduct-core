@@ -5,11 +5,12 @@ import com.stehno.ersatz.ErsatzServer
 import com.tesco.aqueduct.pipe.TestAppender
 import com.tesco.aqueduct.pipe.api.OffsetName
 import com.tesco.aqueduct.pipe.api.Reader
-import com.tesco.aqueduct.registry.model.NodeRegistry
-import com.tesco.aqueduct.registry.postgres.PostgreSQLNodeRegistry
-import com.tesco.aqueduct.registry.model.NodeRequestStorage
 import com.tesco.aqueduct.registry.model.BootstrapType
+import com.tesco.aqueduct.registry.model.NodeRegistry
+import com.tesco.aqueduct.registry.model.NodeRequestStorage
+import com.tesco.aqueduct.registry.postgres.PostgreSQLNodeRegistry
 import com.tesco.aqueduct.registry.postgres.PostgreSQLNodeRequestStorage
+import ersatz.undertow.util.Headers
 import groovy.json.JsonOutput
 import groovy.sql.Sql
 import io.micronaut.context.ApplicationContext
@@ -19,22 +20,14 @@ import io.micronaut.runtime.server.EmbeddedServer
 import io.restassured.RestAssured
 import org.hamcrest.Matcher
 import org.junit.ClassRule
-import spock.lang.AutoCleanup
-import spock.lang.Ignore
-import spock.lang.Shared
-import spock.lang.Specification
-import spock.lang.Unroll
+import spock.lang.*
 
 import javax.sql.DataSource
 import java.sql.DriverManager
 import java.time.Duration
 
 import static com.tesco.aqueduct.pipe.api.PipeState.UP_TO_DATE
-import static com.tesco.aqueduct.registry.model.Status.FOLLOWING
-import static com.tesco.aqueduct.registry.model.Status.INITIALISING
-import static com.tesco.aqueduct.registry.model.Status.OFFLINE
-import static com.tesco.aqueduct.registry.model.Status.OK
-import static com.tesco.aqueduct.registry.model.Status.PENDING
+import static com.tesco.aqueduct.registry.model.Status.*
 import static io.restassured.RestAssured.given
 import static io.restassured.RestAssured.when
 import static org.hamcrest.Matchers.*
@@ -47,8 +40,6 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
     private static final String USERNAME_ENCODED_CREDENTIALS = "${USERNAME}:${PASSWORD}".bytes.encodeBase64().toString()
     private static final String USERNAME_TWO = "username-two"
     private static final String PASSWORD_TWO = "password-two"
-    private static final int SERVER_TIMEOUT_MS = 5000
-    private static final int SERVER_SLEEP_TIME_MS = 500
     private static final String NODE_A_CLIENT_UID = "random"
 
     private static final String clientId = UUID.randomUUID().toString()
@@ -66,11 +57,11 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
     @ClassRule @Shared
     SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance()
 
-    @AutoCleanup Sql sql
+    @Shared Sql sql
 
     DataSource dataSource
-    NodeRegistry registry
-    NodeRequestStorage nodeRequestStorage
+    @Shared NodeRegistry registry
+    @Shared NodeRequestStorage nodeRequestStorage
 
     def setupDatabase() {
         sql = new Sql(pg.embeddedPostgres.postgresDatabase.connection)
@@ -81,6 +72,13 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
             DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
         }
 
+        clearTables(sql)
+
+        nodeRequestStorage = new PostgreSQLNodeRequestStorage(dataSource)
+        registry = new PostgreSQLNodeRegistry(dataSource, new URL(CLOUD_PIPE_URL), Duration.ofDays(1))
+    }
+
+    private void clearTables(Sql sql) {
         sql.execute("""
             DROP TABLE IF EXISTS registry;
             
@@ -101,9 +99,6 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
             bootstrap_received timestamp
             );
         """)
-
-        nodeRequestStorage = new PostgreSQLNodeRequestStorage(dataSource)
-        registry = new PostgreSQLNodeRegistry(dataSource, new URL(CLOUD_PIPE_URL), Duration.ofDays(1))
     }
 
     void setupSpec() {
@@ -113,9 +108,6 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
         })
 
         identityMock.start()
-    }
-
-    void setup() {
 
         setupDatabase()
 
@@ -126,14 +118,15 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
         context = ApplicationContext
             .build()
             .properties(
-            // enabling security to prove that registry is accessible anyway
-            parseYamlConfig(
-                    """
+                // enabling security to prove that registry is accessible anyway
+                parseYamlConfig(
+                        """
                 micronaut.security.enabled: true
                 micronaut.server.port: -1
                 micronaut.caches.identity-cache.expire-after-write: 1m
                 micronaut.security.token.jwt.enabled: true
                 micronaut.security.token.jwt.bearer.enabled: true
+                compression.threshold-in-bytes: 1024
                 authentication:
                   users:
                     $USERNAME:
@@ -159,27 +152,26 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
                           - PIPE_READ
                           - REGISTRY_WRITE
                 """
+                )
             )
-            )
+            .mainClass(EmbeddedServer)
             .build()
             .registerSingleton(NodeRegistry, registry)
             .registerSingleton(Reader, reader)
             .registerSingleton(NodeRequestStorage, nodeRequestStorage)
-            .start()
 
-        identityMock.clearExpectations()
+        context.start()
 
         server = context.getBean(EmbeddedServer)
 
         RestAssured.port = server.port
         server.start()
-        def time = 0
-        while (!server.isRunning() && time < SERVER_TIMEOUT_MS) {
-            println("Server not yet running...")
-            sleep SERVER_SLEEP_TIME_MS
-            time += SERVER_SLEEP_TIME_MS
-        }
-        println("Test setup complete")
+    }
+
+    void setup() {
+        identityMock.clearExpectations()
+        clearTables(sql)
+
         TestAppender.clearEvents()
     }
 
@@ -412,19 +404,19 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
 
         then: "Nodes are sorted as expected"
         request.then().body(
-            "followers[0].localUrl", equalTo("http://1.1.1.3:0003"),
-            "followers[1].localUrl", equalTo("http://1.1.1.4:0004"),
-            "followers[2].localUrl", equalTo("http://1.1.1.5:0005"),
+            "followers[0].localUrl", equalTo("http://1.1.1.4:0004"),
+            "followers[1].localUrl", equalTo("http://1.1.1.5:0005"),
+            "followers[2].localUrl", equalTo("http://1.1.1.3:0003"),
             "followers[3].localUrl", equalTo("http://1.1.1.1:0001"),
             "followers[4].localUrl", equalTo("http://1.1.1.2:0002"),
             "followers[5].localUrl", equalTo("http://1.1.1.6:0006"),
             //following lists
             "followers[0].requestedToFollow", equalTo(["http://cloud.pipe"]),
-            "followers[1].requestedToFollow", equalTo(["http://1.1.1.3:0003", "http://cloud.pipe"]),
-            "followers[2].requestedToFollow", equalTo(["http://1.1.1.3:0003", "http://cloud.pipe"]),
-            "followers[3].requestedToFollow", equalTo(["http://1.1.1.4:0004", "http://1.1.1.3:0003", "http://cloud.pipe"]),
-            "followers[4].requestedToFollow", equalTo(["http://1.1.1.4:0004", "http://1.1.1.3:0003", "http://cloud.pipe"]),
-            "followers[5].requestedToFollow", equalTo(["http://1.1.1.5:0005", "http://1.1.1.3:0003", "http://cloud.pipe"]),
+            "followers[1].requestedToFollow", equalTo(["http://1.1.1.4:0004", "http://cloud.pipe"]),
+            "followers[2].requestedToFollow", equalTo(["http://1.1.1.4:0004", "http://cloud.pipe"]),
+            "followers[3].requestedToFollow", equalTo(["http://1.1.1.5:0005", "http://1.1.1.4:0004", "http://cloud.pipe"]),
+            "followers[4].requestedToFollow", equalTo(["http://1.1.1.5:0005", "http://1.1.1.4:0004", "http://cloud.pipe"]),
+            "followers[5].requestedToFollow", equalTo(["http://1.1.1.3:0003", "http://1.1.1.4:0004", "http://cloud.pipe"]),
         )
     }
 
@@ -621,6 +613,28 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
         TestAppender.getEvents().stream()
             .filter { it.loggerName.contains("com.tesco.aqueduct") }
             .allMatch() { it.MDCPropertyMap.get("trace_id").startsWith("aq-") }
+    }
+
+    @Unroll
+    def "Response is correctly encoded if it is larger than the threshold"() {
+        given: "#numberOfNodes nodes are registered"
+        numberOfNodes.times({
+            registerNode(1234, "http://1.1.1.$it:80", 123, FOLLOWING)
+        })
+
+        when: "We get the hierarchy"
+        denySingleIdentityTokenValidationRequest()
+        def request = given()
+            .header("Authorization", "Basic $USERNAME_ENCODED_CREDENTIALS")
+            .when().get("/v2/registry")
+
+        then: "Content-Encoding header is #expectedHeader"
+        request.then().header(Headers.CONTENT_ENCODING as String, equalTo(expectedHeader))
+
+        where:
+        numberOfNodes | expectedHeader
+        2             | null
+        10            | "gzip"
     }
 
     def acceptSingleIdentityTokenValidationRequest(

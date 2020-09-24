@@ -1,12 +1,18 @@
 dependencies {
     implementation project(":pipe-api")
     implementation project(":pipe-logger")
+    implementation project(":pipe-codec")
 
     addMicronautDependencies()
 
     implementation 'io.micronaut:micronaut-http-server-netty'
 
     testImplementation project(":pipe-storage-memory")
+
+    implementation('com.nixxcode.jvmbrotli:jvmbrotli:0.2.0')
+    implementation('com.nixxcode.jvmbrotli:jvmbrotli-linux-x86-amd64:0.2.0')
+
+    addBrotliTestDependencies()
 }
 
 addPublish()

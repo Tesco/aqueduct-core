@@ -1,5 +1,3 @@
-
-
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
 import io.micronaut.context.ApplicationContext
@@ -40,7 +38,8 @@ class CloudAqueductConfigIntegrationSpec extends Specification {
             .build()
             .environments("integration")
             .build()
-            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("postgres"))
+            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("pipe"))
+            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("registry"))
 
 
         when: "the application is started"

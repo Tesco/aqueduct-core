@@ -99,7 +99,8 @@ public class Node {
 
     @JsonIgnore
     public String getSubGroupId() {
-        return getPipeVersion();
+        //return getPipeVersion();
+        return "subGroupId";
     }
 
     @JsonIgnore

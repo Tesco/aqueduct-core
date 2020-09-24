@@ -44,6 +44,7 @@ class PipeReadControllerBatchIntegrationSpec extends Specification {
     }
 
     @Property(name="pipe.http.server.read.response-size-limit-in-bytes", value="409")
+    @Property(name="compression.threshold-in-bytes", value="1024")
     void "A batch of messages that equals the payload size is still transported"() {
         given:
         def messages = [

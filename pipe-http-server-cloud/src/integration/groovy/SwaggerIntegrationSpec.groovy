@@ -30,7 +30,7 @@ class SwaggerIntegrationSpec extends Specification {
             )
             .mainClass(PipeStatusController)
             .build()
-            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("postgres"))
+            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("pipe"))
 
         context.start()
 

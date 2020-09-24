@@ -4,13 +4,13 @@ import com.stehno.ersatz.ErsatzServer
 import com.tesco.aqueduct.pipe.api.HttpHeaders
 import com.tesco.aqueduct.pipe.api.PipeState
 import com.tesco.aqueduct.pipe.api.TokenProvider
+import com.tesco.aqueduct.registry.client.PipeLoadBalancer
 import com.tesco.aqueduct.registry.client.PipeServiceInstance
 import com.tesco.aqueduct.registry.client.SelfRegistrationTask
-import com.tesco.aqueduct.registry.client.PipeLoadBalancer
 import com.tesco.aqueduct.registry.client.ServiceList
 import io.micronaut.context.ApplicationContext
 import io.micronaut.http.client.DefaultHttpClientConfiguration
-import io.micronaut.http.client.exceptions.HttpClientException
+import io.micronaut.http.client.exceptions.HttpClientResponseException
 import spock.lang.AutoCleanup
 import spock.lang.Specification
 
@@ -43,6 +43,9 @@ class PipeLoadBalancerIntegrationSpec extends Specification {
                     "registry.http.client.url": "http://does.not.exist",
                     "micronaut.caches.health-check.maximum-size": 20,
                     "micronaut.caches.health-check.expire-after-write": "5s",
+                    "pipe.http.client.attempts": 1,
+                    "pipe.http.client.delay": "1ms",
+                    "pipe.http.client.reset": "5ms",
                     "pipe.http.latest-offset.attempts": 1,
                     "pipe.http.latest-offset.delay": "1s"
                 ] + properties
@@ -131,12 +134,11 @@ class PipeLoadBalancerIntegrationSpec extends Specification {
         client.read([], 1, ["locationUuid"])
 
         then: "messages are received and an exception is thrown"
-        thrown(HttpClientException)
+        thrown(HttpClientResponseException)
         firstMessages.messages*.key == ["x0"]
         serverA.verify()
 
         when: "the error has been recorded"
-        serviceList.stream().findFirst().ifPresent({ c -> c.isUp(false) })
         serviceList.stream().findFirst().ifPresent({ c -> c.isUp(false) })
 
         and: "client reads again"

@@ -1,6 +1,7 @@
 dependencies {
     implementation project(":registry-core")
     implementation project(":pipe-api")
+    implementation project(":pipe-codec")
 
     addMicronautDependencies()
 

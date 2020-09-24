@@ -79,11 +79,13 @@ class LocationRoutingIntegrationSpec extends Specification {
 
                 "location.url":                                 "${locationMockService.getHttpUrl() + "$LOCATION_BASE_PATH/"}",
                 "location.attempts":                            3,
-                "location.delay":                               "10ms"
+                "location.delay":                               "10ms",
+
+                "compression.threshold-in-bytes":               1024
             )
             .mainClass(EmbeddedServer)
             .build()
-            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("postgres"))
+            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("pipe"))
 
         context.start()
 

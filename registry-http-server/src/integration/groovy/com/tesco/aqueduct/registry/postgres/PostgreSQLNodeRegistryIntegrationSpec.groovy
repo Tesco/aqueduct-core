@@ -97,7 +97,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         followers.size() == 1
     }
 
-    def "registry marks nodes offline and sorts based on status and pipeState"() {
+    def "registry marks nodes offline and sorts based on status"() {
         given: "a registry with a short offline delta"
         registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(5))
 
@@ -146,11 +146,11 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
 
         then: "nodes are marked as offline and sorted accordingly"
         followers[0].getLocalUrl() == url3
-        followers[1].getLocalUrl() == url5
-        followers[2].getLocalUrl() == url4
-        followers[3].getLocalUrl() == url2
-        followers[4].getLocalUrl() == url6
-        followers[5].getLocalUrl() == url1
+        followers[1].getLocalUrl() == url4
+        followers[2].getLocalUrl() == url5
+        followers[3].getLocalUrl() == url1
+        followers[4].getLocalUrl() == url2
+        followers[5].getLocalUrl() == url6
 
         followers[0].status == FOLLOWING
         followers[1].status == FOLLOWING
@@ -162,9 +162,9 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         followers[0].requestedToFollow == [cloudURL]
         followers[1].requestedToFollow == [url3, cloudURL]
         followers[2].requestedToFollow == [url3, cloudURL]
-        followers[3].requestedToFollow == [url5, url3, cloudURL]
-        followers[4].requestedToFollow == [url5, url3, cloudURL]
-        followers[5].requestedToFollow == [url4, url3, cloudURL]
+        followers[3].requestedToFollow == [url4, url3, cloudURL]
+        followers[4].requestedToFollow == [url4, url3, cloudURL]
+        followers[5].requestedToFollow == [url5, url3, cloudURL]
     }
 
     @Unroll
@@ -267,8 +267,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         registerNode("x", "http://first", 0, PENDING, [])
 
         then: "It's state is updated"
-        List<Node> nodesState = registry.getSummary(0, INITIALISING, ["x"]).followers
-        nodesState.toList().get(0).status == PENDING
+        List<Node> nodes = registry.getSummary(0, INITIALISING, ["x"]).followers
+        nodes.toList().find{ it.localUrl == new URL("http://first") }.status == PENDING
     }
 
     @Unroll
@@ -481,6 +481,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         nodesState.get(0).id == "x|http://second"
     }
 
+    @Ignore
     def "the second node in the group with different version to first node should get its own hierarchy"() {
         given: "We have one node registered"
         def firstNode = registerNode("groupA", "http://a1", 123, FOLLOWING, [], ["v": "1.0"])
@@ -493,6 +494,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         secondNode == [cloudURL]
     }
 
+    @Ignore
     def "having third node in the group with different version to first and second node should make three hierarchies"() {
         given: "We have two nodes registered with different version"
         def firstNode = registerNode("groupA", "http://a1", 123, FOLLOWING, [], ["v": "1.0"])
@@ -520,6 +522,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         secondNode == [new URL("http://a1"), cloudURL]
     }
 
+    @Ignore
     def "on new version appearing for an existing node, the hierarchy splits into two trees"() {
         given: "2 nodes"
         long offset = 12345
@@ -561,6 +564,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         followers[1].requestedToFollow == [cloudURL]
     }
 
+    @Ignore
     def "registry marks nodes offline and sorts based on status within their hierarchies"() {
         given: "a registry with a short offline delta"
         registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(5))
@@ -644,8 +648,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         // version 2.0
         followers[5].requestedToFollow == [cloudURL]
     }
-
-    @Ignore
+    
     def "registry marks nodes offline and sorts nodes ignoring version"() {
         given: "a registry with a short offline delta"
         registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(5))

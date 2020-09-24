@@ -22,7 +22,7 @@ micronaut:
   executors:
     io:
       type: fixed
-      nThreads: 20
+      nThreads: 6
 
 endpoints:
   all:
@@ -41,14 +41,25 @@ persistence:
     read-delay-seconds: 10
     expected-node-count: 3000
     cluster-db-pool-size: 60
+    work-mem-mb: 512
 
 datasources:
-  postgres:
+  pipe:
     jdbc-url: "jdbc:postgresql://${POSTGRE_SERVER}/${POSTGRE_DATABASE}"
     username: "${POSTGRE_USERNAME}"
     password: "${POSTGRE_PASSWORD}"
     driver-class-name: org.postgresql.Driver
-    maximum-pool-size: 20
+    maximum-pool-size: 4
+    max-lifetime: 600000
+    leak-detection-threshold: 60000
+  registry:
+    jdbc-url: "jdbc:postgresql://${POSTGRE_SERVER}/${POSTGRE_DATABASE}"
+    username: "${POSTGRE_USERNAME}"
+    password: "${POSTGRE_PASSWORD}"
+    driver-class-name: org.postgresql.Driver
+    maximum-pool-size: 2
+    max-lifetime: 600000
+    leak-detection-threshold: 60000
 
 authentication:
   users:
@@ -88,3 +99,7 @@ location:
 pipe:
   server:
     url: "https://api.tesco.com/messaging/v1"
+
+compression:
+  threshold-in-bytes: 1024
+  logging: true

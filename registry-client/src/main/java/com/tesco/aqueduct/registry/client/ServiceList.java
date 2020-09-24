@@ -81,7 +81,6 @@ public class ServiceList {
         services = urls.stream()
             .map(this::getServiceInstance)
             .collect(Collectors.toList());
-        LOG.info("update services urls", servicesString());
     }
 
     private void persistUrls(List<URL> urls) {
@@ -125,15 +124,7 @@ public class ServiceList {
         }
     }
 
-    private String servicesString() {
-        return services.stream()
-            .map(PipeServiceInstance::getUrl)
-            .map(URL::toString)
-            .collect(Collectors.joining(","));
-    }
-
     public void checkState() {
-        LOG.info("ServiceList.checkState", "Urls:" + servicesString());
         fromIterable(services)
             .flatMapCompletable(PipeServiceInstance::checkState)
             .blockingAwait();

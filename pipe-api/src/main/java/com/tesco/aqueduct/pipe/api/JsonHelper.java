@@ -1,8 +1,8 @@
 package com.tesco.aqueduct.pipe.api;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -48,11 +48,31 @@ public class JsonHelper {
         return MAPPER.readValue(json, messageListType);
     }
 
+    public static List<Message> messageFromJsonArray(final byte[] json) {
+        try {
+            return MAPPER.readValue(json, messageListType);
+        } catch (final IOException ioException) {
+            throw new RuntimeException("IO Error while mapping bytes to Messages", ioException);
+        }
+    }
+
     public static String toJson(final Object msg) throws IOException {
         return MAPPER.writeValueAsString(msg);
     }
 
-    public static String toJson(final List<?> msg) throws IOException {
-        return MAPPER.writeValueAsString(msg);
+    public static String toJson(final List<?> msg) {
+        try {
+            return MAPPER.writeValueAsString(msg);
+        } catch (final JsonProcessingException jsonProcessingException) {
+            throw new RuntimeException("Json processing error while mapping messages", jsonProcessingException);
+        }
+    }
+
+    public static byte[] toJsonBytes(final Object obj) {
+        try {
+            return MAPPER.writeValueAsBytes(obj);
+        } catch (final JsonProcessingException jsonProcessingException) {
+            throw new RuntimeException("Json processing error while mapping object", jsonProcessingException);
+        }
     }
 }

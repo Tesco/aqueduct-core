@@ -1,6 +1,7 @@
 package com.tesco.aqueduct.pipe.http
 
 import com.tesco.aqueduct.pipe.api.*
+import com.tesco.aqueduct.pipe.codec.BrotliCodec
 import io.micronaut.context.annotation.Property
 import io.micronaut.runtime.server.EmbeddedServer
 import io.micronaut.test.annotation.MicronautTest
@@ -11,6 +12,7 @@ import spock.lang.Unroll
 
 import javax.inject.Inject
 import javax.inject.Named
+import java.time.Clock
 import java.time.ZonedDateTime
 
 import static java.util.Arrays.asList
@@ -21,6 +23,7 @@ import static org.hamcrest.Matchers.equalTo
 @MicronautTest
 @Property(name="pipe.http.server.read.response-size-limit-in-bytes", value="200")
 @Property(name="micronaut.security.enabled", value="false")
+@Property(name="compression.threshold-in-bytes", value = "1024")
 class PipeReadControllerIntegrationSpec extends Specification {
 
     @Inject @Named("local")
@@ -44,13 +47,14 @@ class PipeReadControllerIntegrationSpec extends Specification {
         locationResolver.resolve(_) >> ["cluster1"]
         pipeStateProvider.getState(*_) >> new PipeStateResponse(true, 0)
     }
+
     @Unroll
     void "Test empty responses has Retry-After of #retryAfter seconds - #requestPath"() {
         given: "empty storage"
         reader.read(*_) >> new MessageResults([], retryAfter, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def response = RestAssured.get(requestPath)
+        def response = RestAssured.given().get(requestPath)
 
         then:
         response
@@ -71,7 +75,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         reader.read(*_) >> new MessageResults([], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def response = RestAssured.get(requestPath)
+        def response = RestAssured.given().get(requestPath)
 
         then:
         response
@@ -99,7 +103,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
             [Message(type, "a", "ct", 100, null, null)], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def response = RestAssured.get(requestPath)
+        def response = RestAssured.given().get(requestPath)
 
         then:
         String expectedResponseBody = """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
@@ -127,7 +131,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         reader.read(_ as List, 101, _ as List) >> new MessageResults([], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def response = RestAssured.get(requestPath)
+        def response = RestAssured.given().get(requestPath)
 
         then:
         response
@@ -150,7 +154,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         reader.read(typeList, 0, _ as List) >> new MessageResults(messages, 0, offset, PipeState.UP_TO_DATE)
 
         when:
-        def response = RestAssured.get("/pipe/0?type=$types&location=someLocation")
+        def response = RestAssured.given().get("/pipe/0?type=$types&location=someLocation")
 
         then:
         response
@@ -174,7 +178,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
             [Message("type1", "a", "ct", 100, null, null)], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def response = RestAssured.get("/pipe/0$query")
+        def response = RestAssured.given().get("/pipe/0$query")
 
         then:
         response
@@ -200,7 +204,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
             [Message("type2", "b", "ct", headerValue, null, null)], 0, of(headerValue), PipeState.UP_TO_DATE)
 
         when:
-        def response = RestAssured.get("/pipe/0?type=$type&location=someLocation")
+        def response = RestAssured.given().get("/pipe/0?type=$type&location=someLocation")
 
         then:
         response
@@ -220,7 +224,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         reader.read(["type1"], 0, _ as List) >> new MessageResults([], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
-        def response = RestAssured.get("/pipe/0?type=type1&location=someLocation")
+        def response = RestAssured.given().get("/pipe/0?type=type1&location=someLocation")
 
         then:
         response
@@ -235,7 +239,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         reader.read(["type1"], 0, _ as List) >> new MessageResults([], 0, OptionalLong.empty(), PipeState.UP_TO_DATE)
 
         when:
-        def response = RestAssured.get("/pipe/0?type=type1&location=someLocation")
+        def response = RestAssured.given().get("/pipe/0?type=type1&location=someLocation")
 
         then:
         response
@@ -256,7 +260,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
             PipeState.UP_TO_DATE)
 
         when:
-        def response = RestAssured.get("/pipe/100?location=someLocation")
+        def response = RestAssured.given().get("/pipe/100?location=someLocation")
 
         then:
         response
@@ -277,7 +281,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
                 0, OptionalLong.empty(), PipeState.UP_TO_DATE)
 
         when:
-        def response = RestAssured.get("/pipe/100?location=someLocation")
+        def response = RestAssured.given().get("/pipe/100?location=someLocation")
 
         then:
         response
@@ -288,6 +292,63 @@ class PipeReadControllerIntegrationSpec extends Specification {
                     {"type":"type1","key":"b","offset":"101"}
                 ]
             """.replaceAll("\\s", "")))
+    }
+
+    def "messages larger than the compression threshold should be encoded if Accept-Content header set to brotli"() {
+        given: 'a read request'
+        def message = new Message("type", "key", "contentType", 0L, ZonedDateTime.now(Clock.systemUTC()), "a" * 1025)
+        reader.read([], 0, _ as List) >> new MessageResults([message], 0, of(0L), PipeState.UP_TO_DATE)
+
+        when: "we read from the pipe"
+        def response = RestAssured
+            .given()
+            .header("Accept-Encoding", "br")
+            .get("/pipe/0?location=someLocation")
+
+        then: "the response is encoded"
+        JsonHelper.messageFromJsonArray(new BrotliCodec(4, false).decode(response.body().asByteArray())) == [message]
+
+        and: "the response has the correct encoding header"
+        response.header("X-Content-Encoding") == "br"
+        response.header("content-encoding") == null
+    }
+
+    def "messages larger than the compression threshold should be encoded if Accept-Content header set to gzip"() {
+        given: 'a read request'
+        def message = new Message("type", "key", "contentType", 0L, ZonedDateTime.now(Clock.systemUTC()), "a" * 1025)
+        reader.read([], 0, _ as List) >> new MessageResults([message], 0, of(0L), PipeState.UP_TO_DATE)
+
+        when: "we read from the pipe"
+        def response = RestAssured
+            .given()
+            .header("Accept-Encoding", "gzip")
+            .get("/pipe/0?location=someLocation")
+
+        then: "the response is encoded"
+        JsonHelper.messageFromJsonArray(response.body().asByteArray()) == [message]
+
+        and: "the response has the correct encoding header"
+        response.header("X-Content-Encoding") == "gzip"
+        response.header("content-encoding") == "gzip"
+    }
+
+    def "messages smaller than the compression threshold should not be encoded"() {
+        given: 'a read request'
+        def message = new Message("type", "key", "contentType", 0L, ZonedDateTime.now(Clock.systemUTC()), "smallPayload")
+        reader.read([], 0, _ as List) >> new MessageResults([message], 0, of(0L), PipeState.UP_TO_DATE)
+
+        when: "we read from the pipe"
+        def response = RestAssured
+            .given()
+            .header("Accept-Encoding", "gzip")
+            .get("/pipe/0?location=someLocation")
+
+        then: "the response is not encoded"
+        JsonHelper.messageFromJsonArray(response.body().asByteArray()) == [message]
+
+        and: "the response has the correct encoding header"
+        response.header("X-Content-Encoding") == null
+        response.header("content-encoding") == null
     }
 
     @MockBean(Reader)

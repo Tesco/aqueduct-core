@@ -49,7 +49,7 @@ class AuthenticatePipeReadFilterIntegrationSpec extends Specification {
                             "created": "2018-10-01T13:45:00Z", 
                             "data": "{ \\"valid\\": \\"json\\" }"
                         }
-                    ]""")
+                    ]""".bytes)
                     }
                 }
             }
@@ -63,8 +63,9 @@ class AuthenticatePipeReadFilterIntegrationSpec extends Specification {
             .properties(
                 "authentication.read-pipe.username": "admin",
                 "authentication.read-pipe.password": "my-password",
-                "pipe.http.latest-offset.attempts": 1,
-                "pipe.http.latest-offset.delay": "1s",
+                "pipe.http.client.attempts": 1,
+                "pipe.http.client.delay": "500ms",
+                "pipe.http.client.reset": "1s",
                 "pipe.http.client.url": server.getHttpUrl(),
                 "registry.http.client.url": server.getHttpUrl()
             )
@@ -80,11 +81,10 @@ class AuthenticatePipeReadFilterIntegrationSpec extends Specification {
         client = context.getBean(InternalHttpPipeClient)
 
         when:
-        def body = client.httpRead([type], offset, location).body()
+        client.httpRead([type], offset, location).body()
 
         then:
         server.verify()
-        body.offset.first() == offset
     }
 
     def "basic auth is used when settings are provided calling another node"() {
@@ -109,7 +109,7 @@ class AuthenticatePipeReadFilterIntegrationSpec extends Specification {
                             "created": "2018-10-01T13:45:00Z", 
                             "data": "{ \\"valid\\": \\"json\\" }"
                         }
-                    ]""")
+                    ]""".bytes)
                     }
                 }
             }
@@ -123,8 +123,9 @@ class AuthenticatePipeReadFilterIntegrationSpec extends Specification {
                 .properties(
                     "authentication.read-pipe.username": "admin",
                     "authentication.read-pipe.password": "my-password",
-                    "pipe.http.latest-offset.attempts": 1,
-                    "pipe.http.latest-offset.delay": "1s",
+                    "pipe.http.client.attempts": 1,
+                    "pipe.http.client.delay": "500ms",
+                    "pipe.http.client.reset": "1s",
                     "pipe.http.client.url": "cloudIP",
                     "registry.http.client.url": "cloudIP"
                 )
@@ -140,10 +141,9 @@ class AuthenticatePipeReadFilterIntegrationSpec extends Specification {
         client = context.getBean(InternalHttpPipeClient)
 
         when:
-        def body = client.httpRead([type], offset, location).body()
+        client.httpRead([type], offset, location).body()
 
         then:
         server.verify()
-        body.offset.first() == offset
     }
 }

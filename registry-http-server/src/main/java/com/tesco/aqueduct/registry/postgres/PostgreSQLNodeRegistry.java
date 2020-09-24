@@ -47,9 +47,7 @@ public class PostgreSQLNodeRegistry implements NodeRegistry {
 
         try (Connection connection = getConnection()) {
             LOG.info("get connection", Long.toString(System.currentTimeMillis() - start));
-
             connection.setAutoCommit(false);
-            LOG.info("autocommit off", Long.toString(System.currentTimeMillis() - start));
 
             final PostgresNodeGroup group = nodeGroupStorage.getNodeGroup(connection, nodeToRegister.getGroup());
             LOG.info("get node group", Long.toString(System.currentTimeMillis() - start));
