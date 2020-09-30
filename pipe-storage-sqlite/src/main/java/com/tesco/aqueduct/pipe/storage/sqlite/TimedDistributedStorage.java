@@ -1,33 +1,31 @@
 package com.tesco.aqueduct.pipe.storage.sqlite;
 
 import com.tesco.aqueduct.pipe.api.*;
+import io.micrometer.core.instrument.LongTaskTimer;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 
 import java.util.List;
 import java.util.OptionalLong;
 
 public class TimedDistributedStorage implements DistributedStorage {
     private final DistributedStorage storage;
-    private final Timer readTimer;
-    private final Timer latestOffsetTimer;
-    private final Timer writeMessageTimer;
-    private final Timer writeMessagesTimer;
-    private final Timer writePipeStateTimer;
-    private final Timer readPipeStateTimer;
-    private final Timer readOffsetTimer;
-    private final Timer writeOffsetTimer;
+    private final LongTaskTimer readTimer;
+    private final LongTaskTimer writeMessageTimer;
+    private final LongTaskTimer writeMessagesTimer;
+    private final LongTaskTimer writePipeStateTimer;
+    private final LongTaskTimer readPipeStateTimer;
+    private final LongTaskTimer readOffsetTimer;
+    private final LongTaskTimer writeOffsetTimer;
 
     public TimedDistributedStorage(final DistributedStorage storage, final MeterRegistry meterRegistry) {
         this.storage = storage;
-        readTimer = meterRegistry.timer("pipe.storage.read");
-        latestOffsetTimer = meterRegistry.timer("pipe.storage.latestOffset");
-        readOffsetTimer = meterRegistry.timer("pipe.storage.readOffset");
-        writeOffsetTimer = meterRegistry.timer("pipe.storage.writeOffset");
-        writeMessageTimer = meterRegistry.timer("pipe.storage.writeMessage");
-        writeMessagesTimer = meterRegistry.timer("pipe.storage.writeMessages");
-        writePipeStateTimer = meterRegistry.timer("pipe.storage.writePipeState");
-        readPipeStateTimer = meterRegistry.timer("pipe.storage.readPipeState");
+        readTimer = meterRegistry.more().longTaskTimer("pipe.storage.read");
+        readOffsetTimer = meterRegistry.more().longTaskTimer("pipe.storage.readOffset");
+        writeOffsetTimer = meterRegistry.more().longTaskTimer("pipe.storage.writeOffset");
+        writeMessageTimer = meterRegistry.more().longTaskTimer("pipe.storage.writeMessage");
+        writeMessagesTimer = meterRegistry.more().longTaskTimer("pipe.storage.writeMessages");
+        writePipeStateTimer = meterRegistry.more().longTaskTimer("pipe.storage.writePipeState");
+        readPipeStateTimer = meterRegistry.more().longTaskTimer("pipe.storage.readPipeState");
     }
 
     @Override
