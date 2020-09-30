@@ -4,8 +4,8 @@ import com.tesco.aqueduct.pipe.api.JsonHelper
 import com.tesco.aqueduct.pipe.api.Message
 import com.tesco.aqueduct.pipe.api.MessageResults
 import groovy.sql.Sql
+import io.micrometer.core.instrument.LongTaskTimer
 import io.micrometer.core.instrument.MeterRegistry
-import io.micrometer.core.instrument.Timer
 import org.sqlite.SQLiteDataSource
 import spock.lang.Specification
 
@@ -56,8 +56,10 @@ class TimedDistributedStorageIntegrationSpec extends Specification {
         def sql = Sql.newInstance(CONNECTION_URL)
         sql.execute("DROP TABLE IF EXISTS EVENT;")
 
-        def timer = Mock(Timer)
-        meterRegistry.timer(_ as String) >> timer
+        def timer = Mock(LongTaskTimer)
+        def more = Mock(MeterRegistry.More)
+        more.longTaskTimer(_ as String) >> timer
+        meterRegistry.more() >> more
         timer.record(_ as Supplier) >> { return it.first().get() }
         timer.record(_ as Runnable) >> { return it.first().run() }
     }
