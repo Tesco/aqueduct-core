@@ -68,7 +68,7 @@ public class PostgresqlStorage implements CentralStorage {
 
             final long globalLatestOffset = getLatestOffsetWithConnection(connection);
 
-            final List<Integer> clusterIds = getClusterIds(connection, clusterUuids);
+            final Array clusterIds = getClusterIds(connection, clusterUuids);
 
             try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, globalLatestOffset, clusterIds)) {
 
@@ -89,7 +89,7 @@ public class PostgresqlStorage implements CentralStorage {
         }
     }
 
-    private List<Integer> getClusterIds(Connection connection, List<String> clusterUuids) {
+    private Array getClusterIds(Connection connection, List<String> clusterUuids) {
         try(PreparedStatement statement = getClusterIdStatement(connection, clusterUuids)) {
             return runClusterIdsQuery(statement);
         } catch (SQLException exception) {
@@ -210,13 +210,13 @@ public class PostgresqlStorage implements CentralStorage {
         return messages;
     }
 
-    private List<Integer> runClusterIdsQuery(final PreparedStatement query) throws SQLException {
+    private Array runClusterIdsQuery(final PreparedStatement query) throws SQLException {
         try (ResultSet rs = query.executeQuery()) {
             while (rs.next()) {
-                return (List<Integer>) rs.getArray(1);
+                return rs.getArray(1);
             }
         }
-        return Collections.EMPTY_LIST;
+        return null;
     }
 
     private PreparedStatement getLatestOffsetStatement(final Connection connection) {
@@ -246,23 +246,21 @@ public class PostgresqlStorage implements CentralStorage {
         final List<String> types,
         final long startOffset,
         long endOffset,
-        final List<Integer> clusterIds
+        final Array clusterIds
     ) {
         try {
             PreparedStatement query;
-            Integer[] clusterIdsArray = (Integer[]) clusterIds.toArray();
-            Array clusterArray = connection.createArrayOf("INTEGER",clusterIdsArray);
 
             if (types == null || types.isEmpty()) {
                 query = connection.prepareStatement(getSelectEventsWithoutTypeQuery(maxBatchSize));
-                query.setArray(1,clusterArray );
+                query.setArray(1,clusterIds );
                 query.setLong(2, startOffset);
                 query.setLong(3, endOffset);
                 query.setLong(4, limit);
             } else {
                 final String strTypes = String.join(",", types);
                 query = connection.prepareStatement(getSelectEventsWithTypeQuery(maxBatchSize));
-                query.setArray(1, clusterArray);
+                query.setArray(1, clusterIds);
                 query.setLong(2, startOffset);
                 query.setLong(3, endOffset);
                 query.setString(4, strTypes);
@@ -348,11 +346,11 @@ public class PostgresqlStorage implements CentralStorage {
     private String withInnerJoinToClusters() {
         return
             " WHERE " +
-            " cluster_id IN (?) ";
+            " cluster_id = ANY (?) ";
     }
 
     private String getClusterIdQuery() {
-        return "SELECT array_agg(cluster_id) FROM clusters WHERE ((cluster_uuid)::text = ANY (string_to_array(?, ','));";
+        return "SELECT array_agg(cluster_id) FROM clusters WHERE ((cluster_uuid)::text = ANY (string_to_array(?, ',')));";
     }
 
     private String getSelectLatestOffsetQuery() {
