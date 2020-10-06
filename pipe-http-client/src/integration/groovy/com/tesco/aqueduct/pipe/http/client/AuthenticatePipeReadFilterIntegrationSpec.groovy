@@ -78,7 +78,7 @@ class AuthenticatePipeReadFilterIntegrationSpec extends Specification {
         ))
             .start()
 
-        client = context.getBean(InternalHttpPipeClient)
+        client = context.getBean(InternalBrotliHttpPipeClient)
 
         when:
         client.httpRead([type], offset, location).body()
@@ -138,7 +138,7 @@ class AuthenticatePipeReadFilterIntegrationSpec extends Specification {
                 ))
                 .start()
 
-        client = context.getBean(InternalHttpPipeClient)
+        client = context.getBean(InternalBrotliHttpPipeClient)
 
         when:
         client.httpRead([type], offset, location).body()

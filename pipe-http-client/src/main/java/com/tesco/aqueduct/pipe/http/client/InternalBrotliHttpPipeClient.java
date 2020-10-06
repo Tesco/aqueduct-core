@@ -1,6 +1,5 @@
 package com.tesco.aqueduct.pipe.http.client;
 
-import io.micronaut.context.annotation.Primary;
 import io.micronaut.http.HttpResponse;
 import io.micronaut.http.annotation.Consumes;
 import io.micronaut.http.annotation.Get;
@@ -11,7 +10,6 @@ import io.micronaut.retry.annotation.CircuitBreaker;
 import javax.annotation.Nullable;
 import java.util.List;
 
-@Primary
 @Client(id = "pipe")
 public interface InternalBrotliHttpPipeClient extends InternalHttpPipeClient {
 

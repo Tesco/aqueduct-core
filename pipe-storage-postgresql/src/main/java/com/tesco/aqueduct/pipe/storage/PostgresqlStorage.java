@@ -374,20 +374,27 @@ public class PostgresqlStorage implements CentralStorage {
             "   FROM " +
             "   events e, " +
             "   ( " +
-            "     SELECT msg_key, cluster_id, max(msg_offset) max_offset " +
+            "     SELECT msg_key, cluster_id, max(msg_offset) max_offset, type" +
             "     FROM events " +
             "     WHERE " +
             "       created_utc <= ? " +
-            "     GROUP BY msg_key, cluster_id" +
+            "     GROUP BY msg_key, cluster_id, type" +
             "   ) x " +
             "   WHERE " +
             "     created_utc <= ? " +
-            "     AND e.msg_key = x.msg_key AND e.cluster_id = x.cluster_id AND e.msg_offset <> x.max_offset " +
+            "     AND e.msg_key = x.msg_key " +
+            "     AND e.cluster_id = x.cluster_id " +
+            "     AND e.type = x.type" +
+            "     AND e.msg_offset <> x.max_offset " +
             " );";
     }
 
     private static String getVacuumAnalyseQuery() {
-        return "VACUUM ANALYSE EVENTS;";
+        return
+            " VACUUM ANALYSE EVENTS; " +
+            " VACUUM ANALYSE CLUSTERS; " +
+            " VACUUM ANALYSE REGISTRY; " +
+            " VACUUM ANALYSE NODE_REQUESTS; ";
     }
 
     private String getWorkMemQuery() {

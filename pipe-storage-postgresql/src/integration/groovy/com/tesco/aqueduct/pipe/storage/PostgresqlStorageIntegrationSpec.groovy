@@ -46,6 +46,8 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         sql.execute("""
         DROP TABLE IF EXISTS EVENTS;
         DROP TABLE IF EXISTS CLUSTERS;
+        DROP TABLE IF EXISTS REGISTRY;
+        DROP TABLE IF EXISTS NODE_REQUESTS;
           
         CREATE TABLE EVENTS(
             msg_offset BIGSERIAL PRIMARY KEY NOT NULL,
@@ -56,6 +58,18 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
             data text NULL,
             event_size int NOT NULL,
             cluster_id BIGINT NOT NULL DEFAULT 1
+        );
+        
+        CREATE TABLE NODE_REQUESTS(
+            host_id VARCHAR PRIMARY KEY NOT NULL,
+            bootstrap_requested timestamp NOT NULL,
+            bootstrap_type VARCHAR NOT NULL,
+            bootstrap_received timestamp
+        );
+        
+        CREATE TABLE REGISTRY(
+            group_id VARCHAR PRIMARY KEY NOT NULL,
+            entry JSON NOT NULL
         );
         
         CREATE TABLE CLUSTERS(
@@ -212,6 +226,29 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         and: 'the correct compacted message list is returned in the message results'
         result.messages*.offset*.intValue() == [2, 3]
         result.messages*.key == ["B", "A"]
+    }
+
+    def 'Messages with the same key but different types arent compacted'() {
+        given: 'some clusters are stored'
+        Long cluster1 = insertCluster("cluster1")
+
+        and: 'an existing data store with duplicate messages for the same key'
+        insertWithCluster(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        insertWithCluster(message(2, "type2", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+
+        when: 'compaction is run on the whole data store'
+        storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
+
+        and: 'all messages are requested'
+        MessageResults result = storage.read(null, 0, ["cluster1"])
+        List<Message> retrievedMessages = result.messages
+
+        then: 'duplicate messages arent deleted'
+        retrievedMessages.size() == 2
+
+        and: 'the correct compacted message list is returned in the message results'
+        result.messages*.offset*.intValue() == [1, 2]
+        result.messages*.key == ["A", "A"]
     }
 
     def 'Messages with the same key but different clusters are not compacted'() {

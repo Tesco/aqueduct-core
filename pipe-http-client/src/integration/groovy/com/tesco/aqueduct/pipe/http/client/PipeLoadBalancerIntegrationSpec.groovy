@@ -4,6 +4,7 @@ import com.stehno.ersatz.ErsatzServer
 import com.tesco.aqueduct.pipe.api.HttpHeaders
 import com.tesco.aqueduct.pipe.api.PipeState
 import com.tesco.aqueduct.pipe.api.TokenProvider
+import com.tesco.aqueduct.pipe.codec.BrotliCodec
 import com.tesco.aqueduct.registry.client.PipeLoadBalancer
 import com.tesco.aqueduct.registry.client.PipeServiceInstance
 import com.tesco.aqueduct.registry.client.SelfRegistrationTask
@@ -29,6 +30,8 @@ class PipeLoadBalancerIntegrationSpec extends Specification {
     PipeLoadBalancer loadBalancer
     ServiceList serviceList
 
+    BrotliCodec brotliCodec = new BrotliCodec(4, false)
+
     def setup() {
         serverA = new ErsatzServer()
         serverA.start()
@@ -53,12 +56,16 @@ class PipeLoadBalancerIntegrationSpec extends Specification {
             .build()
             .registerSingleton(SelfRegistrationTask, Mock(SelfRegistrationTask))
             .registerSingleton(Mock(TokenProvider))
+            .registerSingleton(BrotliCodec, brotliCodec)
             .registerSingleton(new ServiceList(
                 new DefaultHttpClientConfiguration(),
                 new PipeServiceInstance(new DefaultHttpClientConfiguration(), new URL("http://does.not.exist")),
                 File.createTempFile("provider", "properties")
             ))
             .start()
+
+        def brotliClient = context.getBean(InternalBrotliHttpPipeClient)
+        context.registerSingleton(new HttpPipeClient(brotliClient, brotliCodec))
 
         client = context.getBean(HttpPipeClient)
         loadBalancer = context.getBean(PipeLoadBalancer)

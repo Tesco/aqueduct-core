@@ -1,7 +1,7 @@
 package com.tesco.aqueduct.pipe.http.client;
 
 import com.tesco.aqueduct.pipe.api.*;
-import com.tesco.aqueduct.pipe.codec.BrotliCodec;
+import com.tesco.aqueduct.pipe.codec.Codec;
 import io.micronaut.http.HttpResponse;
 
 import javax.annotation.Nullable;
@@ -18,12 +18,12 @@ public class HttpPipeClient implements Reader {
 
     private final InternalHttpPipeClient client;
 
-    private final BrotliCodec brotliCodec;
+    private final Codec codec;
 
     @Inject
-    public HttpPipeClient(final InternalHttpPipeClient client, final BrotliCodec brotliCodec) {
+    public HttpPipeClient(final InternalHttpPipeClient client, final Codec codec) {
         this.client = client;
-        this.brotliCodec = brotliCodec;
+        this.codec = codec;
     }
 
     @Override
@@ -39,7 +39,7 @@ public class HttpPipeClient implements Reader {
 
         if (response.getHeaders().contains(X_CONTENT_ENCODING) &&
                 response.getHeaders().get(X_CONTENT_ENCODING).contains("br")) {
-            responseBody = brotliCodec.decode(response.body());
+            responseBody = codec.decode(response.body());
         } else {
             responseBody = response.body();
         }

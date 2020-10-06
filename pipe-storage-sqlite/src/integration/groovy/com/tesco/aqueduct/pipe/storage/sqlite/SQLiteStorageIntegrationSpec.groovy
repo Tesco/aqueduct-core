@@ -671,6 +671,29 @@ class SQLiteStorageIntegrationSpec extends Specification {
         messageResults.messages*.key == ["B", "A"]
     }
 
+    def 'Messages with the same key but different types arent compacted'() {
+        given: 'an existing data store with duplicate messages for the same key'
+        def messages = [
+            message(1, "A", "type1", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
+            message(2, "A", "type2", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
+        ]
+        sqliteStorage.write(messages)
+
+        when: 'compaction is run on the whole data store'
+        sqliteStorage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
+
+        and: 'all messages are requested'
+        MessageResults messageResults = sqliteStorage.read(null, 1, ["locationUuid"])
+        List<Message> retrievedMessages = messageResults.messages
+
+        then: 'no messages have been deleted'
+        retrievedMessages.size() == 2
+
+        and: 'the correct compacted message list is returned in the message results'
+        messageResults.messages*.offset*.intValue() == [1, 2]
+        messageResults.messages*.key == ["A", "A"]
+    }
+
     def 'All duplicate messages are compacted to a given offset with 3 duplicates'() {
         given: 'an existing data store with duplicate messages for the same key'
         def messages = [
