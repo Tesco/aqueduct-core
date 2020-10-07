@@ -308,39 +308,27 @@ public class PostgresqlStorage implements CentralStorage {
 
     private String getSelectEventsWithoutTypeQuery(long maxBatchSize) {
         return
-            " SELECT type, msg_key, content_type, msg_offset, created_utc, data " +
-            " FROM " +
-            " ( " +
-            "   SELECT " +
-            "     type, msg_key, content_type, msg_offset, created_utc, data, " +
-            "     SUM(event_size) OVER (ORDER BY msg_offset ASC) AS running_size " +
+            " SELECT " +
+            "   type, msg_key, content_type, msg_offset, created_utc, data " +
             "   FROM events " +
                   withInnerJoinToClusters() +
             "   AND events.msg_offset >= ? " +
             "   AND events.msg_offset <= ?" +
             " ORDER BY msg_offset " +
-            " LIMIT ?" +
-            " ) unused " +
-            " WHERE running_size <= " + maxBatchSize;
+            " LIMIT ? ;";
     }
 
     private String getSelectEventsWithTypeQuery(long maxBatchSize) {
         return
-            " SELECT type, msg_key, content_type, msg_offset, created_utc, data " +
-            " FROM " +
-            " ( " +
             "   SELECT " +
-            "     type, msg_key, content_type, msg_offset, created_utc, data, " +
-            "     SUM(event_size) OVER (ORDER BY msg_offset ASC) AS running_size " +
+            "     type, msg_key, content_type, msg_offset, created_utc, data " +
             "   FROM events " +
             withInnerJoinToClusters() +
             "   AND events.msg_offset >= ? " +
             "   AND events.msg_offset <= ?" +
             "   AND type = ANY (string_to_array(?, ','))" +
             " ORDER BY msg_offset " +
-            " LIMIT ?" +
-            " ) unused " +
-            " WHERE running_size <= " + maxBatchSize;
+            " LIMIT ? ;";
     }
 
     private String withInnerJoinToClusters() {

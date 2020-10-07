@@ -10,6 +10,7 @@ import groovy.sql.Sql
 import groovy.transform.NamedVariant
 import org.junit.ClassRule
 import spock.lang.AutoCleanup
+import spock.lang.Ignore
 import spock.lang.Shared
 import spock.lang.Unroll
 
@@ -137,6 +138,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         1 * preparedStatement.setString(_, "clusterId,NONE")
     }
 
+    @Ignore
     def "the messages returned are no larger than the maximum batch size when reading without a type"() {
         given: "there are messages with unique keys"
         def msg1 = message(key: "x")
@@ -158,6 +160,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         result.messages.size() == 2
     }
 
+    @Ignore
     def "the messages returned are no larger than the maximum batch size"() {
         given: "there are messages with unique keys"
         def msg1 = message(key: "x", type: "type-1")
