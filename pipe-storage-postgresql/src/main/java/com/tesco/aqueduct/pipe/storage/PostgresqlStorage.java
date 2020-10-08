@@ -235,10 +235,8 @@ public class PostgresqlStorage implements CentralStorage {
 
     private PreparedStatement getClusterIdStatement(final Connection connection, final List<String> clusterUuids) {
         try {
-            PreparedStatement query;
             final String strClusters = String.join(",", clusterUuidsWithDefaultCluster(clusterUuids));
-
-            query = connection.prepareStatement(getClusterIdQuery());
+            PreparedStatement query = connection.prepareStatement(getClusterIdQuery());
             query.setString(1, strClusters);
             return query;
         } catch (SQLException exception) {
