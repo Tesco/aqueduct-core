@@ -45,7 +45,7 @@ persistence:
   read:
     limit: 2500
     max-batch-size: 1000000
-    retry-after: 240
+    retry-after: 240000
     expected-node-count: 7000
     cluster-db-pool-size: 24
     read-delay-seconds: 60

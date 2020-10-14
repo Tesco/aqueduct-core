@@ -21,15 +21,15 @@ public class SQLiteStorage implements DistributedStorage {
 
     private final DataSource dataSource;
     private final int limit;
-    private final int retryAfterSeconds;
+    private final int retryAfterMs;
     private final long maxBatchSize;
 
     private static final PipeLogger LOG = new PipeLogger(LoggerFactory.getLogger(SQLiteStorage.class));
 
-    public SQLiteStorage(final DataSource dataSource, final int limit, final int retryAfterSeconds, final long maxBatchSize) {
+    public SQLiteStorage(final DataSource dataSource, final int limit, final int retryAfterMs, final long maxBatchSize) {
         this.dataSource = dataSource;
         this.limit = limit;
-        this.retryAfterSeconds = retryAfterSeconds;
+        this.retryAfterMs = retryAfterMs;
         this.maxBatchSize = maxBatchSize + (((long)Message.MAX_OVERHEAD_SIZE) * limit);
 
         createEventTableIfNotExists();
@@ -108,7 +108,7 @@ public class SQLiteStorage implements DistributedStorage {
     }
 
     public int calculateRetryAfter(final int messageCount) {
-        return messageCount > 0 ? 0 : retryAfterSeconds;
+        return messageCount > 0 ? 0 : retryAfterMs;
     }
 
     private Message mapRetrievedMessageFromResultSet(final ResultSet resultSet) throws SQLException {
