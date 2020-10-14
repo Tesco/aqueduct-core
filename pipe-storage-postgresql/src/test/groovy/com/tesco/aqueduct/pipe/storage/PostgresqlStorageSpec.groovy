@@ -9,7 +9,7 @@ import javax.sql.DataSource
 class PostgresqlStorageSpec extends Specification {
 
     @Shared
-    def retryAfter = 30
+    def retryAfter = 30000
 
     @Unroll
     def "retry after is #result when queryTime is #timeOfQueryMs and message result size is #noOfMessages"() {
@@ -25,12 +25,12 @@ class PostgresqlStorageSpec extends Specification {
 
         where:
         timeOfQueryMs | noOfMessages | result
-        100           | 10000        | 5
-        200           | 10000        | 10
-        10            | 10000        | 1
-        50            | 10000        | 3
+        100           | 10000        | 5000
+        200           | 10000        | 10000
+        10            | 10000        | 500
+        50            | 10000        | 2500
         0             | 10000        | 1
-        1             | 10000        | 1
+        1             | 10000        | 50
     }
 
     @Unroll

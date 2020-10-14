@@ -115,12 +115,10 @@ public class PostgresqlStorage implements CentralStorage {
             return 1;
         }
 
-        logCalculatedRetryAfterInMs(queryTimeMs);
-
         // retry after = readers / (connections / query time)
-        final double dbThreshold = this.clusterDBPoolSize * 1000 / queryTimeMs;
-        final double retryAfterSecs = this.nodeCount / dbThreshold;
-        final long calculatedRetryAfter = (long) Math.ceil(retryAfterSecs);
+        final double dbThreshold = this.clusterDBPoolSize / (double) queryTimeMs;
+        final double retryAfterMs = this.nodeCount / dbThreshold;
+        final long calculatedRetryAfter = (long) Math.ceil(retryAfterMs);
 
         LOG.info("PostgresSqlStorage:calculateRetryAfter:messagesCount", String.valueOf(messagesCount));
         LOG.info("PostgresSqlStorage:calculateRetryAfter:calculatedRetryAfter", String.valueOf(calculatedRetryAfter));
@@ -130,13 +128,6 @@ public class PostgresqlStorage implements CentralStorage {
 
     private long retryAfterWithRandomJitter() {
         return retryAfter + (long) (retryAfter * Math.random());
-    }
-  
-    private void logCalculatedRetryAfterInMs(long queryTimeMs) {
-        final double dbThreshold = this.clusterDBPoolSize / (double) queryTimeMs;
-        final double retryAfterMs = this.nodeCount / dbThreshold;
-        final long calculatedRetryAfter = (long) Math.ceil(retryAfterMs);
-        LOG.info("PostgresSqlStorage:calculateRetryAfter:RetryAfterMs", String.valueOf(Math.min(calculatedRetryAfter, retryAfter * 1000)));
     }
 
     @Override
