@@ -4,7 +4,6 @@ import com.tesco.aqueduct.pipe.api.*;
 import com.tesco.aqueduct.pipe.codec.ContentEncoder;
 import com.tesco.aqueduct.pipe.logger.PipeLogger;
 import com.tesco.aqueduct.pipe.metrics.Measure;
-import io.micronaut.context.annotation.Property;
 import io.micronaut.context.annotation.Value;
 import io.micronaut.core.convert.format.ReadableBytes;
 import io.micronaut.core.util.StringUtils;
@@ -28,7 +27,6 @@ import java.util.stream.Stream;
 
 import static com.tesco.aqueduct.pipe.api.PipeState.OUT_OF_DATE;
 import static com.tesco.aqueduct.pipe.api.PipeState.UP_TO_DATE;
-import static io.micronaut.http.HttpHeaders.ACCEPT_ENCODING;
 
 @Secured("PIPE_READ")
 @Measure
@@ -73,7 +71,7 @@ public class PipeReadController {
 
         final MessageResults messageResults = reader.read(types, offset, locationResolver.resolve(location));
         final List<Message> list = messageResults.getMessages();
-        final long retryTime = messageResults.getRetryAfterSeconds();
+        final long retryTime = messageResults.getRetryAfterMs();
 
         LOG.debug("pipe read controller", String.format("set retry time to %d", retryTime));
         byte[] responseBytes = JsonHelper.toJson(list).getBytes();
@@ -81,7 +79,11 @@ public class PipeReadController {
         ContentEncoder.EncodedResponse encodedResponse = contentEncoder.encodeResponse(request, responseBytes);
 
         Map<CharSequence, CharSequence> responseHeaders = new HashMap<>(encodedResponse.getHeaders());
-        responseHeaders.put(HttpHeaders.RETRY_AFTER, String.valueOf(retryTime));
+
+        final long retryAfterSeconds = (long) Math.ceil(retryTime / (double) 1000);
+
+        responseHeaders.put(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfterSeconds));
+        responseHeaders.put(HttpHeaders.RETRY_AFTER_MS, String.valueOf(retryTime));
         responseHeaders.put(HttpHeaders.PIPE_STATE,
                 pipeStateProvider.getState(types, reader).isUpToDate() ? UP_TO_DATE.toString() : OUT_OF_DATE.toString());
 

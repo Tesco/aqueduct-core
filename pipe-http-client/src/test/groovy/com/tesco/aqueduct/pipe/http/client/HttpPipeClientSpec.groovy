@@ -52,7 +52,7 @@ class HttpPipeClientSpec extends Specification {
 
         then: "we parse the retry after if its correct or return 0 otherwise"
         results.messages.size() == 1
-        results.retryAfterSeconds == result
+        results.retryAfterMs == result
 
         where:
         retry | result

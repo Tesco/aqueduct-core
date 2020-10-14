@@ -8,7 +8,7 @@ import java.util.OptionalLong;
 @Data
 public class MessageResults {
     private final List<Message> messages;
-    private final long retryAfterSeconds;
+    private final long retryAfterMs;
     private final OptionalLong globalLatestOffset;
     private final PipeState pipeState;
 }

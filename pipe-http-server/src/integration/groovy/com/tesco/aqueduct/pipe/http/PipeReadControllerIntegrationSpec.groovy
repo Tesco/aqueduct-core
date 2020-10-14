@@ -38,7 +38,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
     @Inject
     EmbeddedServer server
 
-    static int RETRY_AFTER_SECONDS = 600
+    static int RETRY_AFTER_MS = 600000
     static String type = "type1"
 
     void setup() {
@@ -61,12 +61,13 @@ class PipeReadControllerIntegrationSpec extends Specification {
             .then()
             .statusCode(statusCode)
             .content(equalTo(responseBody))
-            .header(HttpHeaders.RETRY_AFTER, "" + RETRY_AFTER_SECONDS)
+            .header(HttpHeaders.RETRY_AFTER, "" + RETRY_AFTER_MS / 1000)
+            .header(HttpHeaders.RETRY_AFTER_MS, "" + RETRY_AFTER_MS)
 
         where:
-        requestPath                         | statusCode | retryAfter          | responseBody
-        "/pipe/0?location='someLocation'"   | 200        | RETRY_AFTER_SECONDS | "[]"
-        "/pipe/1?location='someLocation'"   | 200        | RETRY_AFTER_SECONDS | "[]"
+        requestPath                       | statusCode | retryAfter     | responseBody
+        "/pipe/0?location='someLocation'" | 200        | RETRY_AFTER_MS | "[]"
+        "/pipe/1?location='someLocation'" | 200        | RETRY_AFTER_MS | "[]"
     }
 
     @Unroll

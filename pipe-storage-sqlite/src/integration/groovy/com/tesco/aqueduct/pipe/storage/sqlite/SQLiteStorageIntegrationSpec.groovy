@@ -637,7 +637,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         MessageResults messageResults = sqliteStorage.read(null, 1, ["locationUuid"])
 
         then: 'the retry after is 0'
-        messageResults.retryAfterSeconds == 0
+        messageResults.retryAfterMs == 0
     }
 
     def 'throws an exception if there is a problem with the database connection on startup'() {

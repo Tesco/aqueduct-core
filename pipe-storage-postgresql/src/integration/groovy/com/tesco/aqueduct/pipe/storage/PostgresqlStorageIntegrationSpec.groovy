@@ -189,7 +189,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         MessageResults result = storage.read([], 4, ["clusterId"])
 
         then:
-        result.retryAfterSeconds > 0
+        result.retryAfterMs > 0
         result.messages.isEmpty()
     }
 
@@ -200,7 +200,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         MessageResults result = storage.read([], 0,["clusterId"])
 
         then:
-        result.retryAfterSeconds > 0
+        result.retryAfterMs > 0
         result.messages.isEmpty()
     }
 
