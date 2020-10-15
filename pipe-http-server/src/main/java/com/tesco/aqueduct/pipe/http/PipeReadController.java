@@ -71,19 +71,19 @@ public class PipeReadController {
 
         final MessageResults messageResults = reader.read(types, offset, locationResolver.resolve(location));
         final List<Message> list = messageResults.getMessages();
-        final long retryTime = messageResults.getRetryAfterMs();
+        final long retryAfterMs = messageResults.getRetryAfterMs();
 
-        LOG.debug("pipe read controller", String.format("set retry time to %d", retryTime));
+        LOG.debug("pipe read controller", String.format("set retry time to %d", retryAfterMs));
         byte[] responseBytes = JsonHelper.toJson(list).getBytes();
 
         ContentEncoder.EncodedResponse encodedResponse = contentEncoder.encodeResponse(request, responseBytes);
 
         Map<CharSequence, CharSequence> responseHeaders = new HashMap<>(encodedResponse.getHeaders());
 
-        final long retryAfterSeconds = (long) Math.ceil(retryTime / (double) 1000);
+        final long retryAfterSeconds = (long) Math.ceil(retryAfterMs / (double) 1000);
 
         responseHeaders.put(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfterSeconds));
-        responseHeaders.put(HttpHeaders.RETRY_AFTER_MS, String.valueOf(retryTime));
+        responseHeaders.put(HttpHeaders.RETRY_AFTER_MS, String.valueOf(retryAfterMs));
         responseHeaders.put(HttpHeaders.PIPE_STATE,
                 pipeStateProvider.getState(types, reader).isUpToDate() ? UP_TO_DATE.toString() : OUT_OF_DATE.toString());
 

@@ -2,6 +2,7 @@ package com.tesco.aqueduct.pipe.http.client;
 
 import com.tesco.aqueduct.pipe.api.*;
 import com.tesco.aqueduct.pipe.codec.Codec;
+import io.micronaut.context.annotation.Property;
 import io.micronaut.http.HttpResponse;
 
 import javax.annotation.Nullable;
@@ -20,10 +21,17 @@ public class HttpPipeClient implements Reader {
 
     private final Codec codec;
 
+    private final long defaultRetryAfter;
+
     @Inject
-    public HttpPipeClient(final InternalHttpPipeClient client, final Codec codec) {
+    public HttpPipeClient(
+            final InternalHttpPipeClient client,
+            final Codec codec,
+            @Property(name = "persistence.read.default-retry-after") long defaultRetryAfter
+    ) {
         this.client = client;
         this.codec = codec;
+        this.defaultRetryAfter = defaultRetryAfter;
     }
 
     @Override
@@ -46,13 +54,11 @@ public class HttpPipeClient implements Reader {
 
         final long retryAfter = Optional
             .ofNullable(response.header(HttpHeaders.RETRY_AFTER_MS))
-            .map(this::checkForValidNumber)
-            .map(value -> Long.max(0, value))
+            .map(value -> checkForValidNumber(value, 1))
             .orElse(Optional
                 .ofNullable(response.header(HttpHeaders.RETRY_AFTER))
-                .map(this::checkForValidNumber)
-                .map(value -> Long.max(0, value * 1000))
-                .orElse(0L));
+                .map(value -> checkForValidNumber(value, 1000))
+                .orElse(defaultRetryAfter));
 
         return new MessageResults(
             JsonHelper.messageFromJsonArray(responseBody),
@@ -72,11 +78,11 @@ public class HttpPipeClient implements Reader {
         throw new UnsupportedOperationException("HttpPipeClient does not support this operation.");
     }
 
-    private long checkForValidNumber(String value) {
+    private long checkForValidNumber(String value, int multiplier) {
         try {
-            return Long.parseLong(value);
+            return Long.parseLong(value) > 0 ? Long.parseLong(value) * multiplier : defaultRetryAfter;
         } catch (NumberFormatException exception) {
-            return 0L;
+            return defaultRetryAfter;
         }
     }
 

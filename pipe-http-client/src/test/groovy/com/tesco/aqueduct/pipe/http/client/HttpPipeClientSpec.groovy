@@ -12,7 +12,7 @@ import java.time.ZonedDateTime
 class HttpPipeClientSpec extends Specification {
 
     InternalHttpPipeClient internalClient = Mock()
-    HttpPipeClient client = new HttpPipeClient(internalClient, new BrotliCodec(4, false))
+    HttpPipeClient client = new HttpPipeClient(internalClient, new BrotliCodec(4, false), 240)
 
     static def responseBody = """[
             {
@@ -57,13 +57,14 @@ class HttpPipeClientSpec extends Specification {
 
         where:
         retry | retryMs | result
-        ""    | ""      | 0
-        null  | null    | 0
+        ""    | ""      | 240
+        null  | null    | 240
         "5"   | null    | 5000
         null  | "5000"  | 5000
         "6"   | "5000"  | 5000
-        "-5"  | "-5000" | 0
-        "foo" | "bar"   | 0
+        "-5"  | "-5000" | 240
+        "foo" | "bar"   | 240
+        "foo" | null    | 240
     }
 
     def "if global offset is available in the header, it should be returned in MessageResults"() {
