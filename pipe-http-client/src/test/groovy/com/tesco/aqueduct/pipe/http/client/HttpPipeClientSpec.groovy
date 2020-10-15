@@ -42,6 +42,7 @@ class HttpPipeClientSpec extends Specification {
         HttpResponse<byte[]> httpResponse = new SimpleHttpResponse()
         httpResponse.body(response.bytes)
         httpResponse.headers.set(HttpHeaders.RETRY_AFTER, retry)
+        httpResponse.headers.set(HttpHeaders.RETRY_AFTER_MS, retryMs)
         httpResponse.headers.set(HttpHeaders.GLOBAL_LATEST_OFFSET, String.valueOf(0L))
         httpResponse.headers.set(HttpHeaders.PIPE_STATE, PipeState.UP_TO_DATE.name())
 
@@ -55,12 +56,14 @@ class HttpPipeClientSpec extends Specification {
         results.retryAfterMs == result
 
         where:
-        retry | result
-        ""    | 0
-        null  | 0
-        "5"   | 5
-        "-5"  | 0
-        "foo" | 0
+        retry | retryMs | result
+        ""    | ""      | 0
+        null  | null    | 0
+        "5"   | null    | 5000
+        null  | "5000"  | 5000
+        "6"   | "5000"  | 5000
+        "-5"  | "-5000" | 0
+        "foo" | "bar"   | 0
     }
 
     def "if global offset is available in the header, it should be returned in MessageResults"() {

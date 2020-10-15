@@ -45,16 +45,14 @@ public class HttpPipeClient implements Reader {
         }
 
         final long retryAfter = Optional
-            .ofNullable(response.header(HttpHeaders.RETRY_AFTER))
-            .map(value -> {
-                try {
-                    return Long.parseLong(value);
-                } catch (NumberFormatException exception) {
-                    return 0L;
-                }
-            })
+            .ofNullable(response.header(HttpHeaders.RETRY_AFTER_MS))
+            .map(this::checkForValidNumber)
             .map(value -> Long.max(0, value))
-            .orElse(0L);
+            .orElse(Optional
+                .ofNullable(response.header(HttpHeaders.RETRY_AFTER))
+                .map(this::checkForValidNumber)
+                .map(value -> Long.max(0, value * 1000))
+                .orElse(0L));
 
         return new MessageResults(
             JsonHelper.messageFromJsonArray(responseBody),
@@ -72,6 +70,14 @@ public class HttpPipeClient implements Reader {
     @Override
     public PipeState getPipeState() {
         throw new UnsupportedOperationException("HttpPipeClient does not support this operation.");
+    }
+
+    private long checkForValidNumber(String value) {
+        try {
+            return Long.parseLong(value);
+        } catch (NumberFormatException exception) {
+            return 0L;
+        }
     }
 
     private Long getGlobalOffsetHeader(HttpResponse<?> response) {
