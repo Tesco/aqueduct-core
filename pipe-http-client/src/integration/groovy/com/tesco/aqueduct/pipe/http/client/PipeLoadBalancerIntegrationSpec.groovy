@@ -65,7 +65,7 @@ class PipeLoadBalancerIntegrationSpec extends Specification {
             .start()
 
         def brotliClient = context.getBean(InternalBrotliHttpPipeClient)
-        context.registerSingleton(new HttpPipeClient(brotliClient, brotliCodec))
+        context.registerSingleton(new HttpPipeClient(brotliClient, brotliCodec, 240))
 
         client = context.getBean(HttpPipeClient)
         loadBalancer = context.getBean(PipeLoadBalancer)
