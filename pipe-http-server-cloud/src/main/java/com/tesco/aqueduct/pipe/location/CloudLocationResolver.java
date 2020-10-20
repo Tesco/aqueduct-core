@@ -2,6 +2,7 @@ package com.tesco.aqueduct.pipe.location;
 
 import com.tesco.aqueduct.pipe.api.LocationResolver;
 import com.tesco.aqueduct.pipe.logger.PipeLogger;
+import io.micronaut.cache.annotation.Cacheable;
 import io.micronaut.http.client.exceptions.HttpClientResponseException;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -22,12 +23,15 @@ public class CloudLocationResolver implements LocationResolver {
     }
 
     @Override
+    @Cacheable(value = "cluster-cache", parameters = "locationId")
     public List<String> resolve(@NotNull String locationId) {
         try {
-            return locationServiceClient.get().getClusters(traceId(), locationId)
-                .getBody()
-                .map(LocationServiceClusterResponse::getClusters)
-                .orElseThrow(() -> new LocationServiceException("Unexpected response body, please check location service contract for this endpoint."));
+            final List<String> clusters = locationServiceClient.get().getClusters(traceId(), locationId)
+                    .getBody()
+                    .map(LocationServiceClusterResponse::getClusters)
+                    .orElseThrow(() -> new LocationServiceException("Unexpected response body, please check location service contract for this endpoint."));
+
+            return clusters;
 
         } catch (final HttpClientResponseException exception) {
             LOG.error("resolve", "Http client response error", exception);

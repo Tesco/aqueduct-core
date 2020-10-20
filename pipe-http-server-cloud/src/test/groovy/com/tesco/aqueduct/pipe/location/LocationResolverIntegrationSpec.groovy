@@ -134,6 +134,61 @@ class LocationResolverIntegrationSpec extends Specification {
         identityMockService.verify()
     }
 
+    def "Location resolver caches the response"() {
+        given:
+        def locationUuid = "locationUuid"
+
+        and: "a mocked Identity service for issue token endpoint"
+        identityIssueTokenService()
+
+        and: "location service returning list of clusters for a given Uuid"
+        locationServiceReturningClustersFor(locationUuid)
+
+        and: "location service bean is initialized"
+        def locationResolver = context.getBean(CloudLocationResolver)
+
+        when: "get clusters for a location Uuid"
+        def clusters = locationResolver.resolve(locationUuid)
+
+        then:
+        clusters == ["cluster_A","cluster_B"]
+
+        when: "get clusters again for the same location Uuid"
+        def clusters2 = locationResolver.resolve(locationUuid)
+
+        then:
+        clusters2 == ["cluster_A","cluster_B"]
+
+        and: "location service is called once"
+        locationMockService.verify()
+    }
+
+    def "Location resolver does not cache when locationo service throws error"() {
+        given:
+        def locationUuid = "locationUuid"
+
+        and: "a mocked Identity service for issue token endpoint"
+        identityIssueTokenService()
+
+        and: "location service returning list of clusters for a given Uuid"
+        locationServiceReturningInternalServerErrorFor(locationUuid)
+
+        and: "location service bean is initialized"
+        def locationResolver = context.getBean(CloudLocationResolver)
+
+        when: "get clusters for a location Uuid"
+        locationResolver.resolve(locationUuid)
+
+        then:
+        thrown(LocationServiceException)
+
+        and: "location service is called once"
+        locationMockService.verify()
+
+        and: "identity service is called once"
+        identityMockService.verify()
+    }
+
     def "Location service propagates client error when client throws http client response error with status code 4xx"() {
         given:
         def locationUuid = "locationUuid"

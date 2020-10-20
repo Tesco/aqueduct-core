@@ -8,7 +8,6 @@ import io.micronaut.context.ApplicationContext
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader
 import io.micronaut.http.client.exceptions.HttpClientResponseException
 import io.micronaut.runtime.server.EmbeddedServer
-import io.reactivex.exceptions.CompositeException
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
@@ -204,10 +203,14 @@ class LocationServiceClientIntegrationSpec extends Specification {
     }
 
     private void locationServiceReturningError(String locationUuid) {
+        locationServiceReturningError(locationUuid, 4)
+    }
+
+    private void locationServiceReturningError(String locationUuid, Integer times) {
         locationMockService.expectations {
             get(LOCATION_BASE_PATH + locationPathIncluding(locationUuid)) {
                 header("Authorization", "Bearer ${ACCESS_TOKEN}")
-                called(4)
+                called(times)
 
                 responder {
                     header("Content-Type", "application/json")
