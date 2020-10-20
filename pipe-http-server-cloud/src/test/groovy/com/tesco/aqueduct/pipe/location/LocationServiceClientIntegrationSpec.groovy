@@ -59,6 +59,7 @@ class LocationServiceClientIntegrationSpec extends Specification {
                         url:                    $locationBasePath
                         attempts:               3
                         delay:                  500ms  
+                        reset:                  5s
                     authentication:
                         identity:
                             url:                ${identityMockService.getHttpUrl()}
