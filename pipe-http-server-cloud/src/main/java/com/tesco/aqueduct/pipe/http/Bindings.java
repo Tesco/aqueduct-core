@@ -77,11 +77,6 @@ public class Bindings {
     }
 
     @Singleton
-    LocationResolver bindLocationResolver(final Provider<LocationServiceClient> locationServiceClient) {
-        return new CloudLocationResolver(locationServiceClient);
-    }
-
-    @Singleton
     public Tracer tracer() {
         return new Configuration("Aqueduct Core").getTracer();
     }

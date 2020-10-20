@@ -8,10 +8,13 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import javax.inject.Provider;
+import javax.inject.Singleton;
 import javax.validation.constraints.NotNull;
 import java.util.List;
 import java.util.UUID;
 
+// It needs @Singleton because otherwise Micronaut @Cacheable won't intercept the cached method call
+@Singleton
 public class CloudLocationResolver implements LocationResolver {
 
     private static final PipeLogger LOG = new PipeLogger(LoggerFactory.getLogger(CloudLocationResolver.class));
@@ -26,12 +29,10 @@ public class CloudLocationResolver implements LocationResolver {
     @Cacheable(value = "cluster-cache", parameters = "locationId")
     public List<String> resolve(@NotNull String locationId) {
         try {
-            final List<String> clusters = locationServiceClient.get().getClusters(traceId(), locationId)
-                    .getBody()
-                    .map(LocationServiceClusterResponse::getClusters)
-                    .orElseThrow(() -> new LocationServiceException("Unexpected response body, please check location service contract for this endpoint."));
-
-            return clusters;
+            return locationServiceClient.get().getClusters(traceId(), locationId)
+                .getBody()
+                .map(LocationServiceClusterResponse::getClusters)
+                .orElseThrow(() -> new LocationServiceException("Unexpected response body, please check location service contract for this endpoint."));
 
         } catch (final HttpClientResponseException exception) {
             LOG.error("resolve", "Http client response error", exception);

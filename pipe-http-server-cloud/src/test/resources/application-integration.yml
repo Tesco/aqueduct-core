@@ -95,6 +95,7 @@ location:
   url: "${LOCATION_URL}"
   attempts: 3
   delay: 500ms
+  reset: 5s
 
 pipe:
   server:

@@ -62,6 +62,7 @@ authentication:
 location:
   delay: 500ms
   attempts: 3
+  reset: 5s
 
 pipe:
   delay: 500ms

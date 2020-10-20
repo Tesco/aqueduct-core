@@ -3,6 +3,7 @@ package com.tesco.aqueduct.pipe.location
 import com.stehno.ersatz.Decoders
 import com.stehno.ersatz.ErsatzServer
 import com.stehno.ersatz.junit.ErsatzServerRule
+import com.tesco.aqueduct.pipe.api.LocationResolver
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenClient
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenProvider
 import groovy.json.JsonOutput
@@ -60,7 +61,8 @@ class LocationResolverIntegrationSpec extends Specification {
                     location:
                         url:                    $locationBasePath
                         attempts:               3
-                        delay:                  500ms  
+                        delay:                  1ms
+                        reset:                  10ms
                     authentication:
                         identity:
                             url:                ${identityMockService.getHttpUrl()}
@@ -75,7 +77,6 @@ class LocationResolverIntegrationSpec extends Specification {
                 )
                 .build()
         context.start()
-        context.registerSingleton(new CloudLocationResolver(() -> context.getBean(LocationServiceClient)))
         context.registerSingleton(new IdentityIssueTokenProvider(() -> context.getBean(IdentityIssueTokenClient), CLIENT_ID, CLIENT_SECRET))
 
         def server = context.getBean(EmbeddedServer)
@@ -93,7 +94,7 @@ class LocationResolverIntegrationSpec extends Specification {
         locationServiceReturningClustersFor(locationUuid)
 
         and: "location service bean is initialized"
-        def locationResolver = context.getBean(CloudLocationResolver)
+        def locationResolver = context.getBean(LocationResolver)
 
         when: "get clusters for a location Uuid"
         List<String> clusters = locationResolver.resolve(locationUuid)
@@ -119,7 +120,7 @@ class LocationResolverIntegrationSpec extends Specification {
         locationServiceReturningInternalServerErrorFor(locationUuid)
 
         and: "location service bean is initialized"
-        def locationResolver = context.getBean(CloudLocationResolver)
+        def locationResolver = context.getBean(LocationResolver)
 
         when: "get clusters for a location Uuid"
         locationResolver.resolve(locationUuid)
@@ -145,7 +146,7 @@ class LocationResolverIntegrationSpec extends Specification {
         locationServiceReturningClustersFor(locationUuid)
 
         and: "location service bean is initialized"
-        def locationResolver = context.getBean(CloudLocationResolver)
+        def locationResolver = context.getBean(LocationResolver)
 
         when: "get clusters for a location Uuid"
         def clusters = locationResolver.resolve(locationUuid)
@@ -163,7 +164,7 @@ class LocationResolverIntegrationSpec extends Specification {
         locationMockService.verify()
     }
 
-    def "Location resolver does not cache when locationo service throws error"() {
+    def "Location resolver does not cache when location service throws error"() {
         given:
         def locationUuid = "locationUuid"
 
@@ -171,18 +172,27 @@ class LocationResolverIntegrationSpec extends Specification {
         identityIssueTokenService()
 
         and: "location service returning list of clusters for a given Uuid"
-        locationServiceReturningInternalServerErrorFor(locationUuid)
+        locationServiceReturningError(locationUuid, 500, 6)
 
         and: "location service bean is initialized"
-        def locationResolver = context.getBean(CloudLocationResolver)
+        def locationResolver = context.getBean(LocationResolver)
 
         when: "get clusters for a location Uuid"
         locationResolver.resolve(locationUuid)
 
-        then:
+        then: "throw an error"
         thrown(LocationServiceException)
 
-        and: "location service is called once"
+        when: "circuit breaker is reset to half-open"
+        sleep(50)
+
+        and: "get clusters for a location Uuid"
+        locationResolver.resolve(locationUuid)
+
+        then: "throw another exception"
+        thrown(LocationServiceException)
+
+        and: "location service is called again, exception was not cached"
         locationMockService.verify()
 
         and: "identity service is called once"
@@ -200,7 +210,7 @@ class LocationResolverIntegrationSpec extends Specification {
         locationServiceReturningBadRequestFor(locationUuid)
 
         and: "location service bean is initialized"
-        def locationResolver = context.getBean(CloudLocationResolver)
+        def locationResolver = context.getBean(LocationResolver)
 
         when: "get clusters for a location Uuid"
         locationResolver.resolve(locationUuid)
@@ -226,7 +236,7 @@ class LocationResolverIntegrationSpec extends Specification {
         locationServiceReturningClustersFor(locationUuid, "{}")
 
         and: "location service bean is initialized"
-        def locationResolver = context.getBean(CloudLocationResolver)
+        def locationResolver = context.getBean(LocationResolver)
 
         when: "get clusters for a location Uuid"
         locationResolver.resolve(locationUuid)

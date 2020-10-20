@@ -105,32 +105,6 @@ class LocationServiceClientIntegrationSpec extends Specification {
         identityMockService.verify()
     }
 
-    def "location is cached"() {
-        given: "a location Uuid"
-        def locationUuid = "locationUuid"
-
-        and: "a mocked Identity service for issue token endpoint"
-        identityIssueTokenService()
-
-        and: "location service returning list of clusters for a given Uuid"
-        locationServiceReturningListOfClustersForGiven(locationUuid)
-
-        and: "location service bean is initialized"
-        def locationServiceClient = context.getBean(LocationServiceClient)
-
-        when: "get clusters for a location Uuid"
-        locationServiceClient.getClusters("someTraceId", locationUuid)
-
-        then: "location service is called"
-        locationMockService.verify()
-
-        when: "location service is called with the same locationUuid"
-        locationServiceClient.getClusters("anotherTraceId", locationUuid)
-
-        then: "location is cached"
-        locationMockService.verify()
-    }
-
     def "location service is retried 3 times before throwing exception when it fails to resolve location to cluster"() {
         given: "a location Uuid"
         def locationUuid = "locationUuid"
