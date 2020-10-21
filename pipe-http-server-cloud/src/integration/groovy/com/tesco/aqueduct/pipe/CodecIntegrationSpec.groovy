@@ -66,7 +66,8 @@ class CodecIntegrationSpec extends Specification {
 
                 "location.url":                                 "${locationMockService.getUrl()}",
                 "location.attempts":                            3,
-                "location.delay":                               "10ms",
+                "location.delay":                               "2ms",
+                "location.reset":                               "10ms",
 
                 "compression.threshold-in-bytes":               1024,
                 "compression.logging":                          false
