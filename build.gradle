@@ -251,9 +251,6 @@ subprojects {
         testImplementation 'io.micronaut.test:micronaut-test-spock'
 
         testImplementation 'com.sun.activation:javax.activation:1.2.0'
-        testImplementation 'org.junit.jupiter:junit-jupiter-api:5.3.1'
-        testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.3.1'
-
     }
 
     // add -parameters to java compile have Jackson happy
