@@ -171,8 +171,8 @@ class LocationResolverIntegrationSpec extends Specification {
         and: "a mocked Identity service for issue token endpoint"
         identityIssueTokenService()
 
-        and: "location service returning list of clusters for a given Uuid"
-        locationServiceReturningError(locationUuid, 500, 6)
+        and: "location service returning 5xx error and has expectation on how many times it should be called"
+        locationServiceReturningError(locationUuid, 500, 6) // 4 times on first call and 2 times on second invocation
 
         and: "location service bean is initialized"
         def locationResolver = context.getBean(LocationResolver)
@@ -189,10 +189,10 @@ class LocationResolverIntegrationSpec extends Specification {
         and: "get clusters for a location Uuid"
         locationResolver.resolve(locationUuid)
 
-        then: "throw another exception"
+        then: "error is thrown again"
         thrown(LocationServiceException)
 
-        and: "location service is called again, exception was not cached"
+        and: "location service is called again and exception was not cached"
         locationMockService.verify()
 
         and: "identity service is called once"
