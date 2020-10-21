@@ -178,14 +178,10 @@ class LocationServiceClientIntegrationSpec extends Specification {
     }
 
     private void locationServiceReturningError(String locationUuid) {
-        locationServiceReturningError(locationUuid, 4)
-    }
-
-    private void locationServiceReturningError(String locationUuid, Integer times) {
         locationMockService.expectations {
             get(LOCATION_BASE_PATH + locationPathIncluding(locationUuid)) {
                 header("Authorization", "Bearer ${ACCESS_TOKEN}")
-                called(times)
+                called(4)
 
                 responder {
                     header("Content-Type", "application/json")
@@ -194,6 +190,7 @@ class LocationServiceClientIntegrationSpec extends Specification {
             }
         }
     }
+
 
     private void locationServiceNotInvoked(String locationUuid) {
         locationMockService.expectations {
