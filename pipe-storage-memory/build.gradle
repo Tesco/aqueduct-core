@@ -1,9 +1,0 @@
-dependencies {
-    implementation project(":pipe-api")
-    implementation project(":pipe-logger")
-    testImplementation project(":pipe-storage-test")
-
-    addSlf4jDependencies()
-}
-
-addPublish()
