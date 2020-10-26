@@ -42,6 +42,7 @@ class IdentityIssueTokenClientIntegrationSpec extends Specification {
                         issue.token.path:   "$ISSUE_TOKEN_PATH"
                         attempts:           3
                         delay:              500ms
+                        consumes:           "application/vnd.tesco.identity.tokenresponse+json"
                         client:
                          id:                "$CLIENT_ID"
                          secret:            "$CLIENT_SECRET"
