@@ -74,6 +74,7 @@ class LocationRoutingIntegrationSpec extends Specification {
                 "authentication.identity.issue.token.path":     "$ISSUE_TOKEN_PATH",
                 "authentication.identity.attempts":             "3",
                 "authentication.identity.delay":                "10ms",
+                "authentication.identity.consumes":             "application/vnd.tesco.identity.tokenresponse+json",
                 "authentication.identity.users.userA.clientId": "someClientUserId",
                 "authentication.identity.users.userA.roles":    "PIPE_READ",
 
