@@ -45,7 +45,7 @@ class IdentityIssueTokenClientIntegrationSpec extends Specification {
                     issue.token.path:   "$ISSUE_TOKEN_PATH"
                     attempts:           3
                     delay:              500ms
-                    consumes:           "application/vnd.tesco.identity.tokenresponse+json"
+                    consumes:           "application/token+json"
                     client:
                      id:                "$CLIENT_ID"
                      secret:            "$CLIENT_SECRET"
@@ -87,12 +87,12 @@ class IdentityIssueTokenClientIntegrationSpec extends Specification {
         identityMockService.expectations {
             post(ISSUE_TOKEN_PATH) {
                 body(requestJson, "application/json")
-                header("Accept", "application/vnd.tesco.identity.tokenresponse+json")
+                header("Accept", "application/token+json")
                 header("Content-Type", "application/json")
                 called(1)
 
                 responder {
-                    header("Content-Type", "application/vnd.tesco.identity.tokenresponse+json")
+                    header("Content-Type", "application/token+json")
                     body("""
                     {
                         "access_token": "${ACCESS_TOKEN}",
@@ -134,7 +134,7 @@ class IdentityIssueTokenClientIntegrationSpec extends Specification {
         identityMockService.expectations {
             post(ISSUE_TOKEN_PATH) {
                 body(requestJson, "application/json")
-                header("Accept", "application/vnd.tesco.identity.tokenresponse+json")
+                header("Accept", "application/token+json")
                 called(4)
                 responder {
                     code(500)

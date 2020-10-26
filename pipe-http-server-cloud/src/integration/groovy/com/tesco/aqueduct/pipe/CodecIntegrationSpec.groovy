@@ -61,7 +61,7 @@ class CodecIntegrationSpec extends Specification {
                 "authentication.identity.issue.token.path":     "/v4/issue-token/token",
                 "authentication.identity.attempts":             "3",
                 "authentication.identity.delay":                "10ms",
-                "authentication.identity.consumes":             "application/vnd.tesco.identity.tokenresponse+json",
+                "authentication.identity.consumes":             "application/token+json",
                 "authentication.identity.users.userA.clientId": "someClientUserId",
                 "authentication.identity.users.userA.roles":    "PIPE_READ",
 
