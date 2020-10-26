@@ -1,10 +1,6 @@
-import com.opentable.db.postgres.junit.EmbeddedPostgresRules
-import com.opentable.db.postgres.junit.SingleInstancePostgresRule
 import io.micronaut.context.ApplicationContext
 import io.micronaut.inject.BeanDefinition
 import io.micronaut.inject.qualifiers.Qualifiers
-import org.junit.ClassRule
-import spock.lang.Shared
 import spock.lang.Specification
 
 import javax.inject.Named
@@ -13,9 +9,6 @@ import javax.sql.DataSource
 class CloudAqueductConfigIntegrationSpec extends Specification {
 
     private static final String AQUEDUCT_PACKAGE = "com.tesco.aqueduct"
-
-    @Shared @ClassRule SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance()
-    DataSource dataSource
 
     def "Cloud aqueduct application is configured correctly so it starts up successfully"() {
         given: "required externalized environment properties"
@@ -28,19 +21,14 @@ class CloudAqueductConfigIntegrationSpec extends Specification {
         System.setProperty("IDENTITY_CLIENT_ID", "some_client_id")
         System.setProperty("IDENTITY_CLIENT_SECRET", "some_secret")
         System.setProperty("NODE_A_CLIENT_UID", "some_client_uuid")
-        System.setProperty("POSTGRE_SERVER", "some_value")
-        System.setProperty("POSTGRE_DATABASE", "some_value")
-        System.setProperty("POSTGRE_USERNAME", "some_value")
-        System.setProperty("POSTGRE_PASSWORD", "some_value")
 
         and: "an application context with right environment"
         ApplicationContext applicationContext = ApplicationContext
             .build()
             .environments("integration")
             .build()
-            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("pipe"))
-            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("registry"))
-
+            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("pipe"))
+            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("registry"))
 
         when: "the application is started"
         applicationContext.start()

@@ -72,6 +72,10 @@ class PipeLoadBalancerIntegrationSpec extends Specification {
         serviceList = context.getBean(ServiceList)
     }
 
+    def cleanup() {
+        serverA.clearExpectations()
+    }
+
     def "client successfully calls first option, then falls back to second on failure"() {
         given: "two urls in the registry"
         setupContext()
@@ -197,10 +201,8 @@ class PipeLoadBalancerIntegrationSpec extends Specification {
     def "An unhealthy server is retried after the unhealthy expiry duration has passed"() {
         given: "a load balancer with a list of urls"
         setupContext("pipe.http.client.healthcheck.interval": "1s")
-        ErsatzServer server = new ErsatzServer()
-        server.start()
 
-        server.expectations {
+        serverA.expectations {
             get("/pipe/_status") {
                 called(greaterThanOrEqualTo(1))
 
@@ -212,7 +214,7 @@ class PipeLoadBalancerIntegrationSpec extends Specification {
             }
         }
 
-        serviceList.update([URL(server.httpUrl)])
+        serviceList.update([URL(serverA.httpUrl)])
 
         when: "we marked server as unhealthy"
         serviceList.stream().findFirst().ifPresent({ c -> c.isUp(false) })
@@ -224,10 +226,7 @@ class PipeLoadBalancerIntegrationSpec extends Specification {
         sleep(2000)
 
         then: "the first server is updated as healthy"
-        server.verify()
-        loadBalancer.getFollowing().first().toString() == server.httpUrl
-
-        cleanup:
-        server
+        serverA.verify()
+        loadBalancer.getFollowing().first().toString() == serverA.httpUrl
     }
 }

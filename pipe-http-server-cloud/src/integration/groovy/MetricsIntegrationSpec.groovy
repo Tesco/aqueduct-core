@@ -1,13 +1,14 @@
-package com.tesco.aqueduct.pipe.http
 
 import com.tesco.aqueduct.pipe.TestAppender
 import io.micronaut.context.ApplicationContext
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader
+import io.micronaut.inject.qualifiers.Qualifiers
 import io.micronaut.runtime.server.EmbeddedServer
 import io.restassured.RestAssured
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
+import javax.sql.DataSource
 
 class MetricsIntegrationSpec extends Specification {
 
@@ -33,8 +34,11 @@ class MetricsIntegrationSpec extends Specification {
                 )
             )
             .build()
+            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("pipe"))
+            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("registry"))
 
         context.start()
+
         def server = context.getBean(EmbeddedServer)
         server.start()
 

@@ -1,16 +1,19 @@
-package com.tesco.aqueduct.pipe.location
+
 
 import com.stehno.ersatz.Decoders
 import com.stehno.ersatz.ErsatzServer
 import com.stehno.ersatz.junit.ErsatzServerRule
+import com.tesco.aqueduct.pipe.location.LocationServiceClient
 import groovy.json.JsonOutput
 import io.micronaut.context.ApplicationContext
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader
 import io.micronaut.http.client.exceptions.HttpClientResponseException
+import io.micronaut.inject.qualifiers.Qualifiers
 import io.micronaut.runtime.server.EmbeddedServer
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
+import javax.sql.DataSource
 
 class LocationServiceClientIntegrationSpec extends Specification {
 
@@ -74,6 +77,8 @@ class LocationServiceClientIntegrationSpec extends Specification {
                     )
                 )
                 .build()
+                .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("pipe"))
+                .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("registry"))
 
         context.start()
 

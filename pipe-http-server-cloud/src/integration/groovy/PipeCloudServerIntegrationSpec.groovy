@@ -80,8 +80,8 @@ class PipeCloudServerIntegrationSpec extends Specification {
             .mainClass(EmbeddedServer)
             .build()
             .registerSingleton(DataSource, dataSource, Qualifiers.byName("pipe"))
+            .registerSingleton(DataSource, dataSource, Qualifiers.byName("registry"))
             .registerSingleton(LocationResolver, locationResolver)
-
 
         context.start()
 
