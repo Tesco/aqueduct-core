@@ -1,8 +1,0 @@
-dependencies {
-    implementation project(":pipe-api")
-
-    implementation 'org.codehaus.groovy:groovy-all:3.0.0'
-    implementation 'org.spockframework:spock-core:2.0-M3-groovy-3.0'
-}
-
-addPublish()

@@ -12,7 +12,7 @@ import io.reactivex.Single;
 @Measure
 public interface IdentityIssueTokenClient {
 
-    @Post(value = "${authentication.identity.issue.token.path}", consumes = "application/vnd.tesco.identity.tokenresponse+json")
+    @Post(value = "${authentication.identity.issue.token.path}", consumes = "${authentication.identity.consumes}")
     @CircuitBreaker(delay = "${authentication.identity.delay}", attempts = "${authentication.identity.attempts}")
     Single<IssueTokenResponse> retrieveIdentityToken(
         @Header("TraceId") String traceId,

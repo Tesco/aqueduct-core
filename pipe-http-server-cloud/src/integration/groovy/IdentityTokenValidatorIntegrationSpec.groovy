@@ -13,6 +13,7 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
+import javax.sql.DataSource
 
 class IdentityTokenValidatorIntegrationSpec extends Specification {
 
@@ -50,8 +51,10 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
             resolve(_) >> ["cluster1"]
         }
 
-
         identityMock.start()
+
+        CentralStorage centralStorageMock = Mock(CentralStorage)
+        centralStorageMock.read(_, _, _) >> new MessageResults([], 0, OptionalLong.of(1), PipeState.UP_TO_DATE)
 
         context = ApplicationContext
             .build()
@@ -90,16 +93,14 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
                 """
                 )
             )
-            .build()
+        .build()
+        .registerSingleton(Reader, centralStorageMock, Qualifiers.byName("local"))
+        .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("pipe"))
+        .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("registry"))
+        .registerSingleton(pipeStateProvider)
+        .registerSingleton(locationResolver)
 
-        CentralStorage centralStorageMock = Mock(CentralStorage)
-        centralStorageMock.read(_, _, _) >> new MessageResults([], 0, OptionalLong.of(1), PipeState.UP_TO_DATE)
-
-        context
-            .registerSingleton(Reader, centralStorageMock, Qualifiers.byName("local"))
-            .registerSingleton(pipeStateProvider)
-            .registerSingleton(locationResolver)
-            .start()
+        context.start()
 
         def server = context.getBean(EmbeddedServer)
         server.start()

@@ -43,24 +43,6 @@ persistence:
     cluster-db-pool-size: 60
     work-mem-mb: 512
 
-datasources:
-  pipe:
-    jdbc-url: "jdbc:postgresql://${POSTGRE_SERVER}/${POSTGRE_DATABASE}"
-    username: "${POSTGRE_USERNAME}"
-    password: "${POSTGRE_PASSWORD}"
-    driver-class-name: org.postgresql.Driver
-    maximum-pool-size: 4
-    max-lifetime: 600000
-    leak-detection-threshold: 60000
-  registry:
-    jdbc-url: "jdbc:postgresql://${POSTGRE_SERVER}/${POSTGRE_DATABASE}"
-    username: "${POSTGRE_USERNAME}"
-    password: "${POSTGRE_PASSWORD}"
-    driver-class-name: org.postgresql.Driver
-    maximum-pool-size: 2
-    max-lifetime: 600000
-    leak-detection-threshold: 60000
-
 authentication:
   users:
     pipe-provider-live:

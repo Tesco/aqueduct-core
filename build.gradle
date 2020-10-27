@@ -104,8 +104,8 @@ subprojects {
     ext {
         addMicronautDependencies = {
             project.dependencies {
-                if (project.name != "pipe-micronaut-common") {
-                    implementation project(":pipe-micronaut-common")
+                if (project.name != "pipe-common") {
+                    implementation project(":pipe-common")
                 }
 
                 // order is important

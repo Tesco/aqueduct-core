@@ -58,6 +58,7 @@ authentication:
   identity:
     delay: 500ms
     attempts: 3
+    consumes: "${IDENTITY_CONSUMES}"
 
 location:
   delay: 500ms

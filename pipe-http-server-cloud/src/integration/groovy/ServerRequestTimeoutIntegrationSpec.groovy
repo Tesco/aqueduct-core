@@ -62,6 +62,7 @@ class ServerRequestTimeoutIntegrationSpec extends Specification {
             .mainClass(EmbeddedServer)
             .build()
             .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("pipe"))
+            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("registry"))
             .registerSingleton(LocationResolver, mockLocationResolver)
 
         context.start()
