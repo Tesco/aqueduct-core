@@ -4,9 +4,10 @@ import java.util.List;
 import java.util.OptionalLong;
 
 public interface Reader {
-    MessageResults read(List<String> types, long offset, final List<String> targetUuids);
+    MessageResults read(List<String> types, long offset, List<String> targetUuids);
     OptionalLong getOffset(OffsetName offsetName);
     PipeState getPipeState();
+    long getOffsetConsistencySum(long offset, List<String> targetUuids);
     default void runVisibilityCheck() {
         //null op
     };

@@ -292,7 +292,8 @@ public class SQLiteStorage implements DistributedStorage {
     @Override
     public void runVisibilityCheck() {
         runIntegrityCheck();
-        LOG.info("OffsetConsistencySum: ", String.valueOf(calculateOffsetConsistencySum(ZonedDateTime.now())));
+        final OffsetConsistency offsetConsistency = calculateOffsetConsistencySum(ZonedDateTime.now());
+        LOG.info("OffsetConsistencySum: ", String.valueOf(offsetConsistency));
     }
 
     private void runIntegrityCheck() {
