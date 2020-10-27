@@ -142,7 +142,7 @@ public class PostgresqlStorage implements CentralStorage {
 
     @Override
     public long getOffsetConsistencySum(long offset, List<String> targetUuids) {
-        return 0; //Method not implemented yet
+        throw new UnsupportedOperationException("Offset consistency sum isn't implemented yet");
     }
 
     @Override
