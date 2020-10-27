@@ -106,6 +106,15 @@ public class SQLiteStorage implements DistributedStorage {
         );
     }
 
+    @Override
+    public long getOffsetConsistencySum(long offset, List<String> targetUuids) {
+        try (Connection connection = dataSource.getConnection()) {
+            return getOffsetConsistencySumBasedOn(offset, connection);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     public int calculateRetryAfter(final int messageCount) {
         return messageCount > 0 ? 0 : retryAfterMs;
     }
@@ -132,6 +141,11 @@ public class SQLiteStorage implements DistributedStorage {
 
     @Override
     public OptionalLong getOffset(OffsetName offsetName) {
+
+        if(offsetName == OffsetName.MAX_OFFSET_PREVIOUS_HOUR) {
+            return getMaxOffsetInPreviousHour(ZonedDateTime.now());
+        }
+
         return executeGet(
             SQLiteQueries.getOffset(offsetName),
             (connection, statement) -> {
@@ -292,8 +306,6 @@ public class SQLiteStorage implements DistributedStorage {
     @Override
     public void runVisibilityCheck() {
         runIntegrityCheck();
-        final OffsetConsistency offsetConsistency = calculateOffsetConsistencySum(ZonedDateTime.now());
-        LOG.info("OffsetConsistencySum: ", String.valueOf(offsetConsistency));
     }
 
     private void runIntegrityCheck() {
@@ -310,16 +322,6 @@ public class SQLiteStorage implements DistributedStorage {
         }
     }
 
-    private OffsetConsistency calculateOffsetConsistencySum(ZonedDateTime currentTime) {
-        try (Connection connection = dataSource.getConnection()) {
-            long offsetThreshold = getOffsetThreshold(currentTime, connection);
-            long offsetConsistencySum = getOffsetConsistencySumBasedOn(offsetThreshold, connection);
-            return new OffsetConsistency(offsetConsistencySum, offsetThreshold);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     private long getOffsetConsistencySumBasedOn(long offsetThreshold, Connection connection) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(SQLiteQueries.OFFSET_CONSISTENCY_SUM)) {
             statement.setLong(1, offsetThreshold);
@@ -327,11 +329,14 @@ public class SQLiteStorage implements DistributedStorage {
         }
     }
 
-    private long getOffsetThreshold(ZonedDateTime currentTime, Connection connection) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(SQLiteQueries.CHOOSE_MAX_OFFSET)) {
-            Timestamp threshold = Timestamp.valueOf(currentTime.withMinute(0).withSecond(0).toLocalDateTime());
+    private OptionalLong getMaxOffsetInPreviousHour(ZonedDateTime currentTime) {
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(SQLiteQueries.CHOOSE_MAX_OFFSET)) {
+            Timestamp threshold = Timestamp.valueOf(currentTime.withMinute(0).withSecond(0).withNano(0).toLocalDateTime());
             statement.setTimestamp(1, threshold);
-            return queryResult(statement);
+            return OptionalLong.of(queryResult(statement));
+        } catch (SQLException exception){
+            throw new RuntimeException(exception);
         }
     }
 

@@ -898,58 +898,68 @@ class SQLiteStorageIntegrationSpec extends Specification {
         PipeState.OUT_OF_DATE   | _
     }
 
-    def 'calculateOffsetConsistencySum returns 0 for an empty database'() {
+    def 'offset consistency sum methods work with an empty database'() {
         expect: "0 to be returned"
-        0L == sqliteStorage.calculateOffsetConsistencySum(ZonedDateTime.parse("2000-12-01T10:44:00Z")).sum
+        def offset = sqliteStorage.getOffset(MAX_OFFSET_PREVIOUS_HOUR);
+        0L == sqliteStorage.getOffsetConsistencySum(offset.get(), [])
     }
 
     def 'calculateOffsetConsistencySum returns the offset and its calculated offsetConsistencySum prior to the current hour'() {
-        given: "current time"
-        def zonedDateTime = ZonedDateTime.parse("2000-12-01T10:44:00Z")
+        given: "messages in a database of the same key"
+        if(ZonedDateTime.now().minute == 59 && ZonedDateTime.now().second == 59) {
+            sleep(1000) //sleep to remove the small chance that the test will be flaky
+        }
+        ZonedDateTime currentTime = ZonedDateTime.now()
+        ZonedDateTime thresholdTime = currentTime.withMinute(0).withSecond(0)
 
-        and: "messages in a database of the same key"
         def messages = [
-            message(1, "A", ZonedDateTime.parse("2000-12-01T09:45:00Z")),
-            message(2, "A", ZonedDateTime.parse("2000-12-01T09:58:00Z")),
-            message(3, "A", ZonedDateTime.parse("2000-12-01T10:30:00Z")),
+            message(1, "A", thresholdTime.minusMinutes(10)),
+            message(2, "A", thresholdTime.minusMinutes(5)),
+            message(3, "A", thresholdTime.plusMinutes(1)),
         ]
         sqliteStorage.write(messages)
 
         when: "we call calculateOffsetConsistencySum"
-        def result = sqliteStorage.calculateOffsetConsistencySum(zonedDateTime)
+        def offset = sqliteStorage.getOffset(MAX_OFFSET_PREVIOUS_HOUR)
+        def result = sqliteStorage.getOffsetConsistencySum(offset.get(), [])
 
         then: "the expected Consistency sum is returned"
-        result.sum == 2L
+        result == 2L
 
         and: "expected max offset is returned that was used to calculate the offset consistency sum"
-        result.offset == 2L
+        offset.get() == 2L
     }
 
     def 'calculateOffsetConsistencySum returns the sum and max offset for keys published prior to the current hour'() {
         given: "current time"
-        def currentDateTime = ZonedDateTime.parse("2000-12-01T10:44:00Z")
+        if(ZonedDateTime.now().minute == 59 && ZonedDateTime.now().second == 59) {
+            sleep(1000) //sleep to remove the small chance that the test will be flaky
+        }
+        ZonedDateTime currentTime = ZonedDateTime.now()
+        ZonedDateTime thresholdTime = currentTime.withMinute(0).withSecond(0).withNano(0)
 
         and: "messages in a database with different keys"
         def messages = [
-            message(1, "A", "type1", ZonedDateTime.parse("2000-12-01T09:10:00Z")),
-            message(2, "B", "type1", ZonedDateTime.parse("2000-12-01T09:20:00Z")),
-            message(3, "C", "type2", ZonedDateTime.parse("2000-12-01T09:25:00Z")),
-            message(4, "C", "type2", ZonedDateTime.parse("2000-12-01T09:30:00Z")),
-            message(5, "A", "type1", ZonedDateTime.parse("2000-12-01T09:44:00Z")),
-            message(6, "B", "type1", ZonedDateTime.parse("2000-12-01T10:00:00Z")),
-            message(7, "B", "type1", ZonedDateTime.parse("2000-12-01T10:01:00Z")),
-            message(8, "D", "type3", ZonedDateTime.parse("2000-12-01T10:15:00Z")),
-            message(9, "A", "type1", ZonedDateTime.parse("2000-12-01T10:43:00Z")),
+            message(1, "A", "type1", thresholdTime.minusMinutes(50)),
+            message(2, "B", "type1", thresholdTime.minusMinutes(40)),
+            message(3, "C", "type2", thresholdTime.minusMinutes(35)),
+            message(4, "C", "type2", thresholdTime.minusMinutes(30)),
+            message(5, "A", "type1", thresholdTime.minusMinutes(16)),
+            message(6, "B", "type1", thresholdTime),
+            message(7, "B", "type1", thresholdTime.plusMinutes(1)),
+            message(8, "D", "type3", thresholdTime.plusMinutes(5)),
+            message(9, "A", "type1", thresholdTime.plusMinutes(43)),
         ]
         sqliteStorage.write(messages)
 
         when: "we call calculateOffsetConsistencySum"
-        def result = sqliteStorage.calculateOffsetConsistencySum(currentDateTime)
+        def offset = sqliteStorage.getOffset(MAX_OFFSET_PREVIOUS_HOUR)
+        def result = sqliteStorage.getOffsetConsistencySum(offset.get(), [])
 
         then: "the expected Consistency sum is returned"
-        result.sum == 15L
+        result == 15L
 
         and: "expected max offset is returned that was used to calculate the offset consistency sum"
-        result.offset == 6L
+        offset.get() == 6L
     }
 }

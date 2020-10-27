@@ -141,6 +141,11 @@ public class PostgresqlStorage implements CentralStorage {
     }
 
     @Override
+    public long getOffsetConsistencySum(long offset, List<String> targetUuids) {
+        return 0; //Method not implemented yet
+    }
+
+    @Override
     public void runVisibilityCheck() {
         try (Connection connection = dataSource.getConnection()) {
             Map<String, Long> messageCountByType = getMessageCountByType(connection);
