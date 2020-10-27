@@ -930,7 +930,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         offset.get() == 2L
     }
 
-    def 'calculateOffsetConsistencySum returns the sum and max offset for keys published prior to the current hour'() {
+    def 'calculateOffsetConsistencySum returns the sum for the given max offset of messages published prior to the current hour'() {
         given: "current time"
         if(ZonedDateTime.now().minute == 59 && ZonedDateTime.now().second == 59) {
             sleep(1000) //sleep to remove the small chance that the test will be flaky
