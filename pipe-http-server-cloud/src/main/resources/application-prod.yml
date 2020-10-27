@@ -36,7 +36,7 @@ location:
 
 pipe:
   server:
-    url: "https://api.tesco.com/messaging/v1"
+    url: "${PIPE_URL}"
 
 persistence:
   compact:

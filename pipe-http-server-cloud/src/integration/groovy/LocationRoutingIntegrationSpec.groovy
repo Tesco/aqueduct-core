@@ -74,6 +74,7 @@ class LocationRoutingIntegrationSpec extends Specification {
                 "authentication.identity.issue.token.path":     "$ISSUE_TOKEN_PATH",
                 "authentication.identity.attempts":             "3",
                 "authentication.identity.delay":                "10ms",
+                "authentication.identity.consumes":             "application/token+json",
                 "authentication.identity.users.userA.clientId": "someClientUserId",
                 "authentication.identity.users.userA.roles":    "PIPE_READ",
 
@@ -87,6 +88,7 @@ class LocationRoutingIntegrationSpec extends Specification {
             .mainClass(EmbeddedServer)
             .build()
             .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("pipe"))
+            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("registry"))
 
         context.start()
 
@@ -456,12 +458,12 @@ class LocationRoutingIntegrationSpec extends Specification {
         identityMockService.expectations {
             post(ISSUE_TOKEN_PATH) {
                 body(requestJson, "application/json")
-                header("Accept", "application/vnd.tesco.identity.tokenresponse+json")
+                header("Accept", "application/token+json")
                 header("Content-Type", "application/json")
                 called(1)
 
                 responder {
-                    header("Content-Type", "application/vnd.tesco.identity.tokenresponse+json")
+                    header("Content-Type", "application/token+json")
                     body("""
                     {
                         "access_token": "${ACCESS_TOKEN}",

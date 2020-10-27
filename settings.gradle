@@ -2,7 +2,7 @@ rootProject.name = 'aqueduct-core'
 
 include ':pipe-api',
         ':pipe-logger',
-        ':pipe-micronaut-common',
+        ':pipe-common',
         ':pipe-http-client',
         ':pipe-http-server',
         ':pipe-http-server-cloud',

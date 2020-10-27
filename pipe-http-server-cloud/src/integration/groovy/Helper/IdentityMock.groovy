@@ -49,12 +49,12 @@ class IdentityMock {
         identityMock.expectations {
             post(ISSUE_TOKEN_PATH) {
                 body(requestJson, "application/json")
-                header("Accept", "application/vnd.tesco.identity.tokenresponse+json")
+                header("Accept", "application/token+json")
                 header("Content-Type", "application/json")
                 called(1)
 
                 responder {
-                    header("Content-Type", "application/vnd.tesco.identity.tokenresponse+json")
+                    header("Content-Type", "application/token+json")
                     body("""
                     {
                         "access_token": "${accessToken}",

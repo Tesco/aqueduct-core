@@ -1,16 +1,19 @@
-package com.tesco.aqueduct.pipe.identity.issuer
 
 import com.stehno.ersatz.Decoders
 import com.stehno.ersatz.ErsatzServer
+import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenClient
+import com.tesco.aqueduct.pipe.identity.issuer.IssueTokenRequest
 import groovy.json.JsonOutput
 import io.micronaut.context.ApplicationContext
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader
 import io.micronaut.http.client.exceptions.HttpClientResponseException
+import io.micronaut.inject.qualifiers.Qualifiers
 import io.micronaut.runtime.server.EmbeddedServer
 import io.restassured.RestAssured
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
+import javax.sql.DataSource
 
 class IdentityIssueTokenClientIntegrationSpec extends Specification {
 
@@ -31,26 +34,29 @@ class IdentityIssueTokenClientIntegrationSpec extends Specification {
         identityMockService.start()
 
         context = ApplicationContext
-                .build()
-                .mainClass(EmbeddedServer)
-                .properties(
-                    parseYamlConfig(
-                    """
-                    authentication:
-                      identity:
-                        url:                ${identityMockService.getHttpUrl()}
-                        issue.token.path:   "$ISSUE_TOKEN_PATH"
-                        attempts:           3
-                        delay:              500ms
-                        client:
-                         id:                "$CLIENT_ID"
-                         secret:            "$CLIENT_SECRET"
-                    location:
-                      url:                "location_base_path"
-                    """
-                    )
+            .build()
+            .mainClass(EmbeddedServer)
+            .properties(
+                parseYamlConfig(
+                """
+                authentication:
+                  identity:
+                    url:                ${identityMockService.getHttpUrl()}
+                    issue.token.path:   "$ISSUE_TOKEN_PATH"
+                    attempts:           3
+                    delay:              500ms
+                    consumes:           "application/token+json"
+                    client:
+                     id:                "$CLIENT_ID"
+                     secret:            "$CLIENT_SECRET"
+                location:
+                  url:                "location_base_path"
+                """
                 )
-                .build()
+            )
+            .build()
+            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("pipe"))
+            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("registry"))
 
         context.start()
 
@@ -81,12 +87,12 @@ class IdentityIssueTokenClientIntegrationSpec extends Specification {
         identityMockService.expectations {
             post(ISSUE_TOKEN_PATH) {
                 body(requestJson, "application/json")
-                header("Accept", "application/vnd.tesco.identity.tokenresponse+json")
+                header("Accept", "application/token+json")
                 header("Content-Type", "application/json")
                 called(1)
 
                 responder {
-                    header("Content-Type", "application/vnd.tesco.identity.tokenresponse+json")
+                    header("Content-Type", "application/token+json")
                     body("""
                     {
                         "access_token": "${ACCESS_TOKEN}",
@@ -128,7 +134,7 @@ class IdentityIssueTokenClientIntegrationSpec extends Specification {
         identityMockService.expectations {
             post(ISSUE_TOKEN_PATH) {
                 body(requestJson, "application/json")
-                header("Accept", "application/vnd.tesco.identity.tokenresponse+json")
+                header("Accept", "application/token+json")
                 called(4)
                 responder {
                     code(500)

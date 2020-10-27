@@ -1,4 +1,4 @@
-package com.tesco.aqueduct.pipe.location
+
 
 import com.stehno.ersatz.Decoders
 import com.stehno.ersatz.ErsatzServer
@@ -6,14 +6,17 @@ import com.stehno.ersatz.junit.ErsatzServerRule
 import com.tesco.aqueduct.pipe.api.LocationResolver
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenClient
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenProvider
+import com.tesco.aqueduct.pipe.location.LocationServiceException
 import groovy.json.JsonOutput
 import io.micronaut.context.ApplicationContext
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader
 import io.micronaut.http.client.exceptions.HttpClientResponseException
+import io.micronaut.inject.qualifiers.Qualifiers
 import io.micronaut.runtime.server.EmbeddedServer
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
+import javax.sql.DataSource
 
 class LocationResolverIntegrationSpec extends Specification {
 
@@ -52,32 +55,36 @@ class LocationResolverIntegrationSpec extends Specification {
         String locationBasePath = locationMockService.getHttpUrl() + "$LOCATION_BASE_PATH/"
 
         context = ApplicationContext
-                .build()
-                .mainClass(EmbeddedServer)
-                .properties(
-                    parseYamlConfig(
-                    """
-                    micronaut.caches.cluster-cache.expire-after-write: $CACHE_EXPIRY_HOURS
-                    location:
-                        url:                    $locationBasePath
-                        attempts:               3
-                        delay:                  1ms
-                        reset:                  10ms
-                    authentication:
-                        identity:
-                            url:                ${identityMockService.getHttpUrl()}
-                            issue.token.path:   "$ISSUE_TOKEN_PATH"
-                            attempts:           3
-                            delay:              500ms
-                            client:
-                                id:         "$CLIENT_ID"
-                                secret:     "$CLIENT_SECRET"
-                    """
-                    )
+            .build()
+            .mainClass(EmbeddedServer)
+            .properties(
+                parseYamlConfig(
+                """
+                micronaut.caches.cluster-cache.expire-after-write: $CACHE_EXPIRY_HOURS
+                location:
+                    url:                    $locationBasePath
+                    attempts:               3
+                    delay:                  1ms
+                    reset:                  10ms
+                authentication:
+                    identity:
+                        url:                ${identityMockService.getHttpUrl()}
+                        issue.token.path:   "$ISSUE_TOKEN_PATH"
+                        attempts:           3
+                        delay:              500ms
+                        consumes:           "application/token+json"
+                        client:
+                            id:         "$CLIENT_ID"
+                            secret:     "$CLIENT_SECRET"
+                """
                 )
-                .build()
+            )
+            .build()
+            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("pipe"))
+            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("registry"))
+            .registerSingleton(new IdentityIssueTokenProvider(() -> context.getBean(IdentityIssueTokenClient), CLIENT_ID, CLIENT_SECRET))
+
         context.start()
-        context.registerSingleton(new IdentityIssueTokenProvider(() -> context.getBean(IdentityIssueTokenClient), CLIENT_ID, CLIENT_SECRET))
 
         def server = context.getBean(EmbeddedServer)
         server.start()
@@ -277,10 +284,10 @@ class LocationResolverIntegrationSpec extends Specification {
         identityMockService.expectations {
             post(ISSUE_TOKEN_PATH) {
                 body(requestJson, "application/json")
-                header("Accept", "application/vnd.tesco.identity.tokenresponse+json")
+                header("Accept", "application/token+json")
                 called(1)
                 responder {
-                    header("Content-Type", "application/vnd.tesco.identity.tokenresponse+json")
+                    header("Content-Type", "application/token+json")
                     code(200)
                     body("""
                         {
