@@ -904,7 +904,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         0L == sqliteStorage.getOffsetConsistencySum(offset.get(), [])
     }
 
-    def 'calculateOffsetConsistencySum returns the offset and its calculated offsetConsistencySum prior to the current hour'() {
+    def 'calculateOffsetConsistencySum returns the latest offset for given max offset of messages with same keys prior to the current hour'() {
         given: "messages in a database of the same key"
         if(ZonedDateTime.now().minute == 59 && ZonedDateTime.now().second == 59) {
             sleep(1000) //sleep to remove the small chance that the test will be flaky
