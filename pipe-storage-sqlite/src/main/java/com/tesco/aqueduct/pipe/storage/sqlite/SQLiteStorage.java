@@ -115,7 +115,7 @@ public class SQLiteStorage implements DistributedStorage {
         }
     }
 
-    public int calculateRetryAfter(final int messageCount) {
+    private int calculateRetryAfter(final int messageCount) {
         return messageCount > 0 ? 0 : retryAfterMs;
     }
 
@@ -141,7 +141,6 @@ public class SQLiteStorage implements DistributedStorage {
 
     @Override
     public OptionalLong getOffset(OffsetName offsetName) {
-
         if(offsetName == OffsetName.MAX_OFFSET_PREVIOUS_HOUR) {
             return getMaxOffsetInPreviousHour(ZonedDateTime.now());
         }
