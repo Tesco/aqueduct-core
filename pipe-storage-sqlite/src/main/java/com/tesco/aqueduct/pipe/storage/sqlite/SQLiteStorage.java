@@ -8,7 +8,6 @@ import javax.sql.DataSource;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.sql.*;
-import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -293,7 +292,7 @@ public class SQLiteStorage implements DistributedStorage {
     @Override
     public void runVisibilityCheck() {
         runIntegrityCheck();
-        LOG.info("OffsetConsistencySum: ", String.valueOf(calculateOffsetConsistencySum()));
+        LOG.info("OffsetConsistencySum: ", String.valueOf(calculateOffsetConsistencySum(ZonedDateTime.now())));
     }
 
     private void runIntegrityCheck() {
@@ -310,16 +309,34 @@ public class SQLiteStorage implements DistributedStorage {
         }
     }
 
-    private long calculateOffsetConsistencySum() {
-        try (Connection connection = dataSource.getConnection();
-            PreparedStatement statement = connection.prepareStatement(SQLiteQueries.OFFSET_CONSISTENCY_SUM)) {
-            Timestamp threshold = Timestamp.valueOf(ZonedDateTime.now(ZoneId.of("UTC")).minusDays(1).with(LocalTime.MAX).toLocalDateTime());
-            statement.setTimestamp(1, threshold);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.getLong(1);
-            }
+    private OffsetConsistency calculateOffsetConsistencySum(ZonedDateTime currentTime) {
+        try (Connection connection = dataSource.getConnection()) {
+            long offsetThreshold = getOffsetThreshold(currentTime, connection);
+            long offsetConsistencySum = getOffsetConsistencySumBasedOn(offsetThreshold, connection);
+            return new OffsetConsistency(offsetConsistencySum, offsetThreshold);
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private long getOffsetConsistencySumBasedOn(long offsetThreshold, Connection connection) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(SQLiteQueries.OFFSET_CONSISTENCY_SUM)) {
+            statement.setLong(1, offsetThreshold);
+            return queryResult(statement);
+        }
+    }
+
+    private long getOffsetThreshold(ZonedDateTime currentTime, Connection connection) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(SQLiteQueries.CHOOSE_MAX_OFFSET)) {
+            Timestamp threshold = Timestamp.valueOf(currentTime.withMinute(0).withSecond(0).toLocalDateTime());
+            statement.setTimestamp(1, threshold);
+            return queryResult(statement);
+        }
+    }
+
+    private long queryResult(PreparedStatement statement) throws SQLException {
+        try (ResultSet resultSet = statement.executeQuery()) {
+            return resultSet.getLong(1);
         }
     }
 
