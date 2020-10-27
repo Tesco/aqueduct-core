@@ -309,7 +309,7 @@ public class SQLiteStorage implements DistributedStorage {
 
     private void runIntegrityCheck() {
         try (Connection connection = dataSource.getConnection();
-            PreparedStatement statement = connection.prepareStatement(SQLiteQueries.INTEGRITY_CHECK)) {
+             PreparedStatement statement = connection.prepareStatement(SQLiteQueries.INTEGRITY_CHECK)) {
             try (ResultSet resultSet = statement.executeQuery()) {
                 String result = resultSet.getString(1);
                 if (!result.equals("ok")) {
