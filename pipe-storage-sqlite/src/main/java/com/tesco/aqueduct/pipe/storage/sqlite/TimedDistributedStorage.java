@@ -74,9 +74,4 @@ public class TimedDistributedStorage implements DistributedStorage {
     public PipeState getPipeState() {
         return readPipeStateTimer.record(storage::getPipeState);
     }
-
-    @Override
-    public long getOffsetConsistencySum(long offset, List<String> targetUuids) {
-        return storage.getOffsetConsistencySum(offset, targetUuids);
-    }
 }

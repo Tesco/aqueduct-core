@@ -7,7 +7,9 @@ public interface Reader {
     MessageResults read(List<String> types, long offset, List<String> targetUuids);
     OptionalLong getOffset(OffsetName offsetName);
     PipeState getPipeState();
-    long getOffsetConsistencySum(long offset, List<String> targetUuids);
+    default long getOffsetConsistencySum(long offset, List<String> targetUuids) {
+      return 0; //null op
+    };
     default void runVisibilityCheck() {
         //null op
     };
