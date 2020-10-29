@@ -74,7 +74,14 @@ public class PostgresqlStorage implements CentralStorage {
                 final List<Message> messages = runMessagesQuery(messagesQuery);
                 long end = System.currentTimeMillis();
 
-                final long retry = calculateRetryAfter(end - start, messages.size());
+                final long retry;
+
+                if (!messages.isEmpty() &&
+                        messagesAreOlderThanHrs(6, messages)) {
+                    retry = 0;
+                } else {
+                    retry = calculateRetryAfter(end - start, messages.size());
+                }
 
                 LOG.info("PostgresSqlStorage:retry", String.valueOf(retry));
                 return new MessageResults(messages, retry, OptionalLong.of(globalLatestOffset), PipeState.UP_TO_DATE);
@@ -86,6 +93,10 @@ public class PostgresqlStorage implements CentralStorage {
             long end = System.currentTimeMillis();
             LOG.info("read:time", Long.toString(end - start));
         }
+    }
+
+    private boolean messagesAreOlderThanHrs(int hours, List<Message> messages) {
+        return messages.get(0).getCreated().isBefore(ZonedDateTime.now().minusHours(hours));
     }
 
     private Array getClusterIds(Connection connection, List<String> clusterUuids) {

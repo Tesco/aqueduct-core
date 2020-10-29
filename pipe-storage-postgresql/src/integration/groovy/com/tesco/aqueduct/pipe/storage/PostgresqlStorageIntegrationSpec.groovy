@@ -15,6 +15,7 @@ import spock.lang.Unroll
 
 import javax.sql.DataSource
 import java.sql.*
+import java.time.ZoneOffset
 import java.time.ZonedDateTime
 
 class PostgresqlStorageIntegrationSpec extends StorageSpec {
@@ -191,6 +192,21 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         then:
         result.retryAfterMs > 0
         result.messages.isEmpty()
+    }
+
+    def "retry-after is very small if the messages read from pipe at specified offset is earlier than 6 hours"() {
+        given: "I have some records older than 6 hrs in the integrated database"
+        def oldMessage1 = message(offset: 10, key: "z", created: ZonedDateTime.now(ZoneOffset.UTC).minusHours(7))
+        def oldMessage2 = message(offset: 20, key: "y", created: ZonedDateTime.now(ZoneOffset.UTC).minusHours(6).minusMinutes(10))
+
+        insert(oldMessage1)
+        insert(oldMessage2)
+
+        when:
+        MessageResults result = storage.read([], 4, ["clusterId"])
+
+        then:
+        result.retryAfterMs == 0
     }
 
     def "retry-after is non-zero if the pipe has no data"() {
