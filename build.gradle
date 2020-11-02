@@ -227,7 +227,7 @@ subprojects {
 
     dependencyManagement {
         imports {
-            mavenBom 'io.micronaut:micronaut-bom:2.1.2'
+            mavenBom 'io.micronaut:micronaut-bom:2.0.1'
         }
     }
 
