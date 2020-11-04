@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 import javax.inject.Inject;
 import javax.inject.Named;
+import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -70,11 +71,17 @@ public class PipeReadController {
         LOG.withTypes(types).debug("pipe read controller", "reading with types");
 
         final MessageResults messageResults = reader.read(types, offset, locationResolver.resolve(location));
-        final List<Message> list = messageResults.getMessages();
-        final long retryAfterMs = messageResults.getRetryAfterMs();
+        final List<Message> messages = messageResults.getMessages();
+        final long retryAfterMs;
+
+        if(messages.size() != 0 && messages.get(0).getCreated().isBefore(ZonedDateTime.now().minusHours(6))) {
+            retryAfterMs = 0;
+        } else {
+            retryAfterMs = messageResults.getRetryAfterMs();
+        }
 
         LOG.debug("pipe read controller", String.format("set retry time to %d", retryAfterMs));
-        byte[] responseBytes = JsonHelper.toJson(list).getBytes();
+        byte[] responseBytes = JsonHelper.toJson(messages).getBytes();
 
         ContentEncoder.EncodedResponse encodedResponse = contentEncoder.encodeResponse(request, responseBytes);
 
