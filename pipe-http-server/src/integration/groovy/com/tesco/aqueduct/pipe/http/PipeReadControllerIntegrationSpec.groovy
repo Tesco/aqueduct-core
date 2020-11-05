@@ -1,6 +1,5 @@
 package com.tesco.aqueduct.pipe.http
 
-
 import com.tesco.aqueduct.pipe.api.*
 import com.tesco.aqueduct.pipe.codec.BrotliCodec
 import io.micronaut.context.annotation.Property
@@ -46,6 +45,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
 
     static int RETRY_AFTER_MS = 600000
     static String type = "type1"
+    static ZonedDateTime zonedDateTimeNow = ZonedDateTime.now()
 
     void setup() {
         RestAssured.port = server.port
@@ -93,8 +93,8 @@ class PipeReadControllerIntegrationSpec extends Specification {
             .header(HttpHeaders.RETRY_AFTER_MS, "0")
     }
 
-// NOTE: the rate limiter when unused might give more permits than expected
-//    but the average on the long period should be respected
+    //NOTE: the rate limiter when unused might give more permits than expected
+    //but the average on the long period should be respected
     void "Rate limit retry after of 0ms when data is older than threshold"() {
         given: "storage with message older than threshold"
         reader.read(*_) >> new MessageResults([
@@ -112,7 +112,8 @@ class PipeReadControllerIntegrationSpec extends Specification {
         then: "one call is rate limited"
         PollingConditions conditions = new PollingConditions(timeout: 2)
         conditions.eventually {
-            retryAfterHeaders == ["0", "0", "100"]
+            assert retryAfterHeaders.get(0) == "0"
+            assert retryAfterHeaders.get(2) == "100"
         }
     }
 
@@ -147,13 +148,13 @@ class PipeReadControllerIntegrationSpec extends Specification {
     void "Check responses has correct payload and that Retry-After header has a value of 0 - #requestPath"() {
         given:
         reader.read(*_) >> new MessageResults(
-            [Message(type, "a", "ct", 100, null, null)], 0, of(0), PipeState.UP_TO_DATE)
+            [Message(type, "a", "ct", 100, zonedDateTimeNow, null)], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
         def response = RestAssured.given().get(requestPath)
 
         then:
-        String expectedResponseBody = """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
+        String expectedResponseBody = """[{"type":"$type","key":"a","contentType":"ct","offset":"100","created":"${zonedDateTimeNow.toOffsetDateTime()}"}]"""
         response
             .then()
             .statusCode(statusCode)
@@ -170,10 +171,10 @@ class PipeReadControllerIntegrationSpec extends Specification {
     void "non empty response returns first available element - #requestPath"() {
         given:
         reader.read(_ as List, 0, _ as List) >> new MessageResults(
-            [Message(type, "a", "ct", 100, null, null)], 0, of(0), PipeState.UP_TO_DATE)
+            [Message(type, "a", "ct", 100, zonedDateTimeNow, null)], 0, of(0), PipeState.UP_TO_DATE)
 
         reader.read(_ as List, 1, _ as List) >> new MessageResults(
-            [Message(type, "a", "ct", 100, null, null)], 0, of(0), PipeState.UP_TO_DATE)
+            [Message(type, "a", "ct", 100, zonedDateTimeNow, null)], 0, of(0), PipeState.UP_TO_DATE)
 
         reader.read(_ as List, 101, _ as List) >> new MessageResults([], 0, of(0), PipeState.UP_TO_DATE)
 
@@ -188,8 +189,8 @@ class PipeReadControllerIntegrationSpec extends Specification {
 
         where:
         requestPath                       | statusCode | responseBody
-        "/pipe/0?location=someLocation"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
-        "/pipe/1?location=someLocation"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100"}]"""
+        "/pipe/0?location=someLocation"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100","created":"${zonedDateTimeNow.toOffsetDateTime()}}]"""
+        "/pipe/1?location=someLocation"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100","created":"${zonedDateTimeNow.toOffsetDateTime()}}]"""
         "/pipe/101?location=someLocation" | 200        | '[]'
     }
 
@@ -211,18 +212,18 @@ class PipeReadControllerIntegrationSpec extends Specification {
 
         where:
         types               | statusCode | messages                                                                                     | responseBody
-        "type1"             | 200        | [Message("type1", "a", "ct", 100, null, null)]                                               | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"}]'
-        "type2"             | 200        | [Message("type2", "b", "ct", 101, null, null)]                                               | '[{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
+        "type1"             | 200        | [Message("type1", "a", "ct", 100, ZonedDateTime.now(), null)]                                               | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"}]'
+        "type2"             | 200        | [Message("type2", "b", "ct", 101, ZonedDateTime.now(), null)]                                               | '[{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
         "type3"             | 200        | []                                                                                           | '[]'
-        "type1,type2"       | 200        | [Message("type1", "a", "ct", 100, null, null), Message("type2", "b", "ct", 101, null, null)] | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"},{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
-        "type1,type2,type3" | 200        | [Message("type1", "a", "ct", 100, null, null), Message("type2", "b", "ct", 101, null, null)] | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"},{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
+        "type1,type2"       | 200        | [Message("type1", "a", "ct", 100, ZonedDateTime.now(), null), Message("type2", "b", "ct", 101, ZonedDateTime.now(), null)] | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"},{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
+        "type1,type2,type3" | 200        | [Message("type1", "a", "ct", 100, ZonedDateTime.now(), null), Message("type2", "b", "ct", 101, ZonedDateTime.now(), null)] | '[{"type":"type1","key":"a","contentType":"ct","offset":"100"},{"type":"type2","key":"b","contentType":"ct","offset":"101"}]'
     }
 
     @Unroll
     void "filtering by location and type: #query"() {
         given:
         reader.read(["type1"], 0, _ as List) >> new MessageResults(
-            [Message("type1", "a", "ct", 100, null, null)], 0, of(0), PipeState.UP_TO_DATE)
+            [Message("type1", "a", "ct", 100, ZonedDateTime.now(), null)], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
         def response = RestAssured.given().get("/pipe/0$query")
@@ -248,7 +249,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         reader.read(["type1"], 0, _ as List) >> new MessageResults([], 0, of(headerValue), PipeState.UP_TO_DATE)
 
         reader.read(["type2"], 0, _ as List) >> new MessageResults(
-            [Message("type2", "b", "ct", headerValue, null, null)], 0, of(headerValue), PipeState.UP_TO_DATE)
+            [Message("type2", "b", "ct", headerValue, ZonedDateTime.now(), null)], 0, of(headerValue), PipeState.UP_TO_DATE)
 
         when:
         def response = RestAssured.given().get("/pipe/0?type=$type&location=someLocation")
@@ -301,7 +302,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         def dataBlob = "some very big data blob with more than 200 bytes of size"
         given:
         reader.read([], 100, _ as List) >> new MessageResults(
-            [Message(null, "a", "contentType", 100, null, dataBlob)],
+            [Message(null, "a", "contentType", 100, ZonedDateTime.now(), dataBlob)],
             0,
             OptionalLong.empty(),
             PipeState.UP_TO_DATE)
