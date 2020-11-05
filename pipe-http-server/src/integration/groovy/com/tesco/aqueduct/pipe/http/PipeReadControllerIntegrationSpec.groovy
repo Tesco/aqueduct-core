@@ -9,6 +9,7 @@ import io.micronaut.test.annotation.MockBean
 import io.restassured.RestAssured
 import spock.lang.Specification
 import spock.lang.Unroll
+import spock.util.concurrent.PollingConditions
 
 import javax.inject.Inject
 import javax.inject.Named
@@ -85,6 +86,28 @@ class PipeReadControllerIntegrationSpec extends Specification {
             .statusCode(200)
             .header(HttpHeaders.RETRY_AFTER, "0")
             .header(HttpHeaders.RETRY_AFTER_MS, "0")
+    }
+
+    void "Rate limit retry after of 0ms when data is older than threshold"() {
+        given: "storage with message older than threshold"
+        reader.read(*_) >> new MessageResults([
+            Message(type, "a", "ct", 100, ZonedDateTime.now().minusHours(7), null)
+        ], 1L, of(5), PipeState.UP_TO_DATE)
+
+        when:
+        PollingConditions conditions = new PollingConditions(timeout: 2)
+
+        def retryAfterHeaders = []
+        20.times{ i ->
+            new Thread( {
+                retryAfterHeaders << RestAssured.given().get("/pipe/0?location='someLocation'").header(HttpHeaders.RETRY_AFTER_MS)
+            }).run()
+        }
+
+        then: "summary of the registry is as expected"
+        conditions.eventually {
+            assert retryAfterHeaders.findAll { it == "0" }.size() == 10
+        }
     }
 
     @Unroll

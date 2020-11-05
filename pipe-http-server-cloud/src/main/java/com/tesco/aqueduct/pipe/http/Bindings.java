@@ -1,11 +1,9 @@
 package com.tesco.aqueduct.pipe.http;
 
-import com.tesco.aqueduct.pipe.api.LocationResolver;
+import com.google.common.util.concurrent.RateLimiter;
 import com.tesco.aqueduct.pipe.api.TokenProvider;
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenClient;
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenProvider;
-import com.tesco.aqueduct.pipe.location.CloudLocationResolver;
-import com.tesco.aqueduct.pipe.location.LocationServiceClient;
 import com.tesco.aqueduct.pipe.metrics.Measure;
 import com.tesco.aqueduct.pipe.storage.PostgresqlStorage;
 import com.tesco.aqueduct.registry.model.NodeRegistry;
@@ -79,5 +77,10 @@ public class Bindings {
     @Singleton
     public Tracer tracer() {
         return new Configuration("Aqueduct Core").getTracer();
+    }
+
+    @Singleton
+    RateLimiter rateLimiter(){
+        return RateLimiter.create(10.0);
     }
 }

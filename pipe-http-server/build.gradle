@@ -9,8 +9,9 @@ dependencies {
 
     testImplementation project(":pipe-storage-memory")
 
-    implementation('com.nixxcode.jvmbrotli:jvmbrotli:0.2.0')
-    implementation('com.nixxcode.jvmbrotli:jvmbrotli-linux-x86-amd64:0.2.0')
+    implementation 'com.nixxcode.jvmbrotli:jvmbrotli:0.2.0'
+    implementation 'com.nixxcode.jvmbrotli:jvmbrotli-linux-x86-amd64:0.2.0'
+    implementation 'com.google.guava:guava:29.0-jre'
 
     addBrotliTestDependencies()
 }
