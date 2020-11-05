@@ -62,6 +62,7 @@ class PipeReadAuthenticationProviderIntegrationSpec extends Specification {
         }
         context.registerSingleton(pipeStateProvider)
         context.registerSingleton(locationResolver)
+        context.registerSingleton(new PipeRateLimiter(1.0))
         context.start()
 
         server = context.getBean(EmbeddedServer)

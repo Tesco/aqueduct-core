@@ -235,7 +235,7 @@ subprojects {
         // Groovy and Spock dependencies
         testImplementation 'org.codehaus.groovy:groovy-all:3.0.5'
         testImplementation 'org.spockframework:spock-core:2.0-M3-groovy-3.0'
-        testImplementation 'io.rest-assured:rest-assured:3.1.1'
+        testImplementation 'io.rest-assured:rest-assured:4.3.1'
 
         testImplementation 'com.stehno.ersatz:ersatz:1.9.0:safe@jar'
 

@@ -77,9 +77,4 @@ public class Bindings {
     public Tracer tracer() {
         return new Configuration("Aqueduct Core").getTracer();
     }
-
-    @Singleton
-    public PipeRateLimiter pipeRateLimiter(@Property(name = "rate-limiter.capacity") int capacity) {
-        return new CloudRateLimiter(capacity);
-    }
 }
