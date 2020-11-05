@@ -89,15 +89,14 @@ class PipeReadControllerIntegrationSpec extends Specification {
             .header(HttpHeaders.RETRY_AFTER_MS, "0")
     }
 
+    @Property(name="rate-limiter.capacity", value = "1")
     void "Rate limit retry after of 0ms when data is older than threshold"() {
         given: "storage with message older than threshold"
         reader.read(*_) >> new MessageResults([
             Message(type, "a", "ct", 100, ZonedDateTime.now().minusHours(7), null)
-        ], 10L, of(5), PipeState.UP_TO_DATE)
+        ], 100L, of(5), PipeState.UP_TO_DATE)
 
-        when:
-        PollingConditions conditions = new PollingConditions(timeout: 2)
-
+        when: "concurrent calls request messages"
         def retryAfterHeaders = []
         2.times{ i ->
             new Thread( {
@@ -105,9 +104,12 @@ class PipeReadControllerIntegrationSpec extends Specification {
             }).run()
         }
 
-        then: "summary of the registry is as expected"
+        then: "one call is rate limited"
+        PollingConditions conditions = new PollingConditions(timeout: 2)
         conditions.eventually {
             assert retryAfterHeaders.findAll { it == "0" }.size() == 1
+            assert retryAfterHeaders.findAll { it == "100" }.size() == 1
+            assert retryAfterHeaders.size() == 2
         }
     }
 

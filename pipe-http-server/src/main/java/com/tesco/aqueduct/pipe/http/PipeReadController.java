@@ -56,7 +56,7 @@ public class PipeReadController {
     ContentEncoder contentEncoder;
 
     @Inject
-    TescoRateLimiter rateLimiter;
+    PipeRateLimiter rateLimiter;
 
     @Get("/pipe/{offset}{?type,location}")
     public HttpResponse<byte[]> readMessages(
@@ -75,15 +75,8 @@ public class PipeReadController {
 
         final MessageResults messageResults = reader.read(types, offset, locationResolver.resolve(location));
         final List<Message> messages = messageResults.getMessages();
-        final long retryAfterMs;
 
-        if(messages.size() != 0 && messages.get(0).getCreated().isBefore(ZonedDateTime.now().minusHours(6))
-                && rateLimiter.getRateLimiter().tryAcquire(1)
-        ) {
-            retryAfterMs = 0;
-        } else {
-            retryAfterMs = messageResults.getRetryAfterMs();
-        }
+        final long retryAfterMs = isBootstrapingAndCapacityAvailable(messages) ? 0 : messageResults.getRetryAfterMs();
 
         LOG.debug("pipe read controller", String.format("set retry time to %d", retryAfterMs));
         byte[] responseBytes = JsonHelper.toJson(messages).getBytes();
@@ -107,6 +100,12 @@ public class PipeReadController {
             );
 
         return response;
+    }
+
+    private boolean isBootstrapingAndCapacityAvailable(List<Message> messages) {
+        return messages.size() != 0
+            && messages.get(0).getCreated().isBefore(ZonedDateTime.now().minusHours(6))
+            && rateLimiter.tryAcquire(1);
     }
 
     private void logOffsetRequestFromRemoteHost(final long offset, final HttpRequest<?> request) {

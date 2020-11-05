@@ -78,3 +78,5 @@ registry:
 compression:
   threshold-in-bytes: 1024
   logging: true
+
+rate-limiter.capacity: 10
