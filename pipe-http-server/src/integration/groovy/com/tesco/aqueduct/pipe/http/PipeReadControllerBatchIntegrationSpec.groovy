@@ -50,9 +50,9 @@ class PipeReadControllerBatchIntegrationSpec extends Specification {
     void "A batch of messages that equals the payload size is still transported"() {
         given:
         def messages = [
-                Message(type, "a", "contentType", 100, ZonedDateTime.now(), DATA_BLOB),
-                Message(type, "b", "contentType", 101, ZonedDateTime.now(), DATA_BLOB),
-                Message(type, "c", "contentType", 102, ZonedDateTime.now(), DATA_BLOB)
+            Message(type, "a", "contentType", 100, ZonedDateTime.now(), DATA_BLOB),
+            Message(type, "b", "contentType", 101, ZonedDateTime.now(), DATA_BLOB),
+            Message(type, "c", "contentType", 102, ZonedDateTime.now(), DATA_BLOB)
         ]
 
         and:
