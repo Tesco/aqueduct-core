@@ -74,23 +74,6 @@ class PipeReadControllerIntegrationSpec extends Specification {
         "/pipe/1?location='someLocation'" | 200        | RETRY_AFTER_MS | "[]"
     }
 
-    void "Retry after of 0ms given when data is older than threshold"() {
-        given: "storage with message older than threshold"
-        reader.read(*_) >> new MessageResults([
-            Message(type, "a", "ct", 100, ZonedDateTime.now().minusHours(7), null)
-        ], 1L, of(5), PipeState.UP_TO_DATE)
-
-        when:
-        def response = RestAssured.given().get("/pipe/0?location='someLocation'")
-
-        then:
-        response
-            .then()
-            .statusCode(200)
-            .header(HttpHeaders.RETRY_AFTER, "0")
-            .header(HttpHeaders.RETRY_AFTER_MS, "0")
-    }
-
     //NOTE: the rate limiter when unused might give more permits than expected
     //but the average on the long period should be respected
     void "Rate limit retry after of 0ms when data is older than threshold"() {
