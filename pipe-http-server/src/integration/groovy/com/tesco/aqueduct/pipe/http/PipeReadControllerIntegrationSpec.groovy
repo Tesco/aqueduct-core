@@ -76,7 +76,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
 
     //NOTE: the rate limiter when unused might give more permits than expected
     //but the average on the long period should be respected
-    void "Rate limit retry after of 0ms when data is older than threshold"() {
+    void "0ms retry after is issued when data older than threshold and within rate limiter"() {
         given: "storage with message older than threshold"
         reader.read(*_) >> new MessageResults([
             Message(type, "a", "ct", 100, ZonedDateTime.now().minusHours(7), null)
