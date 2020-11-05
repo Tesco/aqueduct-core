@@ -1,13 +1,15 @@
 package com.tesco.aqueduct.pipe.http;
 
 import com.google.common.util.concurrent.RateLimiter;
+import io.micronaut.context.annotation.Property;
+
 import javax.inject.Singleton;
 
 @Singleton
 public class PipeRateLimiter {
     private RateLimiter rateLimiter;
 
-    public PipeRateLimiter(double capacity) {
+    public PipeRateLimiter(@Property(name = "rate-limiter.capacity") double capacity) {
         this.rateLimiter = RateLimiter.create(capacity);
     }
 
