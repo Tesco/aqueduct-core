@@ -11,6 +11,7 @@ import com.tesco.aqueduct.registry.model.NodeRequestStorage;
 import com.tesco.aqueduct.registry.postgres.PostgreSQLNodeRegistry;
 import com.tesco.aqueduct.registry.postgres.PostgreSQLNodeRequestStorage;
 import io.jaegertracing.Configuration;
+import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Property;
 import io.micronaut.context.annotation.Value;
@@ -77,10 +78,5 @@ public class Bindings {
     @Singleton
     public Tracer tracer() {
         return new Configuration("Aqueduct Core").getTracer();
-    }
-
-    @Singleton
-    RateLimiter rateLimiter(){
-        return RateLimiter.create(10.0);
     }
 }

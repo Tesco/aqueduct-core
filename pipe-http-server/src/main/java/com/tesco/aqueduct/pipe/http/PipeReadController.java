@@ -1,6 +1,5 @@
 package com.tesco.aqueduct.pipe.http;
 
-import com.google.common.util.concurrent.RateLimiter;
 import com.tesco.aqueduct.pipe.api.*;
 import com.tesco.aqueduct.pipe.codec.ContentEncoder;
 import com.tesco.aqueduct.pipe.logger.PipeLogger;
@@ -57,7 +56,7 @@ public class PipeReadController {
     ContentEncoder contentEncoder;
 
     @Inject
-    RateLimiter rateLimiter;
+    TescoRateLimiter rateLimiter;
 
     @Get("/pipe/{offset}{?type,location}")
     public HttpResponse<byte[]> readMessages(
@@ -78,9 +77,8 @@ public class PipeReadController {
         final List<Message> messages = messageResults.getMessages();
         final long retryAfterMs;
 
-
         if(messages.size() != 0 && messages.get(0).getCreated().isBefore(ZonedDateTime.now().minusHours(6))
-//                && rateLimiter.tryAcquire(1)
+                && rateLimiter.getRateLimiter().tryAcquire(1)
         ) {
             retryAfterMs = 0;
         } else {

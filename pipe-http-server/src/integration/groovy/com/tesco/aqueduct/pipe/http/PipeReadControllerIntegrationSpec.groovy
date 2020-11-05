@@ -1,5 +1,6 @@
 package com.tesco.aqueduct.pipe.http
 
+
 import com.tesco.aqueduct.pipe.api.*
 import com.tesco.aqueduct.pipe.codec.BrotliCodec
 import io.micronaut.context.annotation.Property
@@ -92,13 +93,13 @@ class PipeReadControllerIntegrationSpec extends Specification {
         given: "storage with message older than threshold"
         reader.read(*_) >> new MessageResults([
             Message(type, "a", "ct", 100, ZonedDateTime.now().minusHours(7), null)
-        ], 1L, of(5), PipeState.UP_TO_DATE)
+        ], 10L, of(5), PipeState.UP_TO_DATE)
 
         when:
         PollingConditions conditions = new PollingConditions(timeout: 2)
 
         def retryAfterHeaders = []
-        20.times{ i ->
+        2.times{ i ->
             new Thread( {
                 retryAfterHeaders << RestAssured.given().get("/pipe/0?location='someLocation'").header(HttpHeaders.RETRY_AFTER_MS)
             }).run()
@@ -106,7 +107,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
 
         then: "summary of the registry is as expected"
         conditions.eventually {
-            assert retryAfterHeaders.findAll { it == "0" }.size() == 10
+            assert retryAfterHeaders.findAll { it == "0" }.size() == 1
         }
     }
 
