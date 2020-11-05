@@ -18,6 +18,7 @@ import static org.hamcrest.Matchers.equalTo
 @Newify(Message)
 @MicronautTest
 @Property(name="micronaut.security.enabled", value="false")
+@Property(name="rate-limiter.capacity", value = "1")
 class PipeReadControllerBatchIntegrationSpec extends Specification {
     static final String DATA_BLOB = "some very big data blob with more than 200 bytes of size"
     static String type = "type1"
