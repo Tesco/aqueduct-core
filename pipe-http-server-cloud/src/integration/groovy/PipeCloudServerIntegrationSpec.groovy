@@ -110,7 +110,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
         request
             .then()
             // this is bit fragile on purpose, it will fail on small changes to format of Json
-                .content(equalTo("""
+            .body(equalTo("""
             [
                 {"type":"type1","key":"a","contentType":"contentType","offset":"100","created":"2018-12-20T15:13:01Z","data":"data"},
                 {"type":"type1","key":"b","contentType":"contentType","offset":"101","created":"2018-12-20T15:13:01Z"}
