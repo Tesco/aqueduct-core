@@ -1,6 +1,5 @@
 package com.tesco.aqueduct.pipe.http;
 
-import com.google.common.util.concurrent.RateLimiter;
 import com.tesco.aqueduct.pipe.api.TokenProvider;
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenClient;
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenProvider;
@@ -11,7 +10,6 @@ import com.tesco.aqueduct.registry.model.NodeRequestStorage;
 import com.tesco.aqueduct.registry.postgres.PostgreSQLNodeRegistry;
 import com.tesco.aqueduct.registry.postgres.PostgreSQLNodeRequestStorage;
 import io.jaegertracing.Configuration;
-import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Property;
 import io.micronaut.context.annotation.Value;
@@ -78,5 +76,10 @@ public class Bindings {
     @Singleton
     public Tracer tracer() {
         return new Configuration("Aqueduct Core").getTracer();
+    }
+
+    @Singleton
+    public PipeRateLimiter pipeRateLimiter(@Property(name = "rate-limiter.capacity") int capacity) {
+        return new CloudRateLimiter(capacity);
     }
 }

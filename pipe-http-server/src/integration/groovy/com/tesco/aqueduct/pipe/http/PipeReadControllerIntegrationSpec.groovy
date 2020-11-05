@@ -26,6 +26,7 @@ import static org.hamcrest.Matchers.equalTo
 @Property(name="pipe.http.server.read.response-size-limit-in-bytes", value="200")
 @Property(name="micronaut.security.enabled", value="false")
 @Property(name="compression.threshold-in-bytes", value = "1024")
+@Property(name="rate-limiter.capacity", value = "1")
 class PipeReadControllerIntegrationSpec extends Specification {
 
     @Inject @Named("local")
@@ -36,6 +37,9 @@ class PipeReadControllerIntegrationSpec extends Specification {
 
     @Inject
     PipeStateProvider pipeStateProvider
+
+    @Inject
+    PipeRateLimiter pipeRateLimiter
 
     @Inject
     EmbeddedServer server
@@ -89,7 +93,8 @@ class PipeReadControllerIntegrationSpec extends Specification {
             .header(HttpHeaders.RETRY_AFTER_MS, "0")
     }
 
-    @Property(name="rate-limiter.capacity", value = "1")
+// NOTE: the rate limiter when unused might give more permits than expected
+//    but the average on the long period should be respected
     void "Rate limit retry after of 0ms when data is older than threshold"() {
         given: "storage with message older than threshold"
         reader.read(*_) >> new MessageResults([
@@ -98,7 +103,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
 
         when: "concurrent calls request messages"
         def retryAfterHeaders = []
-        2.times{ i ->
+        3.times{ i ->
             new Thread( {
                 retryAfterHeaders << RestAssured.given().get("/pipe/0?location='someLocation'").header(HttpHeaders.RETRY_AFTER_MS)
             }).run()
@@ -107,9 +112,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         then: "one call is rate limited"
         PollingConditions conditions = new PollingConditions(timeout: 2)
         conditions.eventually {
-            assert retryAfterHeaders.findAll { it == "0" }.size() == 1
-            assert retryAfterHeaders.findAll { it == "100" }.size() == 1
-            assert retryAfterHeaders.size() == 2
+            retryAfterHeaders == ["0", "0", "100"]
         }
     }
 
@@ -409,5 +412,10 @@ class PipeReadControllerIntegrationSpec extends Specification {
     @MockBean(LocationResolver)
     LocationResolver locationResolver() {
         Mock(LocationResolver)
+    }
+
+    @MockBean(PipeRateLimiter)
+    PipeRateLimiter pipeRateLimiter() {
+        new CloudRateLimiter(1)
     }
 }
