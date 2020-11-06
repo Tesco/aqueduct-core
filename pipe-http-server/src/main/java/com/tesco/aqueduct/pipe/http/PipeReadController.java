@@ -81,7 +81,7 @@ public class PipeReadController {
 
         final long retryAfterMs = isBootstrappingAndCapacityAvailable(messages) ? 0 : messageResults.getRetryAfterMs();
 
-        LOG.debug("pipe read controller", String.format("set retry time to %d", retryAfterMs));
+        LOG.info("pipe read controller", String.format("set retry time to %d", retryAfterMs));
         byte[] responseBytes = JsonHelper.toJson(messages).getBytes();
 
         ContentEncoder.EncodedResponse encodedResponse = contentEncoder.encodeResponse(request, responseBytes);
