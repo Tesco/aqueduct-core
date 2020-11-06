@@ -13,7 +13,7 @@ public class PipeRateLimiter {
         this.rateLimiter = RateLimiter.create(capacity);
     }
 
-    public boolean tryAcquire(int permits){
-        return this.rateLimiter.tryAcquire(permits);
+    public boolean tryAcquire() {
+        return this.rateLimiter.tryAcquire();
     }
 }

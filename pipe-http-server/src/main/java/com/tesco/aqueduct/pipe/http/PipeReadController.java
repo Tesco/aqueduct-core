@@ -52,6 +52,9 @@ public class PipeReadController {
     @ReadableBytes @Value("${pipe.http.server.read.response-size-limit-in-bytes:1024kb}")
     private int maxPayloadSizeBytes;
 
+    @Value("${pipe.bootstrap.threshold:6h}")
+    private int bootstrapThreshold;
+
     @Inject
     ContentEncoder contentEncoder;
 
@@ -104,8 +107,12 @@ public class PipeReadController {
 
     private boolean isBootstrappingAndCapacityAvailable(List<Message> messages) {
         return !messages.isEmpty()
-            && messages.get(0).getCreated().isBefore(ZonedDateTime.now().minusHours(6))
-            && rateLimiter.tryAcquire(1);
+            && isBeforeBootstrapThreshold(messages)
+            && rateLimiter.tryAcquire();
+    }
+
+    private boolean isBeforeBootstrapThreshold(List<Message> messages) {
+        return messages.get(0).getCreated().isBefore(ZonedDateTime.now().minusHours(bootstrapThreshold));
     }
 
     private void logOffsetRequestFromRemoteHost(final long offset, final HttpRequest<?> request) {
