@@ -40,7 +40,6 @@ pipe:
 
 persistence:
   compact:
-    threshold: 3d
     schedule.cron: "0 14 12 1/1 * ?"
   read:
     limit: 2500
