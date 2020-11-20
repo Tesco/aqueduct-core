@@ -28,7 +28,8 @@ class SqlWrapper {
             created_utc timestamp NOT NULL, 
             data text NULL,
             event_size int NOT NULL,
-            cluster_id BIGINT NOT NULL DEFAULT 1
+            cluster_id BIGINT NOT NULL DEFAULT 1,
+            time_to_live TIMESTAMP NULL
         );
         
         CREATE TABLE CLUSTERS(

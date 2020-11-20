@@ -11,26 +11,19 @@ import io.micronaut.scheduling.annotation.Scheduled;
 import io.micronaut.scheduling.cron.CronExpression;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
-
 @Context
 @Requires(property = "persistence.compact.schedule.cron")
 class CompactionTask {
     private static final PipeLogger LOG = new PipeLogger(LoggerFactory.getLogger(CompactionTask.class));
     private final PostgresqlStorage postgresqlStorage;
-    private final Duration threshold;
     private final LongTaskTimer longTaskTimer;
 
     public CompactionTask(
         final MeterRegistry registry,
         final PostgresqlStorage postgresqlStorage,
-        @Property(name = "persistence.compact.threshold") final Duration threshold,
         @Property(name = "persistence.compact.schedule.cron") final String cronExpression
     ) {
         this.postgresqlStorage = postgresqlStorage;
-        this.threshold = threshold;
 
         this.longTaskTimer = registry.more().longTaskTimer("persistence.compaction");
         isValid(cronExpression);
@@ -40,7 +33,7 @@ class CompactionTask {
     void compaction() {
         longTaskTimer.record(() -> {
             LOG.info("compaction", "compaction started");
-            postgresqlStorage.compactUpTo(ZonedDateTime.now(ZoneId.of("UTC")).minus(threshold));
+            postgresqlStorage.compact();
             LOG.info("compaction", "compaction finished");
         });
 

@@ -269,14 +269,11 @@ public class PostgresqlStorage implements CentralStorage {
         return Collections.unmodifiableList(clusterUuidsWithDefaultCluster);
     }
 
-    public void compactUpTo(final ZonedDateTime thresholdDate) {
+    public void compact() {
         try (Connection connection = dataSource.getConnection();
-            PreparedStatement statement = connection.prepareStatement(getCompactionQuery())) {
-                Timestamp threshold = Timestamp.valueOf(thresholdDate.withZoneSameInstant(ZoneId.of("UTC")).toLocalDateTime());
-                statement.setTimestamp(1, threshold);
-                statement.setTimestamp(2, threshold);
-                final int rowsAffected = statement.executeUpdate();
-                LOG.info("compaction", "compacted " + rowsAffected + " rows");
+             PreparedStatement statement = connection.prepareStatement(getCompactionQuery())) {
+            final int rowsAffected = statement.executeUpdate();
+            LOG.info("compaction", "compacted " + rowsAffected + " rows");
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -340,27 +337,7 @@ public class PostgresqlStorage implements CentralStorage {
     }
 
     private static String getCompactionQuery() {
-        return
-            " DELETE FROM events " +
-            " WHERE msg_offset in " +
-            " (" +
-            "   SELECT msg_offset " +
-            "   FROM " +
-            "   events e, " +
-            "   ( " +
-            "     SELECT msg_key, cluster_id, max(msg_offset) max_offset, type" +
-            "     FROM events " +
-            "     WHERE " +
-            "       created_utc <= ? " +
-            "     GROUP BY msg_key, cluster_id, type" +
-            "   ) x " +
-            "   WHERE " +
-            "     created_utc <= ? " +
-            "     AND e.msg_key = x.msg_key " +
-            "     AND e.cluster_id = x.cluster_id " +
-            "     AND e.type = x.type" +
-            "     AND e.msg_offset <> x.max_offset " +
-            " );";
+        return "DELETE FROM events WHERE time_to_live < CURRENT_TIMESTAMP;";
     }
 
     private static String getVacuumAnalyseQuery() {

@@ -15,6 +15,7 @@ import spock.lang.Unroll
 
 import javax.sql.DataSource
 import java.sql.*
+import java.time.LocalDateTime
 import java.time.ZonedDateTime
 
 class PostgresqlStorageIntegrationSpec extends StorageSpec {
@@ -55,7 +56,8 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
             created_utc timestamp NOT NULL, 
             data text NULL,
             event_size int NOT NULL,
-            cluster_id BIGINT NOT NULL DEFAULT 1
+            cluster_id BIGINT NOT NULL DEFAULT 1,
+            time_to_live TIMESTAMP NULL
         );
         
         CREATE TABLE NODE_REQUESTS(
@@ -202,147 +204,84 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         result.messages.isEmpty()
     }
 
-    def 'All duplicate messages are compacted for whole data store'() {
-        given: 'some clusters are stored'
-        Long cluster1 = insertCluster("cluster1")
-
-        and: 'an existing data store with duplicate messages for the same key'
-        insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(2, "type", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(3, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-
-        when: 'compaction is run on the whole data store'
-        storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
-
-        and: 'all messages are requested'
-        MessageResults result = storage.read(null, 0, ["cluster1"])
-        List<Message> retrievedMessages = result.messages
-
-        then: 'duplicate messages are deleted'
-        retrievedMessages.size() == 2
-
-        and: 'the correct compacted message list is returned in the message results'
-        result.messages*.offset*.intValue() == [2, 3]
-        result.messages*.key == ["B", "A"]
-    }
-
-    def 'Messages with the same key but different types are not compacted'() {
-        given: 'some clusters are stored'
-        Long cluster1 = insertCluster("cluster1")
-
-        and: 'an existing data store with duplicate messages for the same key'
-        insertWithCluster(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(2, "type2", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-
-        when: 'compaction is run on the whole data store'
-        storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
-
-        and: 'all messages are requested'
-        MessageResults result = storage.read(null, 0, ["cluster1"])
-        List<Message> retrievedMessages = result.messages
-
-        then: 'duplicate messages arent deleted'
-        retrievedMessages.size() == 2
-
-        and: 'the correct compacted message list is returned in the message results'
-        result.messages*.offset*.intValue() == [1, 2]
-        result.messages*.key == ["A", "A"]
-    }
-
-    def 'Messages with the same key but different clusters are not compacted'() {
-        given: 'some clusters are stored'
-        Long cluster1 = insertCluster("cluster1")
-        Long cluster2 = insertCluster("cluster2")
-
-        and: 'an existing data store with 2 messages with same key but different clusters'
-        insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(2, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
-
-        when: 'compaction is run on the whole data store'
-        storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
-
-        and: 'all messages are requested'
-        MessageResults result = storage.read(null, 0, ["cluster1", "cluster2"])
-        List<Message> retrievedMessages = result.messages
-
-        then:
-        retrievedMessages.size() == 2
-        and: 'the correct compacted message list is returned in the message results'
-        result.messages*.offset*.intValue() == [1, 2]
-        result.messages*.key == ["A", "A"]
-    }
-
-    def 'Duplicate messages are not compacted when published after the threshold'() {
+    def 'Messages with TTL set to future are not compacted'() {
         given: 'a stored cluster'
         Long cluster1 = insertCluster("cluster1")
 
-        and: 'an existing data store with duplicate messages for the same key'
-        insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(2, "type", "A", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(3, "type", "B", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(4, "type", "A", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), cluster1)
+        and: 'messages stored with cluster and TTL set to today'
+        insertWithClusterAndTTL(1, "A", cluster1, LocalDateTime.now().plusMinutes(60))
+        insertWithClusterAndTTL(2, "A", cluster1, LocalDateTime.now().plusMinutes(60))
+        insertWithClusterAndTTL(3, "A", cluster1, LocalDateTime.now().plusMinutes(60))
 
-        when: 'compaction is run up to the timestamp of offset 1'
-        storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
+        when: 'compaction with ttl is run'
+        storage.compact()
 
-        and: 'all messages are requested'
-        MessageResults messageResults = storage.read(null, 1, ["cluster1"])
+        and: 'all messages are read'
+        MessageResults result = storage.read(null, 0, ["cluster1"])
+        List<Message> retrievedMessages = result.messages
 
-        then: 'duplicate messages are not deleted as they are beyond the threshold'
-        messageResults.messages.size() == 4
-        messageResults.messages*.offset*.intValue() == [1, 2, 3, 4]
-        messageResults.messages*.key == ["A", "A", "B", "A"]
+        then: 'no messages are compacted'
+        retrievedMessages.size() == 3
     }
 
-    def 'All duplicate messages are compacted to a given offset, complex case'() {
-        given: 'an existing data store with duplicate messages for the same key'
-        insert(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
-        insert(message(2, "type", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
-        insert(message(3, "type", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
-        insert(message(4, "type", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
-        insert(message(5, "type", "A", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"))
-        insert(message(6, "type", "B", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"))
-        insert(message(7, "type", "B", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"))
-        insert(message(8, "type", "D", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"))
-
-        when: 'compaction is run up to the timestamp of offset 4'
-        storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
-
-        and: 'all messages are requested'
-        MessageResults messageResults = storage.read(null, 1, ["cluster1"])
-
-        then: 'duplicate messages are deleted that are within the threshold'
-        messageResults.messages.size() == 7
-        messageResults.messages*.offset*.intValue() == [1, 2, 4, 5, 6, 7, 8]
-        messageResults.messages*.key == ["A", "B", "C", "A", "B", "B", "D"]
-    }
-
-    def 'All duplicate messages are compacted to a given offset per cluster, complex case'() {
+    def 'Messages with TTL in the past are compacted'() {
         given: 'a stored cluster'
         Long cluster1 = insertCluster("cluster1")
-        Long cluster2 = insertCluster("cluster2")
 
-        and: 'an existing data store with duplicate messages for the same key'
+        and: 'messages stored with cluster and TTL set to today'
+        insertWithClusterAndTTL(1, "A", cluster1, LocalDateTime.now().minusMinutes(60))
+        insertWithClusterAndTTL(2, "A", cluster1, LocalDateTime.now().minusMinutes(10))
+        insertWithClusterAndTTL(3, "A", cluster1, LocalDateTime.now().minusMinutes(1))
+
+        when: 'compaction with ttl is run'
+        storage.compact()
+
+        and: 'all messages are read'
+        MessageResults result = storage.read(null, 0, ["cluster1"])
+        List<Message> retrievedMessages = result.messages
+
+        then: 'no messages are compacted'
+        retrievedMessages.size() == 0
+    }
+
+    def 'Variety of TTL value messages are compacted correctly'() {
+        given: 'a stored cluster'
+        Long cluster1 = insertCluster("cluster1")
+
+        and: 'messages stored with cluster and TTL set to today'
+        insertWithClusterAndTTL(1, "A", cluster1, LocalDateTime.now().plusMinutes(60))
+        insertWithClusterAndTTL(2, "A", cluster1, LocalDateTime.now().minusMinutes(10))
+        insertWithClusterAndTTL(3, "A", cluster1, LocalDateTime.now().minusMinutes(1))
+
+        when: 'compaction with ttl is run'
+        storage.compact()
+
+        and: 'all messages are read'
+        MessageResults result = storage.read(null, 0, ["cluster1"])
+        List<Message> retrievedMessages = result.messages
+
+        then: 'no messages are compacted'
+        retrievedMessages.size() == 1
+    }
+
+    def 'Messages with null TTL arent compacted'() {
+        given: 'a stored cluster'
+        Long cluster1 = insertCluster("cluster1")
+
+        and: 'messages stored with cluster and TTL set to today'
         insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
         insertWithCluster(message(2, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(3, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
-        insertWithCluster(message(4, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
-        insertWithCluster(message(5, "type", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(6, "type", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
-        insertWithCluster(message(7, "type", "B", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), cluster2)
-        insertWithCluster(message(8, "type", "A", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(9, "type", "A", "content-type", ZonedDateTime.parse("2000-12-03T10:00:00Z"), "data"), cluster2)
+        insertWithCluster(message(3, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
 
-        when: 'compaction is run up to the timestamp of offset 4'
-        storage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
+        when: 'compaction with ttl is run'
+        storage.compact()
 
-        and: 'all messages are requested'
-        MessageResults messageResults = storage.read(null, 1, ["cluster1", "cluster2"])
+        and: 'all messages are read'
+        MessageResults result = storage.read(null, 0, ["cluster1"])
+        List<Message> retrievedMessages = result.messages
 
-        then: 'duplicate messages are deleted that are within the threshold'
-        messageResults.messages.size() == 7
-        messageResults.messages*.offset*.intValue() == [2, 4, 5, 6, 7, 8, 9]
-        messageResults.messages*.key == ["A", "A", "B", "B", "B", "A", "A"]
+        then: 'no messages are compacted'
+        retrievedMessages.size() == 3
     }
 
     @Unroll
@@ -629,6 +568,18 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         sql.execute(
             "INSERT INTO EVENTS(msg_offset, msg_key, content_type, type, created_utc, data, event_size, cluster_id) VALUES(?,?,?,?,?,?,?,?);",
             msg.offset, msg.key, msg.contentType, msg.type, time, msg.data, maxMessageSize, clusterId
+        )
+    }
+
+    void insertWithClusterAndTTL(
+        long offset,
+        String key,
+        Long clusterId,
+        LocalDateTime ttl
+    ) {
+        sql.execute(
+            "INSERT INTO EVENTS(msg_offset, msg_key, content_type, type, created_utc, data, event_size, cluster_id, time_to_live) VALUES(?,?,?,?,?,?,?,?,?);",
+            offset, key, "content-type", "type", Timestamp.valueOf(LocalDateTime.now()), "data", 1, clusterId, Timestamp.valueOf(ttl)
         )
     }
 
