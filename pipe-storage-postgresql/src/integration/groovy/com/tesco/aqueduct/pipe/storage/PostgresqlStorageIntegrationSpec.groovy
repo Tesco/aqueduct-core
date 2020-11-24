@@ -268,7 +268,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         given: 'a stored cluster'
         Long cluster1 = insertCluster("cluster1")
 
-        and: 'messages stored with cluster and TTL set to today'
+        and: 'messages stored with cluster and null TTL'
         insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
         insertWithCluster(message(2, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
         insertWithCluster(message(3, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
