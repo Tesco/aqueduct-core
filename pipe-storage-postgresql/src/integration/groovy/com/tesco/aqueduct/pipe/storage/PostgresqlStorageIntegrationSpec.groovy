@@ -240,7 +240,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         MessageResults result = storage.read(null, 0, ["cluster1"])
         List<Message> retrievedMessages = result.messages
 
-        then: 'no messages are compacted'
+        then: 'all messages are compacted'
         retrievedMessages.size() == 0
     }
 
@@ -260,7 +260,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         MessageResults result = storage.read(null, 0, ["cluster1"])
         List<Message> retrievedMessages = result.messages
 
-        then: 'no messages are compacted'
+        then: 'correct messages are compacted'
         retrievedMessages.size() == 1
     }
 
