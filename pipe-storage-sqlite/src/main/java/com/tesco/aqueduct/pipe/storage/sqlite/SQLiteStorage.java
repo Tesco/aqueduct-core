@@ -384,6 +384,15 @@ public class SQLiteStorage implements DistributedStorage {
         }
     }
 
+    public void runTuningTasks() {
+        try (Connection connection = dataSource.getConnection()) {
+            vacuumDatabase(connection);
+            checkpointWalFile(connection);
+        } catch (SQLException exception) {
+            throw new RuntimeException(exception);
+        }
+    }
+
     private void deleteOffsets(Connection connection) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(SQLiteQueries.DELETE_OFFSETS)) {
             statement.execute();
