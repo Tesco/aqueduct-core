@@ -221,7 +221,7 @@ class SQLiteStorageSpec extends Specification {
         thrown(IllegalArgumentException)
     }
 
-    def "run tuning tasks method attempt vacuum and checkpoint onto sqlite storage"() {
+    def "running management tasks attempt vacuum and checkpoint onto sqlite storage"() {
         given: "Mock datasource"
         def dataSource = Mock(DataSource)
         def connection = Mock(Connection)
