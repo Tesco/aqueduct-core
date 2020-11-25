@@ -222,7 +222,7 @@ class SQLiteStorageSpec extends Specification {
     }
 
     def "running management tasks attempt vacuum and checkpoint onto sqlite storage"() {
-        given: "Mock datasource"
+        given: "mock datasource"
         def dataSource = Mock(DataSource)
         def connection = Mock(Connection)
         def statement = Mock(PreparedStatement)
@@ -245,7 +245,7 @@ class SQLiteStorageSpec extends Specification {
         when: "tuning is invoked"
         sqliteStorage.runManagementTasks()
 
-        then: "Vacuum is attempted"
+        then: "vacuum is attempted"
         1 * connection.prepareStatement(SQLiteQueries.VACUUM_DB) >> statement
         1 * statement.execute()
         1 * statement.getUpdateCount() >> 0
