@@ -5,7 +5,9 @@ import spock.lang.Shared
 import spock.lang.Specification
 
 import javax.sql.DataSource
+import java.sql.Connection
 import java.sql.DriverManager
+import java.sql.PreparedStatement
 import java.sql.SQLException
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -217,5 +219,39 @@ class SQLiteStorageSpec extends Specification {
 
         then:
         thrown(IllegalArgumentException)
+    }
+
+    def "run tuning tasks method attempt vacuum and checkpoint onto sqlite storage"() {
+        given: "Mock datasource"
+        def dataSource = Mock(DataSource)
+        def connection = Mock(Connection)
+        def statement = Mock(PreparedStatement)
+
+        and: "data source giving out connection on demand"
+        dataSource.getConnection() >>> [
+            // first three calls are for setting up database schema
+            DriverManager.getConnection(connectionUrl),
+            DriverManager.getConnection(connectionUrl),
+            DriverManager.getConnection(connectionUrl),
+            connection,
+            connection
+        ]
+
+        dataSource.getConnection() >>> [connection]
+
+        and:
+        sqliteStorage = new SQLiteStorage(dataSource, 1, 1, 1)
+
+        when: "tuning is invoked"
+        sqliteStorage.runTuningTasks()
+
+        then: "Vacuum is attempted"
+        1 * connection.prepareStatement(SQLiteQueries.VACUUM_DB) >> statement
+        1 * statement.execute()
+        1 * statement.getUpdateCount() >> 0
+
+        and: "checkpoint is attempted"
+        1 * connection.prepareStatement(SQLiteQueries.CHECKPOINT_DB) >> statement
+        1 * statement.execute()
     }
 }
