@@ -26,7 +26,7 @@ class CompactionTaskSpec extends Specification {
 
     def "no error thrown for valid cron expression"() {
         given:
-        String validCronExpression = "* 4 3 * * *"
+        String validCronExpression = "0 14 0/1 * * ?"
 
         when:
         new CompactionTask(registry, postgresqlStorage, validCronExpression)

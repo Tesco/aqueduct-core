@@ -40,7 +40,7 @@ pipe:
 
 persistence:
   compact:
-    schedule.cron: "0 14 0/1 1/1 * ? *"
+    schedule.cron: "0 14 0/1 * * ?"
   read:
     limit: 2500
     max-batch-size: 1000000
