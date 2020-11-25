@@ -237,8 +237,6 @@ class SQLiteStorageSpec extends Specification {
             connection
         ]
 
-        dataSource.getConnection() >>> [connection]
-
         and:
         sqliteStorage = new SQLiteStorage(dataSource, 1, 1, 1)
 
