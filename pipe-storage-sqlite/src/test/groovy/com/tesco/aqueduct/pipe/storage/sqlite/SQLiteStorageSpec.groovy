@@ -243,7 +243,7 @@ class SQLiteStorageSpec extends Specification {
         sqliteStorage = new SQLiteStorage(dataSource, 1, 1, 1)
 
         when: "tuning is invoked"
-        sqliteStorage.runTuningTasks()
+        sqliteStorage.runManagementTasks()
 
         then: "Vacuum is attempted"
         1 * connection.prepareStatement(SQLiteQueries.VACUUM_DB) >> statement

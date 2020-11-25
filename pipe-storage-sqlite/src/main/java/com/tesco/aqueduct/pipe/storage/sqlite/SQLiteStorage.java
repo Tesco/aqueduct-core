@@ -384,7 +384,7 @@ public class SQLiteStorage implements DistributedStorage {
         }
     }
 
-    public void runTuningTasks() {
+    public void runManagementTasks() {
         try (Connection connection = dataSource.getConnection()) {
             vacuumDatabase(connection);
             checkpointWalFile(connection);
