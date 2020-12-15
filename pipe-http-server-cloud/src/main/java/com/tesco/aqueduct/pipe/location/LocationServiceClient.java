@@ -11,7 +11,7 @@ import io.micronaut.retry.annotation.CircuitBreaker;
 @Client("${location.url}")
 @Measure
 public interface LocationServiceClient {
-    @Get(value="${location.clusters.get.path}")
+    @Get("${location.clusters.get.path}")
     @Consumes
     @CircuitBreaker(attempts = "${location.attempts}", delay = "${location.delay}", reset = "${location.reset}")
     HttpResponse<LocationServiceClusterResponse> getClusters(
