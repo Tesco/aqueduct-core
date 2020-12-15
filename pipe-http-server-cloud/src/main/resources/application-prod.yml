@@ -33,7 +33,7 @@ authentication:
 
 location:
   url: "${LOCATION_URL}"
-  clusters.get.path: "${LOCATION_GET_CLUSTERS_PATH}"
+  clusters.get.path: "${LOCATION_CLUSTERS_GET_PATH}
 
 pipe:
   server:
