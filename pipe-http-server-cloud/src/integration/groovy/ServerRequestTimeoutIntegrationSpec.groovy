@@ -43,6 +43,7 @@ class ServerRequestTimeoutIntegrationSpec extends Specification {
                 "persistence.read.expected-node-count":         2,
                 "persistence.read.cluster-db-pool-size":        10,
                 "persistence.read.read-delay-seconds":          0,
+                "location.clusters.get.path.filter.pattern":    "some/filter/pattern",
 
                 "authentication.identity.url":                  "${identityMock.getUrl()}",
                 "authentication.identity.validate.token.path":  "$VALIDATE_TOKEN_PATH",

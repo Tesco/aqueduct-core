@@ -1,5 +1,3 @@
-
-
 import com.stehno.ersatz.Decoders
 import com.stehno.ersatz.ErsatzServer
 import com.stehno.ersatz.junit.ErsatzServerRule
@@ -16,13 +14,18 @@ import io.micronaut.runtime.server.EmbeddedServer
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
+
 import javax.sql.DataSource
 
 class LocationResolverIntegrationSpec extends Specification {
 
     private final static String LOCATION_BASE_PATH = "/tescolocation"
-    private final static String LOCATION_CLUSTER_PATH = "/clusters/v1/locations/{locationUuid}/clusters/ids"
-    private final static String ISSUE_TOKEN_PATH = "/v4/issue-token/token"
+    private final static String LOCATION_CLUSTER_PATH = "/some/get/{locationUuid}/clusters/path"
+    private final static String CLUSTER_QUERY_PARAM ="param"
+    private final static String CLUSTER_QUERY_PARAM_VALUE ="P,Q,R,S"
+    private final static String LOCATION_CLUSTER_PATH_FILTER_PATTERN = "/**/some/get/*/clusters/path/**"
+
+    private final static String ISSUE_TOKEN_PATH = "/some/issue/token/path"
     private final static String ACCESS_TOKEN = "some_encrypted_token"
     private final static String CLIENT_ID = "someClientId"
     private final static String CLIENT_SECRET = "someClientSecret"
@@ -63,6 +66,8 @@ class LocationResolverIntegrationSpec extends Specification {
                 micronaut.caches.cluster-cache.expire-after-write: $CACHE_EXPIRY_HOURS
                 location:
                     url:                    $locationBasePath
+                    clusters.get.path:      ${LOCATION_CLUSTER_PATH+"?"+CLUSTER_QUERY_PARAM+"="+CLUSTER_QUERY_PARAM_VALUE}
+                    clusters.get.path.filter.pattern: $LOCATION_CLUSTER_PATH_FILTER_PATTERN
                     attempts:               3
                     delay:                  1ms
                     reset:                  10ms
@@ -268,7 +273,7 @@ class LocationResolverIntegrationSpec extends Specification {
                 responder {
                     code(status)
                 }
-            }
+            }.query(CLUSTER_QUERY_PARAM, CLUSTER_QUERY_PARAM_VALUE)
         }
     }
 
@@ -325,7 +330,7 @@ class LocationResolverIntegrationSpec extends Specification {
                     }
                """)
                 }
-            }
+            }.query(CLUSTER_QUERY_PARAM, CLUSTER_QUERY_PARAM_VALUE)
         }
     }
 
@@ -339,7 +344,7 @@ class LocationResolverIntegrationSpec extends Specification {
                     header("Content-Type", "application/json")
                     body(responseBody)
                 }
-            }
+            }.query(CLUSTER_QUERY_PARAM, CLUSTER_QUERY_PARAM_VALUE)
         }
     }
 

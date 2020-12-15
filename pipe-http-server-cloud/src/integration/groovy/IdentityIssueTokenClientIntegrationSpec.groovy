@@ -1,4 +1,3 @@
-
 import com.stehno.ersatz.Decoders
 import com.stehno.ersatz.ErsatzServer
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenClient
@@ -13,6 +12,7 @@ import io.restassured.RestAssured
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
+
 import javax.sql.DataSource
 
 class IdentityIssueTokenClientIntegrationSpec extends Specification {
@@ -39,6 +39,9 @@ class IdentityIssueTokenClientIntegrationSpec extends Specification {
             .properties(
                 parseYamlConfig(
                 """
+                location:
+                  url:                "location_base_path"
+                  clusters.get.path.filter.pattern: "some/filter/pattern"
                 authentication:
                   identity:
                     url:                ${identityMockService.getHttpUrl()}
@@ -49,8 +52,6 @@ class IdentityIssueTokenClientIntegrationSpec extends Specification {
                     client:
                      id:                "$CLIENT_ID"
                      secret:            "$CLIENT_SECRET"
-                location:
-                  url:                "location_base_path"
                 """
                 )
             )

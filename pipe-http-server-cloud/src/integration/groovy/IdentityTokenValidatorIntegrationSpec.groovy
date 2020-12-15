@@ -12,12 +12,15 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
+
 import javax.sql.DataSource
 
 class IdentityTokenValidatorIntegrationSpec extends Specification {
 
     static final int CACHE_EXPIRY_SECONDS = 1
     static final String VALIDATE_TOKEN_BASE_PATH = '/some/access-token/validate/path'
+    private final static String LOCATION_CLUSTER_PATH_FILTER_PATTERN = "/**/some/get/*/clusters/path/**"
+
     static final String USERNAME = "username"
     static final String PASSWORD = "password"
     static final String encodedCredentials = "${USERNAME}:${PASSWORD}".bytes.encodeBase64().toString()
@@ -62,6 +65,8 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
                 micronaut.security.token.jwt.bearer.enabled: true
                 micronaut.caches.identity-cache.expire-after-write: ${CACHE_EXPIRY_SECONDS}s
                 compression.threshold-in-bytes: 1024
+                location:
+                    clusters.get.path.filter.pattern: $LOCATION_CLUSTER_PATH_FILTER_PATTERN
                 authentication:
                   users:
                     $USERNAME:
