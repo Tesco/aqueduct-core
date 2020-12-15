@@ -66,6 +66,7 @@ location:
   delay: 500ms
   attempts: 3
   reset: 5s
+  clusters.get.path.filter.pattern: "${LOCATION_CLUSTERS_GET_PATH_FILTER_PATTERN}"
 
 pipe:
   delay: 500ms
