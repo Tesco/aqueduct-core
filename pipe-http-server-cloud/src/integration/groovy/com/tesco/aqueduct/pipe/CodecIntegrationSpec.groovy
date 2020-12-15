@@ -56,10 +56,10 @@ class CodecIntegrationSpec extends Specification {
                 "persistence.read.read-delay-seconds":          0,
 
                 "authentication.identity.url":                  "${identityMockService.getUrl()}",
-                "authentication.identity.validate.token.path":  "/v4/access-token/auth/validate?client_id=${CLIENT_ID_AND_SECRET}",
+                "authentication.identity.validate.token.path":  "/some/validate/token/path?client_id=${CLIENT_ID_AND_SECRET}",
                 "authentication.identity.client.id":            "$CLIENT_ID",
                 "authentication.identity.client.secret":        "$CLIENT_SECRET",
-                "authentication.identity.issue.token.path":     "/v4/issue-token/token",
+                "authentication.identity.issue.token.path":     "/some/issue/token/path",
                 "authentication.identity.attempts":             "3",
                 "authentication.identity.delay":                "10ms",
                 "authentication.identity.consumes":             "application/token+json",

@@ -22,11 +22,10 @@ import java.time.ZonedDateTime
 
 class LocationRoutingIntegrationSpec extends Specification {
 
-    private static final String VALIDATE_TOKEN_BASE_PATH = '/v4/access-token/auth/validate'
     private static final String CLIENT_ID = UUID.randomUUID().toString()
     private static final String CLIENT_SECRET = UUID.randomUUID().toString()
     private static final String CLIENT_ID_AND_SECRET = "trn:tesco:cid:${CLIENT_ID}:${CLIENT_SECRET}"
-    public static final String VALIDATE_TOKEN_PATH = "${VALIDATE_TOKEN_BASE_PATH}?client_id=${CLIENT_ID_AND_SECRET}"
+    public static final String VALIDATE_TOKEN_PATH = "${IdentityMock.VALIDATE_PATH}?client_id=${CLIENT_ID_AND_SECRET}"
 
     private final static String ISSUE_TOKEN_PATH = "/v4/issue-token/token"
     private final static String ACCESS_TOKEN = UUID.randomUUID().toString()
@@ -57,7 +56,7 @@ class LocationRoutingIntegrationSpec extends Specification {
                 "authentication.identity.validate.token.path":  "$VALIDATE_TOKEN_PATH",
                 "authentication.identity.client.id":            "$CLIENT_ID",
                 "authentication.identity.client.secret":        "$CLIENT_SECRET",
-                "authentication.identity.issue.token.path":     "$ISSUE_TOKEN_PATH",
+                "authentication.identity.issue.token.path":     "${IdentityMock.ISSUE_TOKEN_PATH}",
                 "authentication.identity.attempts":             "3",
                 "authentication.identity.delay":                "10ms",
                 "authentication.identity.consumes":             "application/token+json",

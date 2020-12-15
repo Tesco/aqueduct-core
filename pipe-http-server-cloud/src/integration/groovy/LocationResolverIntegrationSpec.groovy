@@ -1,11 +1,9 @@
-import com.stehno.ersatz.Decoders
-import com.stehno.ersatz.ErsatzServer
-import com.stehno.ersatz.junit.ErsatzServerRule
+import Helper.IdentityMock
+import Helper.LocationMock
 import com.tesco.aqueduct.pipe.api.LocationResolver
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenClient
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenProvider
 import com.tesco.aqueduct.pipe.location.LocationServiceException
-import groovy.json.JsonOutput
 import io.micronaut.context.ApplicationContext
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader
 import io.micronaut.http.client.exceptions.HttpClientResponseException
@@ -19,43 +17,22 @@ import javax.sql.DataSource
 
 class LocationResolverIntegrationSpec extends Specification {
 
-    private final static String LOCATION_BASE_PATH = "/tescolocation"
-    private final static String LOCATION_CLUSTER_PATH = "/some/get/{locationUuid}/clusters/path"
-    private final static String CLUSTER_QUERY_PARAM ="param"
-    private final static String CLUSTER_QUERY_PARAM_VALUE ="P,Q,R,S"
-    private final static String LOCATION_CLUSTER_PATH_FILTER_PATTERN = "/**/some/get/*/clusters/path/**"
-
-    private final static String ISSUE_TOKEN_PATH = "/some/issue/token/path"
     private final static String ACCESS_TOKEN = "some_encrypted_token"
     private final static String CLIENT_ID = "someClientId"
     private final static String CLIENT_SECRET = "someClientSecret"
     private final static String CACHE_EXPIRY_HOURS = "1h"
 
-    @Shared
-    @AutoCleanup
-    ErsatzServer locationMockService
-    @Shared
-    @AutoCleanup
-    ErsatzServer identityMockService
+    @Shared LocationMock locationMockService
+    @Shared IdentityMock identityMockService
+
     @Shared
     @AutoCleanup
     ApplicationContext context
 
     def setup() {
-        locationMockService = new ErsatzServer({
-            decoder('application/json', Decoders.utf8String)
-            reportToConsole()
-        })
+        locationMockService = new LocationMock(ACCESS_TOKEN)
 
-        identityMockService = new ErsatzServerRule({
-            decoder('application/json', Decoders.utf8String)
-            reportToConsole()
-        })
-
-        locationMockService.start()
-        identityMockService.start()
-
-        String locationBasePath = locationMockService.getHttpUrl() + "$LOCATION_BASE_PATH/"
+        identityMockService = new IdentityMock(CLIENT_ID, CLIENT_SECRET, ACCESS_TOKEN)
 
         context = ApplicationContext
             .build()
@@ -65,16 +42,16 @@ class LocationResolverIntegrationSpec extends Specification {
                 """
                 micronaut.caches.cluster-cache.expire-after-write: $CACHE_EXPIRY_HOURS
                 location:
-                    url:                    $locationBasePath
-                    clusters.get.path:      ${LOCATION_CLUSTER_PATH+"?"+CLUSTER_QUERY_PARAM+"="+CLUSTER_QUERY_PARAM_VALUE}
-                    clusters.get.path.filter.pattern: $LOCATION_CLUSTER_PATH_FILTER_PATTERN
+                    url:                                ${locationMockService.getUrl()}
+                    clusters.get.path:                  ${LocationMock.LOCATION_CLUSTER_PATH_WITH_QUERY_PARAM}
+                    clusters.get.path.filter.pattern:   ${LocationMock.LOCATION_CLUSTER_PATH_FILTER_PATTERN}
                     attempts:               3
                     delay:                  1ms
                     reset:                  10ms
                 authentication:
                     identity:
-                        url:                ${identityMockService.getHttpUrl()}
-                        issue.token.path:   "$ISSUE_TOKEN_PATH"
+                        url:                ${identityMockService.getUrl()}
+                        issue.token.path:   ${IdentityMock.ISSUE_TOKEN_PATH}
                         attempts:           3
                         delay:              500ms
                         consumes:           "application/token+json"
@@ -95,15 +72,20 @@ class LocationResolverIntegrationSpec extends Specification {
         server.start()
     }
 
+    void cleanup() {
+        locationMockService.clearExpectations()
+        identityMockService.clearExpectations()
+    }
+
     def "Location service is invoked to fetch cluster for given location Uuid"() {
         given:
         def locationUuid = "locationUuid"
 
         and: "a mocked Identity service for issue token endpoint"
-        identityIssueTokenService()
+        identityMockService.issueValidTokenFromIdentity()
 
         and: "location service returning list of clusters for a given Uuid"
-        locationServiceReturningClustersFor(locationUuid)
+        locationMockService.getClusterForGiven(locationUuid, ["Cluster_A", "Cluster_B"])
 
         and: "location service bean is initialized"
         def locationResolver = context.getBean(LocationResolver)
@@ -112,7 +94,7 @@ class LocationResolverIntegrationSpec extends Specification {
         List<String> clusters = locationResolver.resolve(locationUuid)
 
         then:
-        clusters == ["cluster_A","cluster_B"]
+        clusters == ["Cluster_A","Cluster_B"]
 
         and: "location service is called once"
         locationMockService.verify()
@@ -126,10 +108,10 @@ class LocationResolverIntegrationSpec extends Specification {
         def locationUuid = "locationUuid"
 
         and: "a mocked Identity service for issue token endpoint"
-        identityIssueTokenService()
+        identityMockService.issueValidTokenFromIdentity()
 
         and: "location service returning list of clusters for a given Uuid"
-        locationServiceReturningInternalServerErrorFor(locationUuid)
+        locationMockService.returningError(locationUuid, 500, 4)
 
         and: "location service bean is initialized"
         def locationResolver = context.getBean(LocationResolver)
@@ -152,10 +134,10 @@ class LocationResolverIntegrationSpec extends Specification {
         def locationUuid = "locationUuid"
 
         and: "a mocked Identity service for issue token endpoint"
-        identityIssueTokenService()
+        identityMockService.issueValidTokenFromIdentity()
 
         and: "location service returning list of clusters for a given Uuid"
-        locationServiceReturningClustersFor(locationUuid)
+        locationMockService.getClusterForGiven(locationUuid, ["Cluster_A", "Cluster_B"])
 
         and: "location service bean is initialized"
         def locationResolver = context.getBean(LocationResolver)
@@ -164,13 +146,13 @@ class LocationResolverIntegrationSpec extends Specification {
         def clusters = locationResolver.resolve(locationUuid)
 
         then:
-        clusters == ["cluster_A","cluster_B"]
+        clusters == ["Cluster_A","Cluster_B"]
 
         when: "get clusters again for the same location Uuid"
         def clusters2 = locationResolver.resolve(locationUuid)
 
         then:
-        clusters2 == ["cluster_A","cluster_B"]
+        clusters2 == ["Cluster_A","Cluster_B"]
 
         and: "location service is called once"
         locationMockService.verify()
@@ -181,10 +163,10 @@ class LocationResolverIntegrationSpec extends Specification {
         def locationUuid = "locationUuid"
 
         and: "a mocked Identity service for issue token endpoint"
-        identityIssueTokenService()
+        identityMockService.issueValidTokenFromIdentity()
 
         and: "location service returning 5xx error and has expectation on how many times it should be called"
-        locationServiceReturningError(locationUuid, 500, 6) // 4 times on first call and 2 times on second invocation
+        locationMockService.returningError(locationUuid, 500, 6) // 4 times on first call and 2 times on second invocation
 
         and: "location service bean is initialized"
         def locationResolver = context.getBean(LocationResolver)
@@ -216,10 +198,10 @@ class LocationResolverIntegrationSpec extends Specification {
         def locationUuid = "locationUuid"
 
         and: "a mocked Identity service for issue token endpoint"
-        identityIssueTokenService()
+        identityMockService.issueValidTokenFromIdentity()
 
         and: "location service returning list of clusters for a given Uuid"
-        locationServiceReturningBadRequestFor(locationUuid)
+        locationMockService.returningError(locationUuid, 400, 4)
 
         and: "location service bean is initialized"
         def locationResolver = context.getBean(LocationResolver)
@@ -242,10 +224,10 @@ class LocationResolverIntegrationSpec extends Specification {
         def locationUuid = "locationUuid"
 
         and: "a mocked Identity service for issue token endpoint"
-        identityIssueTokenService()
+        identityMockService.issueValidTokenFromIdentity()
 
         and: "location service returning empty body for a given Uuid"
-        locationServiceReturningClustersFor(locationUuid, "{}")
+        locationMockService.returnEmptyBody(locationUuid)
 
         and: "location service bean is initialized"
         def locationResolver = context.getBean(LocationResolver)
@@ -257,98 +239,8 @@ class LocationResolverIntegrationSpec extends Specification {
         thrown(LocationServiceException)
     }
 
-    private void locationServiceReturningBadRequestFor(String locationUuid) {
-        locationServiceReturningError(locationUuid, 400, 4)
-    }
-
-    private void locationServiceReturningInternalServerErrorFor(String locationUuid) {
-        locationServiceReturningError(locationUuid, 500, 4)
-    }
-
-    private ErsatzServer locationServiceReturningError(String locationUuid, int status, int invocationCount) {
-        locationMockService.expectations {
-            get(LOCATION_BASE_PATH + locationPathIncluding(locationUuid)) {
-                header("Authorization", "Bearer ${ACCESS_TOKEN}")
-                called(invocationCount)
-                responder {
-                    code(status)
-                }
-            }.query(CLUSTER_QUERY_PARAM, CLUSTER_QUERY_PARAM_VALUE)
-        }
-    }
-
-    private void identityIssueTokenService() {
-        def requestJson = JsonOutput.toJson([
-            client_id       : CLIENT_ID,
-            client_secret   : CLIENT_SECRET,
-            grant_type      : "client_credentials",
-            scope           : "internal public",
-            confidence_level: 12
-        ])
-
-        identityMockService.expectations {
-            post(ISSUE_TOKEN_PATH) {
-                body(requestJson, "application/json")
-                header("Accept", "application/token+json")
-                called(1)
-                responder {
-                    header("Content-Type", "application/token+json")
-                    code(200)
-                    body("""
-                        {
-                            "access_token": "${ACCESS_TOKEN}",
-                            "token_type"  : "bearer",
-                            "expires_in"  : 1000,
-                            "scope"       : "some: scope: value"
-                        }
-                    """)
-                }
-            }
-        }
-    }
-
     Map<String, Object> parseYamlConfig(String str) {
         def loader = new YamlPropertySourceLoader()
         loader.read("config", str.bytes)
-    }
-
-    void locationServiceReturningClustersFor(String locationUuid) {
-        locationMockService.expectations {
-            get(LOCATION_BASE_PATH + locationPathIncluding(locationUuid)) {
-                header("Authorization", "Bearer ${ACCESS_TOKEN}")
-                called(1)
-
-                responder {
-                    header("Content-Type", "application/json")
-                    body("""
-                    {
-                        "clusters": [
-                            "cluster_A",
-                            "cluster_B"
-                        ],
-                        "revisionId": "2"
-                    }
-               """)
-                }
-            }.query(CLUSTER_QUERY_PARAM, CLUSTER_QUERY_PARAM_VALUE)
-        }
-    }
-
-    void locationServiceReturningClustersFor(String locationUuid, String responseBody) {
-        locationMockService.expectations {
-            get(LOCATION_BASE_PATH + locationPathIncluding(locationUuid)) {
-                header("Authorization", "Bearer ${ACCESS_TOKEN}")
-                called(1)
-
-                responder {
-                    header("Content-Type", "application/json")
-                    body(responseBody)
-                }
-            }.query(CLUSTER_QUERY_PARAM, CLUSTER_QUERY_PARAM_VALUE)
-        }
-    }
-
-    private String locationPathIncluding(String locationUuid) {
-        LOCATION_CLUSTER_PATH.replace("{locationUuid}", locationUuid)
     }
 }

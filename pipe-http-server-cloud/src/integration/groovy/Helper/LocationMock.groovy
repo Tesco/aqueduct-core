@@ -37,6 +37,10 @@ class LocationMock {
         locationMockService.clearExpectations()
     }
 
+    void verify() {
+        locationMockService.verify()
+    }
+
     void getClusterForGiven(String locationUuid, List<String> clusters) {
         def clusterString = clusters.stream().map{"\"$it\""}.collect(joining(","))
         def revisionId = clusters.isEmpty() ? null : "2"
@@ -54,6 +58,32 @@ class LocationMock {
                         "revisionId": "$revisionId"
                     }
                """)
+                }
+            }.query(CLUSTER_QUERY_PARAM, CLUSTER_QUERY_PARAM_VALUE)
+        }
+    }
+
+    void returningError(String locationUuid, int status, int invocationCount) {
+        locationMockService.expectations {
+            get(LOCATION_PATH + locationPathIncluding(locationUuid)) {
+                header("Authorization", "Bearer " + accessToken)
+                called(invocationCount)
+                responder {
+                    code(status)
+                }
+            }.query(CLUSTER_QUERY_PARAM, CLUSTER_QUERY_PARAM_VALUE)
+        }
+    }
+
+    void returnEmptyBody(String locationUuid) {
+        locationMockService.expectations {
+            get(LOCATION_PATH + locationPathIncluding(locationUuid)) {
+                header("Authorization", "Bearer " + accessToken)
+                called(1)
+
+                responder {
+                    header("Content-Type", "application/json")
+                    body("{}")
                 }
             }.query(CLUSTER_QUERY_PARAM, CLUSTER_QUERY_PARAM_VALUE)
         }
