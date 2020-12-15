@@ -66,9 +66,13 @@ location:
   delay: 500ms
   attempts: 3
   reset: 5s
+  url: "${LOCATION_URL}"
+  clusters.get.path: "${LOCATION_CLUSTERS_GET_PATH}"
   clusters.get.path.filter.pattern: "${LOCATION_CLUSTERS_GET_PATH_FILTER_PATTERN}"
 
 pipe:
+  server:
+    url: "${PIPE_URL}"
   delay: 500ms
   attempts: 1
   reset: 240s

@@ -27,14 +27,6 @@ authentication:
           - PIPE_READ
           - REGISTRY_WRITE
 
-location:
-  url: "${LOCATION_URL}"
-  clusters.get.path: "${LOCATION_CLUSTERS_GET_PATH}"
-
-pipe:
-  server:
-    url: "${PIPE_URL}"
-
 persistence:
   compact:
     schedule.cron: "0 14 0/1 * * ?"
