@@ -67,6 +67,8 @@ class CodecIntegrationSpec extends Specification {
                 "authentication.identity.users.userA.roles":    "PIPE_READ",
 
                 "location.url":                                 "${locationMockService.getUrl()}",
+                "location.clusters.get.path":                   "${LocationMock.LOCATION_CLUSTER_PATH_WITH_QUERY_PARAM}",
+                "location.clusters.get.path.filter.pattern":    "${LocationMock.LOCATION_CLUSTER_PATH_FILTER_PATTERN}",
                 "location.attempts":                            3,
                 "location.delay":                               "2ms",
                 "location.reset":                               "10ms",

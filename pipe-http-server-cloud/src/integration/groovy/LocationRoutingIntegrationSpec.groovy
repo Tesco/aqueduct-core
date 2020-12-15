@@ -1,9 +1,8 @@
+import Helper.IdentityMock
+import Helper.LocationMock
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
-import com.stehno.ersatz.Decoders
-import com.stehno.ersatz.ErsatzServer
 import com.tesco.aqueduct.pipe.api.Message
-import groovy.json.JsonOutput
 import groovy.sql.Sql
 import groovy.transform.NamedVariant
 import io.micronaut.context.ApplicationContext
@@ -21,8 +20,6 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 
-import static java.util.stream.Collectors.joining
-
 class LocationRoutingIntegrationSpec extends Specification {
 
     private static final String VALIDATE_TOKEN_BASE_PATH = '/v4/access-token/auth/validate'
@@ -34,28 +31,16 @@ class LocationRoutingIntegrationSpec extends Specification {
     private final static String ISSUE_TOKEN_PATH = "/v4/issue-token/token"
     private final static String ACCESS_TOKEN = UUID.randomUUID().toString()
 
-    private final static String LOCATION_BASE_PATH = "/tescolocation"
-    private final static String LOCATION_CLUSTER_PATH = "/clusters/v1/locations/{locationUuid}/clusters/ids"
+    @Shared IdentityMock identityMockService
+    @Shared LocationMock locationMockService
 
-    @Shared @AutoCleanup ErsatzServer identityMockService
-    @Shared @AutoCleanup ErsatzServer locationMockService
     @Shared @AutoCleanup ApplicationContext context
     @Shared @ClassRule SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance()
     @AutoCleanup Sql sql
 
     def setupSpec() {
-        identityMockService = new ErsatzServer({
-            decoder('application/json', Decoders.utf8String)
-            reportToConsole()
-        })
-
-        locationMockService = new ErsatzServer({
-            decoder('application/json', Decoders.utf8String)
-            reportToConsole()
-        })
-
-        locationMockService.start()
-        identityMockService.start()
+        locationMockService = new LocationMock(ACCESS_TOKEN)
+        identityMockService = new IdentityMock(CLIENT_ID, CLIENT_SECRET, ACCESS_TOKEN)
 
         context = ApplicationContext
             .build()
@@ -68,7 +53,7 @@ class LocationRoutingIntegrationSpec extends Specification {
                 "persistence.read.cluster-db-pool-size":        10,
                 "persistence.read.read-delay-seconds":          0,
 
-                "authentication.identity.url":                  "${identityMockService.getHttpUrl()}",
+                "authentication.identity.url":                  "${identityMockService.getUrl()}",
                 "authentication.identity.validate.token.path":  "$VALIDATE_TOKEN_PATH",
                 "authentication.identity.client.id":            "$CLIENT_ID",
                 "authentication.identity.client.secret":        "$CLIENT_SECRET",
@@ -81,7 +66,9 @@ class LocationRoutingIntegrationSpec extends Specification {
 
                 "micronaut.caches.latest-offset-cache.expire-after-write": "0s",
 
-                "location.url":                                 "${locationMockService.getHttpUrl() + "$LOCATION_BASE_PATH/"}",
+                "location.url":                                 "${locationMockService.getUrl()}",
+                "location.clusters.get.path":                   "${LocationMock.LOCATION_CLUSTER_PATH_WITH_QUERY_PARAM}",
+                "location.clusters.get.path.filter.pattern":    "${LocationMock.LOCATION_CLUSTER_PATH_FILTER_PATTERN}",
                 "location.attempts":                            3,
                 "location.delay":                               "2ms",
                 "location.reset":                               "10ms",
@@ -103,8 +90,8 @@ class LocationRoutingIntegrationSpec extends Specification {
 
     void setup() {
         setupPostgres(pg.embeddedPostgres.postgresDatabase)
-        acceptIdentityTokenValidationRequest()
-        issueValidTokenFromIdentity()
+        identityMockService.acceptIdentityTokenValidationRequest()
+        identityMockService.issueValidTokenFromIdentity()
     }
 
     void cleanup() {
@@ -122,7 +109,7 @@ class LocationRoutingIntegrationSpec extends Specification {
         def locationUuid = UUID.randomUUID().toString()
 
         and: "location service returning clusters for the location uuid"
-        locationServiceReturningListOfClustersForGiven(locationUuid, ["Cluster_A"])
+        locationMockService.getClusterForGiven(locationUuid, ["Cluster_A"])
 
         and: "clusters in the storage"
         Long clusterA = insertCluster("Cluster_A")
@@ -162,7 +149,7 @@ class LocationRoutingIntegrationSpec extends Specification {
         def locationUuid = UUID.randomUUID().toString()
 
         and: "location service returning clusters for the location uuid"
-        locationServiceReturningListOfClustersForGiven(locationUuid, [])
+        locationMockService.getClusterForGiven(locationUuid, [])
 
         and: "some clusters in the storage"
         Long clusterA = insertCluster("Cluster_A")
@@ -202,7 +189,7 @@ class LocationRoutingIntegrationSpec extends Specification {
         def locationUuid = UUID.randomUUID().toString()
 
         and: "location service returning clusters for the location uuid"
-        locationServiceReturningListOfClustersForGiven(locationUuid, ["Cluster_A"])
+        locationMockService.getClusterForGiven(locationUuid, ["Cluster_A"])
 
         and: "clusters in the storage"
         Long clusterA = insertCluster("Cluster_A")
@@ -247,7 +234,7 @@ class LocationRoutingIntegrationSpec extends Specification {
         def locationUuid = UUID.randomUUID().toString()
 
         and: "location service returning clusters for the location uuid"
-        locationServiceReturningListOfClustersForGiven(locationUuid, ["Cluster_A"])
+        locationMockService.getClusterForGiven(locationUuid, ["Cluster_A"])
 
         and: "some messages with default cluster"
         def message1 = message(1, "type1", "A", "content-type", utcZoned("2000-12-03T10:00:00Z"), "data")
@@ -274,7 +261,7 @@ class LocationRoutingIntegrationSpec extends Specification {
         def locationUuid = UUID.randomUUID().toString()
 
         and: "location service returning clusters for the location uuid"
-        locationServiceReturningListOfClustersForGiven(locationUuid, ["Cluster_B", "Cluster_C"])
+        locationMockService.getClusterForGiven(locationUuid, ["Cluster_B", "Cluster_C"])
 
         and: "clusters in the storage"
         Long clusterA = insertCluster("Cluster_A")
@@ -376,109 +363,4 @@ class LocationRoutingIntegrationSpec extends Specification {
         INSERT INTO CLUSTERS (cluster_uuid) VALUES ('NONE');
         """)
     }
-
-    def acceptIdentityTokenValidationRequest() {
-        def json = JsonOutput.toJson([access_token: ACCESS_TOKEN])
-
-        identityMockService.expectations {
-            post(VALIDATE_TOKEN_BASE_PATH) {
-                queries("client_id": [CLIENT_ID_AND_SECRET])
-                body(json, "application/json")
-                called(1)
-
-                responder {
-                    header("Content-Type", "application/json;charset=UTF-8")
-                    body("""
-                        {
-                          "UserId": "someClientUserId",
-                          "Status": "VALID",
-                          "Claims": [
-                            {
-                              "claimType": "http://schemas.tesco.com/ws/2011/12/identity/claims/clientid",
-                              "value": "trn:tesco:cid:${UUID.randomUUID()}"
-                            },
-                            {
-                              "claimType": "http://schemas.tesco.com/ws/2011/12/identity/claims/scope",
-                              "value": "oob"
-                            },
-                            {
-                              "claimType": "http://schemas.tesco.com/ws/2011/12/identity/claims/userkey",
-                              "value": "trn:tesco:uid:uuid:${UUID.randomUUID()}"
-                            },
-                            {
-                              "claimType": "http://schemas.tesco.com/ws/2011/12/identity/claims/confidencelevel",
-                              "value": "12"
-                            },
-                            {
-                              "claimType": "http://schemas.microsoft.com/ws/2008/06/identity/claims/expiration",
-                              "value": "1548413702"
-                            }
-                          ]
-                        }
-                    """)
-                }
-            }
-        }
-    }
-
-    private void locationServiceReturningListOfClustersForGiven(
-            String locationUuid, List<String> clusters) {
-
-        def clusterString = clusters.stream().map{"\"$it\""}.collect(joining(","))
-
-        def revisionId = clusters.isEmpty() ? null : "2"
-
-        locationMockService.expectations {
-            get(LOCATION_BASE_PATH + locationPathIncluding(locationUuid)) {
-                header("Authorization", "Bearer ${ACCESS_TOKEN}")
-                called(1)
-
-                responder {
-                    header("Content-Type", "application/json")
-                    body("""
-                    {
-                        "clusters": [$clusterString],
-                        "revisionId": "$revisionId"
-                    }
-               """)
-                }
-            }
-        }
-    }
-
-    private String locationPathIncluding(String locationUuid) {
-        LOCATION_CLUSTER_PATH.replace("{locationUuid}", locationUuid)
-    }
-
-    def issueValidTokenFromIdentity() {
-        def requestJson = JsonOutput.toJson([
-                client_id       : CLIENT_ID,
-                client_secret   : CLIENT_SECRET,
-                grant_type      : "client_credentials",
-                scope           : "internal public",
-                confidence_level: 12
-        ])
-
-        identityMockService.expectations {
-            post(ISSUE_TOKEN_PATH) {
-                body(requestJson, "application/json")
-                header("Accept", "application/token+json")
-                header("Content-Type", "application/json")
-                called(1)
-
-                responder {
-                    header("Content-Type", "application/token+json")
-                    body("""
-                    {
-                        "access_token": "${ACCESS_TOKEN}",
-                        "token_type"  : "bearer",
-                        "expires_in"  : 1000,
-                        "scope"       : "some: scope: value"
-                    }
-                    """)
-                }
-            }
-        }
-    }
-
 }

@@ -7,8 +7,13 @@ import static java.util.stream.Collectors.joining
 
 class LocationMock {
 
-    private static final String LOCATION_PATH = "/tescolocation"
-    private static final String LOCATION_CLUSTER_PATH = "/clusters/v1/locations/{locationUuid}/clusters/ids"
+    public final static String LOCATION_CLUSTER_PATH_WITH_QUERY_PARAM = "$LOCATION_CLUSTER_PATH?$CLUSTER_QUERY_PARAM=$CLUSTER_QUERY_PARAM_VALUE"
+    public final static String LOCATION_CLUSTER_PATH_FILTER_PATTERN = "/**/some/get/*/clusters/path/**"
+
+    private final static String LOCATION_CLUSTER_PATH = "/some/get/{locationUuid}/clusters/path"
+    private final static String LOCATION_PATH = "/tescolocation"
+    private final static String CLUSTER_QUERY_PARAM ="param"
+    private final static String CLUSTER_QUERY_PARAM_VALUE ="P,Q,R,S"
 
     private ErsatzServer locationMockService
     private String accessToken
@@ -50,7 +55,7 @@ class LocationMock {
                     }
                """)
                 }
-            }
+            }.query(CLUSTER_QUERY_PARAM, CLUSTER_QUERY_PARAM_VALUE)
         }
     }
 
