@@ -81,7 +81,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
             location_uuid VARCHAR PRIMARY KEY NOT NULL,
             cluster_ids INT[] NOT NULL,
             expiry TIMESTAMP NOT NULL,
-            valid BOOLEAN NOT NULL
+            valid BOOLEAN NOT NULL DEFAULT TRUE
         );
 
         INSERT INTO CLUSTERS (cluster_uuid) VALUES ('NONE');
