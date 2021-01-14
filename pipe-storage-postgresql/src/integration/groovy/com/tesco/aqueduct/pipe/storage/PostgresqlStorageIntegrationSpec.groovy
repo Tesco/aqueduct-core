@@ -578,7 +578,6 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         noExceptionThrown()
     }
 
-    @Override
     void insert(Message msg, int maxMessageSize=0, def time = Timestamp.valueOf(msg.created.toLocalDateTime()) ) {
 
         if (msg.offset == null) {
@@ -594,6 +593,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         }
     }
 
+    @Override
     void insertWithCluster(Message msg, Long clusterId, def time = Timestamp.valueOf(msg.created.toLocalDateTime()), int maxMessageSize=0) {
         sql.execute(
             "INSERT INTO EVENTS(msg_offset, msg_key, content_type, type, created_utc, data, event_size, cluster_id) VALUES(?,?,?,?,?,?,?,?);",
