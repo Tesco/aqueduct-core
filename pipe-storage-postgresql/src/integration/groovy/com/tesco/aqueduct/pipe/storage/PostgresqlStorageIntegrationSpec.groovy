@@ -2,11 +2,7 @@ package com.tesco.aqueduct.pipe.storage
 
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
-import com.tesco.aqueduct.pipe.api.LocationResolver
-import com.tesco.aqueduct.pipe.api.Message
-import com.tesco.aqueduct.pipe.api.MessageResults
-import com.tesco.aqueduct.pipe.api.OffsetName
-import com.tesco.aqueduct.pipe.api.PipeState
+import com.tesco.aqueduct.pipe.api.*
 import groovy.sql.Sql
 import groovy.transform.NamedVariant
 import org.junit.ClassRule
@@ -18,6 +14,7 @@ import javax.sql.DataSource
 import java.sql.*
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
+import java.util.concurrent.TimeUnit
 
 class PostgresqlStorageIntegrationSpec extends StorageSpec {
 
@@ -49,6 +46,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         DROP TABLE IF EXISTS CLUSTERS;
         DROP TABLE IF EXISTS REGISTRY;
         DROP TABLE IF EXISTS NODE_REQUESTS;
+        DROP TABLE IF EXISTS CLUSTER_CACHE;
           
         CREATE TABLE EVENTS(
             msg_offset BIGSERIAL PRIMARY KEY NOT NULL,
@@ -79,6 +77,13 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
             cluster_uuid VARCHAR NOT NULL
         );
         
+        CREATE TABLE CLUSTER_CACHE(
+            location_uuid VARCHAR PRIMARY KEY NOT NULL,
+            cluster_ids INT[] NOT NULL,
+            expiry TIMESTAMP NOT NULL,
+            valid BOOLEAN NOT NULL
+        );
+
         INSERT INTO CLUSTERS (cluster_uuid) VALUES ('NONE');
         """)
 
@@ -117,7 +122,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.pipeState == PipeState.UP_TO_DATE
     }
 
-    def "get messages for given type and clusters"() {
+    def "get messages for given type and location"() {
         given: "there is postgres storage"
         def limit = 1
         def dataSourceWithMockedConnection = Mock(DataSource)
@@ -132,13 +137,13 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         preparedStatement.executeQuery() >> Mock(ResultSet)
         connection.prepareStatement(_ as String) >> preparedStatement
 
-        when: "requesting messages specifying a type key and a cluster id"
-        postgresStorage.read(["some_type"], 0, "clusterId")
+        when: "requesting messages specifying a type key and a locationUuid"
+        postgresStorage.read(["some_type"], 0, "locationUuid")
 
-        then: "a query is created that contain given type and cluster including default cluster in the where clause"
+        then: "a query is created that contain given type and location"
         2 * preparedStatement.setLong(_, 0)
         1 * preparedStatement.setString(_, "some_type")
-        1 * preparedStatement.setString(_, "clusterId,NONE")
+        1 * preparedStatement.setString(_, "locationUuid")
     }
 
     def "the messages returned are no larger than the maximum batch size when reading without a type"() {
@@ -156,7 +161,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(msg3, messageSize)
 
         when: "reading from the database"
-        MessageResults result = storage.read([], 0, "clusterId")
+        MessageResults result = storage.read([], 0, "locationUuid")
 
         then: "messages that are returned are no larger than the maximum batch size when reading with a type"
         result.messages.size() == 2
@@ -524,6 +529,27 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         types << [ [], ["type1"] ]
     }
 
+    def "messages are returned when location uuid is contained and valid in the cluster cache"() {
+        given:
+        def offsetFetcher = new OffsetFetcher(0)
+        offsetFetcher.currentTimestamp = "TO_TIMESTAMP( '2000-12-01 10:00:01', 'YYYY-MM-DD HH:MI:SS' )"
+        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, offsetFetcher, 1, 1, 4, locationResolver)
+
+        insertLocationInCache("locationUuid", [2L, 3L])
+        insertWithCluster(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2L)
+        insertWithCluster(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 3L)
+        insertWithCluster(message(3, "type1", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 4L)
+
+        when: 'reading all messages'
+        def messageResults = storage.read(["type1"], 0, "locationUuid")
+
+        then: 'messages are provided for the given location'
+        messageResults.messages.size() == 2
+        messageResults.messages*.key == ["A", "B"]
+        messageResults.messages*.offset*.intValue() == [1, 2]
+        messageResults.globalLatestOffset == OptionalLong.of(3)
+    }
+
     @Unroll
     def "read up to the last message in the pipe when all are in the visibility window"() {
         given:
@@ -601,6 +627,20 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
             offset,
             created ?: time,
             data ?: "data"
+        )
+    }
+
+    void insertLocationInCache(
+            String locationUuid,
+            List<Long> clusterIds,
+            def expiry = Timestamp.valueOf(LocalDateTime.now() + TimeUnit.MINUTES.toMillis(1)),
+            boolean valid = true
+    ) {
+        Connection connection = DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
+        Array clusters = connection.createArrayOf("integer", clusterIds.toArray())
+        sql.execute(
+            "INSERT INTO CLUSTER_CACHE(location_uuid, cluster_ids, expiry, valid) VALUES (?, ?, ?, ?)",
+                locationUuid, clusters, expiry, valid
         )
     }
 }

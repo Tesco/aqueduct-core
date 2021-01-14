@@ -14,6 +14,7 @@ public class PostgresqlStorage implements CentralStorage {
 
     private static final PipeLogger LOG = new PipeLogger(LoggerFactory.getLogger(PostgresqlStorage.class));
     public static final String DEFAULT_CLUSTER = "NONE";
+    private static final String CURRENT_TIMESTAMP = "CURRENT_TIMESTAMP";
 
     private final int limit;
     private final DataSource dataSource;
@@ -60,8 +61,6 @@ public class PostgresqlStorage implements CentralStorage {
         final long startOffset,
         final String locationUuid
     ) {
-        List<String> clusterUuids = locationResolver.resolve(locationUuid);
-
         long start = System.currentTimeMillis();
 
         try (Connection connection = dataSource.getConnection()) {
@@ -72,9 +71,9 @@ public class PostgresqlStorage implements CentralStorage {
 
             final long globalLatestOffset = offsetFetcher.getGlobalLatestOffset(connection);
 
-            final Array clusterIds = getClusterIds(connection, clusterUuids);
+            final Optional<Array> clusterIds = resolveLocationUuidToClusterIds(connection, locationUuid);
 
-            try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, globalLatestOffset, clusterIds)) {
+            try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, globalLatestOffset, clusterIds.get())) {
 
                 final List<Message> messages = runMessagesQuery(messagesQuery);
                 long end = System.currentTimeMillis();
@@ -90,6 +89,40 @@ public class PostgresqlStorage implements CentralStorage {
         } finally {
             long end = System.currentTimeMillis();
             LOG.info("read:time", Long.toString(end - start));
+        }
+    }
+
+    private Optional<Array> resolveLocationUuidToClusterIds(Connection connection, String locationUuid) {
+        try(PreparedStatement statement = getLocationToClusterIdsStatement(connection, locationUuid)) {
+            return runLocationToClusterIdsQuery(statement);
+        } catch (SQLException exception) {
+            LOG.error("postgresql storage", "resolve location to clusterIds", exception);
+            throw new RuntimeException(exception);
+        }
+    }
+
+    private Optional<Array> runLocationToClusterIdsQuery(final PreparedStatement query) throws SQLException {
+        long start = System.currentTimeMillis();
+        try (ResultSet rs = query.executeQuery()) {
+            if (rs.next()){
+                return Optional.of(rs.getArray(1));
+            }
+
+            return null;
+        } finally {
+            long end = System.currentTimeMillis();
+            LOG.info("runLocationToClusterIdsQuery:time", Long.toString(end - start));
+        }
+    }
+
+    private PreparedStatement getLocationToClusterIdsStatement(final Connection connection, final String locationUuid) {
+        try {
+            PreparedStatement query = connection.prepareStatement(getLocationToClusterIdsQuery());
+            query.setString(1, locationUuid);
+            return query;
+        } catch (SQLException exception) {
+            LOG.error("postgresql storage", "get location to clusterIds statement", exception);
+            throw new RuntimeException(exception);
         }
     }
 
@@ -245,7 +278,7 @@ public class PostgresqlStorage implements CentralStorage {
 
             if (types == null || types.isEmpty()) {
                 query = connection.prepareStatement(getSelectEventsWithoutTypeQuery(maxBatchSize));
-                query.setArray(1,clusterIds );
+                query.setArray(1, clusterIds);
                 query.setLong(2, startOffset);
                 query.setLong(3, endOffset);
                 query.setLong(4, limit);
@@ -340,6 +373,10 @@ public class PostgresqlStorage implements CentralStorage {
 
     private String getClusterIdQuery() {
         return "SELECT array_agg(cluster_id) FROM clusters WHERE ((cluster_uuid)::text = ANY (string_to_array(?, ',')));";
+    }
+
+    private String getLocationToClusterIdsQuery() {
+        return "SELECT cluster_ids FROM cluster_cache WHERE location_uuid = ? AND expiry > " + CURRENT_TIMESTAMP + ";";
     }
 
     private static String getCompactionQuery() {
