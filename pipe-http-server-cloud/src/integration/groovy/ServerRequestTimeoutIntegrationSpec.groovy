@@ -1,5 +1,5 @@
 import Helper.IdentityMock
-import com.tesco.aqueduct.pipe.api.LocationResolver
+import com.tesco.aqueduct.pipe.api.LocationService
 import io.micronaut.context.ApplicationContext
 import io.micronaut.inject.qualifiers.Qualifiers
 import io.micronaut.runtime.server.EmbeddedServer
@@ -25,9 +25,9 @@ class ServerRequestTimeoutIntegrationSpec extends Specification {
     def setup() {
         def identityMock = new IdentityMock(CLIENT_ID, CLIENT_SECRET, ACCESS_TOKEN)
 
-        def mockLocationResolver = Mock(LocationResolver)
+        def mockLocationResolver = Mock(LocationService)
 
-        mockLocationResolver.resolve(_) >> {
+        mockLocationResolver.getClusterUuids(_) >> {
             sleep(3000) // Mocking method processing to take longer than server idle timeout
             ["someLocation"]
         }
@@ -64,7 +64,7 @@ class ServerRequestTimeoutIntegrationSpec extends Specification {
             .build()
             .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("pipe"))
             .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("registry"))
-            .registerSingleton(LocationResolver, mockLocationResolver)
+            .registerSingleton(LocationService, mockLocationResolver)
 
         context.start()
 

@@ -1,6 +1,6 @@
 package com.tesco.aqueduct.pipe.storage
 
-import com.tesco.aqueduct.pipe.api.LocationResolver
+import com.tesco.aqueduct.pipe.api.LocationService
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
@@ -11,7 +11,7 @@ class PostgresqlStorageSpec extends Specification {
 
     @Shared
     def retryAfter = 30000
-    LocationResolver locationResolver = Mock(LocationResolver)
+    LocationService locationResolver = Mock(LocationService)
 
     @Unroll
     def "retry after is #result when queryTime is #timeOfQueryMs and message result size is #noOfMessages"() {

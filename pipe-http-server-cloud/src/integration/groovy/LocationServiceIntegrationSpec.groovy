@@ -1,6 +1,6 @@
 import Helper.IdentityMock
 import Helper.LocationMock
-import com.tesco.aqueduct.pipe.api.LocationResolver
+import com.tesco.aqueduct.pipe.api.LocationService
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenClient
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenProvider
 import com.tesco.aqueduct.pipe.location.LocationServiceException
@@ -15,7 +15,7 @@ import spock.lang.Specification
 
 import javax.sql.DataSource
 
-class LocationResolverIntegrationSpec extends Specification {
+class LocationServiceIntegrationSpec extends Specification {
 
     private final static String ACCESS_TOKEN = "some_encrypted_token"
     private final static String CLIENT_ID = "someClientId"
@@ -88,10 +88,10 @@ class LocationResolverIntegrationSpec extends Specification {
         locationMockService.getClusterForGiven(locationUuid, ["Cluster_A", "Cluster_B"])
 
         and: "location service bean is initialized"
-        def locationResolver = context.getBean(LocationResolver)
+        def locationResolver = context.getBean(LocationService)
 
         when: "get clusters for a location Uuid"
-        List<String> clusters = locationResolver.resolve(locationUuid)
+        List<String> clusters = locationResolver.getClusterUuids(locationUuid)
 
         then:
         clusters == ["Cluster_A","Cluster_B"]
@@ -114,10 +114,10 @@ class LocationResolverIntegrationSpec extends Specification {
         locationMockService.returningError(locationUuid, 500, 4)
 
         and: "location service bean is initialized"
-        def locationResolver = context.getBean(LocationResolver)
+        def locationResolver = context.getBean(LocationService)
 
         when: "get clusters for a location Uuid"
-        locationResolver.resolve(locationUuid)
+        locationResolver.getClusterUuids(locationUuid)
 
         then:
         thrown(LocationServiceException)
@@ -140,16 +140,16 @@ class LocationResolverIntegrationSpec extends Specification {
         locationMockService.getClusterForGiven(locationUuid, ["Cluster_A", "Cluster_B"])
 
         and: "location service bean is initialized"
-        def locationResolver = context.getBean(LocationResolver)
+        def locationResolver = context.getBean(LocationService)
 
         when: "get clusters for a location Uuid"
-        def clusters = locationResolver.resolve(locationUuid)
+        def clusters = locationResolver.getClusterUuids(locationUuid)
 
         then:
         clusters == ["Cluster_A","Cluster_B"]
 
         when: "get clusters again for the same location Uuid"
-        def clusters2 = locationResolver.resolve(locationUuid)
+        def clusters2 = locationResolver.getClusterUuids(locationUuid)
 
         then:
         clusters2 == ["Cluster_A","Cluster_B"]
@@ -169,10 +169,10 @@ class LocationResolverIntegrationSpec extends Specification {
         locationMockService.returningError(locationUuid, 500, 6) // 4 times on first call and 2 times on second invocation
 
         and: "location service bean is initialized"
-        def locationResolver = context.getBean(LocationResolver)
+        def locationResolver = context.getBean(LocationService)
 
         when: "get clusters for a location Uuid"
-        locationResolver.resolve(locationUuid)
+        locationResolver.getClusterUuids(locationUuid)
 
         then: "throw an error"
         thrown(LocationServiceException)
@@ -181,7 +181,7 @@ class LocationResolverIntegrationSpec extends Specification {
         sleep(50)
 
         and: "get clusters for a location Uuid"
-        locationResolver.resolve(locationUuid)
+        locationResolver.getClusterUuids(locationUuid)
 
         then: "error is thrown again"
         thrown(LocationServiceException)
@@ -204,10 +204,10 @@ class LocationResolverIntegrationSpec extends Specification {
         locationMockService.returningError(locationUuid, 400, 4)
 
         and: "location service bean is initialized"
-        def locationResolver = context.getBean(LocationResolver)
+        def locationResolver = context.getBean(LocationService)
 
         when: "get clusters for a location Uuid"
-        locationResolver.resolve(locationUuid)
+        locationResolver.getClusterUuids(locationUuid)
 
         then:
         thrown(HttpClientResponseException)
@@ -230,10 +230,10 @@ class LocationResolverIntegrationSpec extends Specification {
         locationMockService.returnEmptyBody(locationUuid)
 
         and: "location service bean is initialized"
-        def locationResolver = context.getBean(LocationResolver)
+        def locationResolver = context.getBean(LocationService)
 
         when: "get clusters for a location Uuid"
-        locationResolver.resolve(locationUuid)
+        locationResolver.getClusterUuids(locationUuid)
 
         then:
         thrown(LocationServiceException)

@@ -62,6 +62,7 @@ public class PostgresqlStorage implements CentralStorage {
         final String locationUuid
     ) {
         long start = System.currentTimeMillis();
+        final List<Long> clusterIds = locationResolver.getClusterIds(locationUuid);
 
         try (Connection connection = dataSource.getConnection()) {
             LOG.info("getConnection:time", Long.toString(System.currentTimeMillis() - start));
@@ -71,9 +72,7 @@ public class PostgresqlStorage implements CentralStorage {
 
             final long globalLatestOffset = offsetFetcher.getGlobalLatestOffset(connection);
 
-            final Optional<Array> clusterIds = resolveLocationUuidToClusterIds(connection, locationUuid);
-
-            try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, globalLatestOffset, clusterIds.get())) {
+            try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, globalLatestOffset, clusterIds)) {
 
                 final List<Message> messages = runMessagesQuery(messagesQuery);
                 long end = System.currentTimeMillis();
@@ -104,11 +103,11 @@ public class PostgresqlStorage implements CentralStorage {
     private Optional<Array> runLocationToClusterIdsQuery(final PreparedStatement query) throws SQLException {
         long start = System.currentTimeMillis();
         try (ResultSet rs = query.executeQuery()) {
-            if (rs.next()){
+            if (rs.next()) {
                 return Optional.of(rs.getArray(1));
             }
 
-            return null;
+            return Optional.empty();
         } finally {
             long end = System.currentTimeMillis();
             LOG.info("runLocationToClusterIdsQuery:time", Long.toString(end - start));
@@ -271,21 +270,23 @@ public class PostgresqlStorage implements CentralStorage {
         final List<String> types,
         final long startOffset,
         long endOffset,
-        final Array clusterIds
+        final List<Long> clusterIds
     ) {
         try {
             PreparedStatement query;
 
+            final Array clusterIdArray = connection.createArrayOf("BIGINT", clusterIds.toArray());
+
             if (types == null || types.isEmpty()) {
                 query = connection.prepareStatement(getSelectEventsWithoutTypeQuery(maxBatchSize));
-                query.setArray(1, clusterIds);
+                query.setArray(1, clusterIdArray);
                 query.setLong(2, startOffset);
                 query.setLong(3, endOffset);
                 query.setLong(4, limit);
             } else {
                 final String strTypes = String.join(",", types);
                 query = connection.prepareStatement(getSelectEventsWithTypeQuery(maxBatchSize));
-                query.setArray(1, clusterIds);
+                query.setArray(1, clusterIdArray);
                 query.setLong(2, startOffset);
                 query.setLong(3, endOffset);
                 query.setString(4, strTypes);

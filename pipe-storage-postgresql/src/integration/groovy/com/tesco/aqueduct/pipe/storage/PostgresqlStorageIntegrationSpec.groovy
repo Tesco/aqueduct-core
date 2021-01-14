@@ -2,7 +2,10 @@ package com.tesco.aqueduct.pipe.storage
 
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
-import com.tesco.aqueduct.pipe.api.*
+import com.tesco.aqueduct.pipe.api.Message
+import com.tesco.aqueduct.pipe.api.MessageResults
+import com.tesco.aqueduct.pipe.api.OffsetName
+import com.tesco.aqueduct.pipe.api.PipeState
 import groovy.sql.Sql
 import groovy.transform.NamedVariant
 import org.junit.ClassRule
@@ -90,7 +93,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insertLocationInCache("locationUuid", [1L])
 
         locationResolver = Mock(LocationResolver)
-        locationResolver.resolve(_) >> {arguments -> arguments}
+        locationResolver.getClusterIds("locationUuid") >> [1L]
         storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, new OffsetFetcher(0), 1, 1, 4, locationResolver)
     }
 
@@ -470,13 +473,50 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         offsetFetcher.currentTimestamp = "TO_TIMESTAMP( '2000-12-01 10:00:01', 'YYYY-MM-DD HH:MI:SS' )"
         storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, offsetFetcher, 1, 1, 4, locationResolver)
 
-        insertLocationInCache("someLocationUuid", [2L, 3L])
+        locationResolver.getClusterIds("someLocationUuid") >> [2L, 3L]
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2L)
         insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 3L)
         insert(message(3, "type1", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 4L)
 
         when: 'reading all messages'
         def messageResults = storage.read(["type1"], 0, "someLocationUuid")
+
+        then: 'messages are provided for the given location'
+        messageResults.messages.size() == 2
+        messageResults.messages*.key == ["A", "B"]
+        messageResults.messages*.offset*.intValue() == [1, 2]
+        messageResults.globalLatestOffset == OptionalLong.of(3)
+    }
+
+    def "Clusters are resolved and cache is populated when cache is missing clusters for the given location during read"() {
+        given:
+        def someLocationUuid = "someLocationUuid"
+        def offsetFetcher = new OffsetFetcher(0)
+        offsetFetcher.currentTimestamp = "TO_TIMESTAMP( '2000-12-01 10:00:01', 'YYYY-MM-DD HH:MI:SS' )"
+        storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, offsetFetcher, 1, 1, 4, locationResolver)
+
+        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2L)
+        insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 3L)
+
+        when: 'reading all messages with a location'
+        def messageResults = storage.read(["type1"], 0, someLocationUuid)
+
+        then: "clusters are resolved from location resolver"
+        1 * locationResolver.getClusterIds(someLocationUuid) >> [2L, 3L]
+
+        and: "clusters are stored in clusters table"
+        def clusters = sql.rows("select * from clusters")
+        clusters.size() == 3
+        clusters.get(1).get("cluster_id") == 2
+        clusters.get(1).get("cluster_uuid") == "clusterUuid1"
+
+        clusters.get(2).get("cluster_id") == 3
+        clusters.get(2).get("cluster_uuid") == "clusterUuid2"
+
+        and: "location cache is populated with respective cluster ids"
+        def clusterCache = sql.rows("select * from cluster_cache where location_uuid = '$someLocationUuid'")
+        clusterCache.size() == 1
+        clusterCache.get(0).get("cluster_ids") == [2, 3]
 
         then: 'messages are provided for the given location'
         messageResults.messages.size() == 2

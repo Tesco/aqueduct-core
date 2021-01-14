@@ -1,7 +1,7 @@
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
 import com.tesco.aqueduct.pipe.api.HttpHeaders
-import com.tesco.aqueduct.pipe.api.LocationResolver
+import com.tesco.aqueduct.pipe.api.LocationService
 import com.tesco.aqueduct.pipe.api.Message
 import groovy.sql.Sql
 import io.micronaut.context.ApplicationContext
@@ -27,7 +27,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
     @AutoCleanup("stop") ApplicationContext context
 
     DataSource dataSource
-    LocationResolver locationResolver
+    LocationService locationResolver
 
     def setup() {
 
@@ -43,7 +43,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
             new Sql(pg.embeddedPostgres.postgresDatabase.connection).connection,
             new Sql(pg.embeddedPostgres.postgresDatabase.connection).connection
         ]
-        locationResolver.resolve(_) >> []
+        locationResolver.getClusterUuids(_) >> []
 
         sql.execute("""
         DROP TABLE IF EXISTS EVENTS;
@@ -87,7 +87,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
             .build()
             .registerSingleton(DataSource, dataSource, Qualifiers.byName("pipe"))
             .registerSingleton(DataSource, dataSource, Qualifiers.byName("registry"))
-            .registerSingleton(LocationResolver, locationResolver)
+            .registerSingleton(LocationService, locationResolver)
 
         context.start()
 
@@ -107,7 +107,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
         insert(101, "b", "contentType", "type1", time, null)
 
         and: "location to cluster resolution"
-        locationResolver.resolve("someLocation") >> ["a_cluster_id"]
+        locationResolver.getClusterUuids("someLocation") >> ["a_cluster_id"]
 
         when:
         def request = RestAssured.get("/pipe/100?location=someLocation")
@@ -130,7 +130,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
         insert(101, "b", "contentType", "type1", time, null)
 
         and: "location to cluster resolution"
-        locationResolver.resolve("someLocation") >> ["a_cluster_id"]
+        locationResolver.getClusterUuids("someLocation") >> ["a_cluster_id"]
 
         when:
         def request1 = RestAssured.get("/pipe/100?location=someLocation")

@@ -27,14 +27,14 @@ class PipeReadControllerBatchIntegrationSpec extends Specification {
     Reader reader
 
     @Inject
-    LocationResolver locationResolver
+    LocationService locationResolver
 
     @Inject
     EmbeddedServer server
 
     void setup() {
         RestAssured.port = server.port
-        locationResolver.resolve(_) >> ["cluster1"]
+        locationResolver.getClusterUuids(_) >> ["cluster1"]
     }
 
     void cleanup() {
@@ -81,8 +81,8 @@ class PipeReadControllerBatchIntegrationSpec extends Specification {
         Mock(Reader)
     }
 
-    @MockBean(LocationResolver)
-    LocationResolver locationResolver() {
-        Mock(LocationResolver)
+    @MockBean(LocationService)
+    LocationService locationResolver() {
+        Mock(LocationService)
     }
 }

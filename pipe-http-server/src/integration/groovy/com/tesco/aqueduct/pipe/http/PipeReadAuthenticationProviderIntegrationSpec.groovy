@@ -25,10 +25,10 @@ class PipeReadAuthenticationProviderIntegrationSpec extends Specification {
 
     @Shared @AutoCleanup("stop") ApplicationContext context
     @Shared @AutoCleanup("stop") EmbeddedServer server
-    @Shared LocationResolver locationResolver = Mock()
+    @Shared LocationService locationResolver = Mock()
 
     void setupSpec() {
-        locationResolver.resolve(_) >> ["cluster1"]
+        locationResolver.getClusterUuids(_) >> ["cluster1"]
 
         context = ApplicationContext
             .build()
