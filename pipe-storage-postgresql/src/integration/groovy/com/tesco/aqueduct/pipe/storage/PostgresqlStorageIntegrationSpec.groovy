@@ -87,6 +87,8 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         INSERT INTO CLUSTERS (cluster_uuid) VALUES ('NONE');
         """)
 
+        insertLocationInCache("locationUuid", [1L])
+
         locationResolver = Mock(LocationResolver)
         locationResolver.resolve(_) >> {arguments -> arguments}
         storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, new OffsetFetcher(0), 1, 1, 4, locationResolver)
@@ -116,7 +118,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
 
     def "get pipe state as up to date always"() {
         when: "reading the messages"
-        def messageResults = storage.read(["some_type"], 0, "clusterId")
+        def messageResults = storage.read(["some_type"], 0, "locationUuid")
 
         then: "pipe state is up to date"
         messageResults.pipeState == PipeState.UP_TO_DATE
@@ -134,7 +136,10 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
 
         and: "a connection returns a prepared statement"
         def preparedStatement = Mock(PreparedStatement)
-        preparedStatement.executeQuery() >> Mock(ResultSet)
+        def resultSet = Mock(ResultSet)
+        preparedStatement.executeQuery() >> resultSet
+        resultSet.next() >>> [false, true, false]
+        resultSet.getArray(1) >> Mock(Array)
         connection.prepareStatement(_ as String) >> preparedStatement
 
         when: "requesting messages specifying a type key and a locationUuid"
@@ -156,9 +161,9 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         int messageSize = Double.valueOf(maxOverheadBatchSize / 3).intValue() + 1
 
         and: "they are inserted into the integrated database"
-        insert(msg1, messageSize)
-        insert(msg2, messageSize)
-        insert(msg3, messageSize)
+        insert(msg1, 1, messageSize)
+        insert(msg2, 1, messageSize)
+        insert(msg3, 1, messageSize)
 
         when: "reading from the database"
         MessageResults result = storage.read([], 0, "locationUuid")
@@ -177,12 +182,12 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         int messageSize = Double.valueOf(maxOverheadBatchSize / 3).intValue() + 1
 
         and: "they are inserted into the integrated database"
-        insert(msg1, messageSize)
-        insert(msg2, messageSize)
-        insert(msg3, messageSize)
+        insert(msg1, 1, messageSize)
+        insert(msg2, 1, messageSize)
+        insert(msg3, 1, messageSize)
 
         when: "reading from the database"
-        MessageResults result = storage.read(["type-1"], 0, "clusterId")
+        MessageResults result = storage.read(["type-1"], 0, "locationUuid")
 
         then: "messages that are returned are no larger than the maximum batch size"
         result.messages.size() == 2
@@ -195,7 +200,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(key: "x"))
 
         when:
-        MessageResults result = storage.read([], 4, "clusterId")
+        MessageResults result = storage.read([], 4, "locationUuid")
 
         then:
         result.retryAfterMs > 0
@@ -206,7 +211,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         given: "I have no records in the integrated database"
 
         when:
-        MessageResults result = storage.read([], 0,"clusterId")
+        MessageResults result = storage.read([], 0,"locationUuid")
 
         then:
         result.retryAfterMs > 0
@@ -214,19 +219,16 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     }
 
     def 'Messages with TTL set to future are not compacted'() {
-        given: 'a stored cluster'
-        Long cluster1 = insertCluster("cluster1")
-
-        and: 'messages stored with cluster and TTL set to today'
-        insertWithClusterAndTTL(1, "A", cluster1, LocalDateTime.now().plusMinutes(60))
-        insertWithClusterAndTTL(2, "A", cluster1, LocalDateTime.now().plusMinutes(60))
-        insertWithClusterAndTTL(3, "A", cluster1, LocalDateTime.now().plusMinutes(60))
+        given: 'messages stored with cluster id and TTL set to today'
+        insertWithClusterAndTTL(1, "A", 1, LocalDateTime.now().plusMinutes(60))
+        insertWithClusterAndTTL(2, "A", 1, LocalDateTime.now().plusMinutes(60))
+        insertWithClusterAndTTL(3, "A", 1, LocalDateTime.now().plusMinutes(60))
 
         when: 'compaction with ttl is run'
         storage.compact()
 
         and: 'all messages are read'
-        MessageResults result = storage.read(null, 0, "cluster1")
+        MessageResults result = storage.read(null, 0, "locationUuid")
         List<Message> retrievedMessages = result.messages
 
         then: 'no messages are compacted'
@@ -234,19 +236,16 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     }
 
     def 'Messages with TTL in the past are compacted'() {
-        given: 'a stored cluster'
-        Long cluster1 = insertCluster("cluster1")
-
-        and: 'messages stored with cluster and TTL set to today'
-        insertWithClusterAndTTL(1, "A", cluster1, LocalDateTime.now().minusMinutes(60))
-        insertWithClusterAndTTL(2, "A", cluster1, LocalDateTime.now().minusMinutes(10))
-        insertWithClusterAndTTL(3, "A", cluster1, LocalDateTime.now().minusMinutes(1))
+        given: 'messages stored with cluster id and TTL set to today'
+        insertWithClusterAndTTL(1, "A", 1, LocalDateTime.now().minusMinutes(60))
+        insertWithClusterAndTTL(2, "A", 1, LocalDateTime.now().minusMinutes(10))
+        insertWithClusterAndTTL(3, "A", 1, LocalDateTime.now().minusMinutes(1))
 
         when: 'compaction with ttl is run'
         storage.compact()
 
         and: 'all messages are read'
-        MessageResults result = storage.read(null, 0, "cluster1")
+        MessageResults result = storage.read(null, 0, "locationUuid")
         List<Message> retrievedMessages = result.messages
 
         then: 'all messages are compacted'
@@ -254,19 +253,16 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     }
 
     def 'Variety of TTL value messages are compacted correctly'() {
-        given: 'a stored cluster'
-        Long cluster1 = insertCluster("cluster1")
-
-        and: 'messages stored with cluster and TTL set to today'
-        insertWithClusterAndTTL(1, "A", cluster1, LocalDateTime.now().plusMinutes(60))
-        insertWithClusterAndTTL(2, "A", cluster1, LocalDateTime.now().minusMinutes(10))
-        insertWithClusterAndTTL(3, "A", cluster1, LocalDateTime.now().minusMinutes(1))
+        given: 'messages stored with cluster id and TTL set to today'
+        insertWithClusterAndTTL(1, "A", 1, LocalDateTime.now().plusMinutes(60))
+        insertWithClusterAndTTL(2, "A", 1, LocalDateTime.now().minusMinutes(10))
+        insertWithClusterAndTTL(3, "A", 1, LocalDateTime.now().minusMinutes(1))
 
         when: 'compaction with ttl is run'
         storage.compact()
 
         and: 'all messages are read'
-        MessageResults result = storage.read(null, 0, "cluster1")
+        MessageResults result = storage.read(null, 0, "locationUuid")
         List<Message> retrievedMessages = result.messages
 
         then: 'correct messages are compacted'
@@ -274,19 +270,16 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     }
 
     def 'Messages with null TTL arent compacted'() {
-        given: 'a stored cluster'
-        Long cluster1 = insertCluster("cluster1")
-
-        and: 'messages stored with cluster and null TTL'
-        insertWithCluster(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(2, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(3, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        given: 'messages stored with cluster id and null TTL'
+        insert(message(1, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+        insert(message(2, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+        insert(message(3, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
 
         when: 'compaction with ttl is run'
         storage.compact()
 
         and: 'all messages are read'
-        MessageResults result = storage.read(null, 0, "cluster1")
+        MessageResults result = storage.read(null, 0, "locationUuid")
         List<Message> retrievedMessages = result.messages
 
         then: 'no messages are compacted'
@@ -301,7 +294,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
 
         when: 'reading all messages'
-        def messageResults = storage.read([type], 0, "clusterId")
+        def messageResults = storage.read([type], 0, "locationUuid")
 
         then: 'global latest offset is type and clusterId independent'
         messageResults.globalLatestOffset == OptionalLong.of(3)
@@ -317,7 +310,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
 
         when: 'reading with no types'
-        def messageResults = storage.read([], 0, "clusterId")
+        def messageResults = storage.read([], 0, "locationUuid")
 
         then: 'all messages from the storage are returned regardless the types'
         messageResults.messages.size() == 3
@@ -326,17 +319,13 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     }
 
     def 'pipe should return messages for given clusters and no type'() {
-        given: 'some clusters are stored'
-        Long cluster1 = insertCluster("cluster1")
-        Long cluster2 = insertCluster("cluster2")
-
-        and: 'some messages are stored with clusters'
-        insertWithCluster(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
-        insertWithCluster(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        given: 'some messages are stored with cluster ids'
+        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 1)
+        insert(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2)
+        insert(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 1)
 
         when: 'reading with no types but cluster provided'
-        def messageResults = storage.read([], 0, "cluster1")
+        def messageResults = storage.read([], 0, "locationUuid")
 
         then: 'messages belonging to cluster1 are returned'
         messageResults.messages.size() == 2
@@ -344,44 +333,17 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.messages*.offset*.intValue() == [1, 3]
     }
 
-    def 'pipe should return messages for given clusters and default cluster'() {
-        given: 'some clusters are stored'
-        Long cluster1 = insertCluster("cluster1")
-        Long cluster2 = insertCluster("cluster2")
-
-        and: 'some messages are stored with clusters'
-        insertWithCluster(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
-        insertWithCluster(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-
-        and: 'some messages without cluster'
-        insert(message(4, "type1", "D", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
-        insert(message(5, "type2", "E", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
-
-        when: 'reading with no types but cluster provided'
-        def messageResults = storage.read([], 0, "cluster1")
-
-        then: 'messages belonging to cluster1 and default cluster are returned'
-        messageResults.messages.size() == 4
-        messageResults.messages*.key == ["A", "C", "D", "E"]
-        messageResults.messages*.offset*.intValue() == [1, 3, 4, 5]
-    }
-
     def 'pipe should return relevant messages when types and cluster are provided'(){
-        given: 'some clusters are stored'
-        Long cluster1 = insertCluster("cluster1")
-        Long cluster2 = insertCluster("cluster2")
-
-        and: 'some messages are stored'
-        insertWithCluster(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
-        insertWithCluster(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
-        insertWithCluster(message(4, "type2", "D", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(5, "type1", "E", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(6, "type3", "F", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        given: 'some messages are stored with cluster ids'
+        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 1)
+        insert(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2)
+        insert(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2)
+        insert(message(4, "type2", "D", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 1)
+        insert(message(5, "type1", "E", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 1)
+        insert(message(6, "type3", "F", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 1)
 
         when: 'reading with no types but cluster provided'
-        def messageResults = storage.read(["type2", "type3"], 0, "cluster1")
+        def messageResults = storage.read(["type2", "type3"], 0, "locationUuid")
 
         then: 'messages belonging to cluster1 are returned'
         messageResults.messages.size() == 2
@@ -389,47 +351,20 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.messages*.offset*.intValue() == [4, 6]
     }
 
-    def 'pipe should return relevant messages for given types and cluster including default cluster'() {
-        given: 'some clusters are stored'
-        Long cluster1 = insertCluster("cluster1")
-        Long cluster2 = insertCluster("cluster2")
+    def 'no messages are returned when cluster does not map to any messages'() {
+        given: 'a location is cached'
+        insertLocationInCache("location2", [3,4])
 
         and: 'some messages are stored'
-        insertWithCluster(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
-        insertWithCluster(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
-        insertWithCluster(message(4, "type2", "D", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(5, "type1", "E", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(6, "type3", "F", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
+        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 1)
+        insert(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2)
+        insert(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2)
+        insert(message(4, "type2", "D", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 1)
+        insert(message(5, "type1", "E", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 1)
+        insert(message(6, "type3", "F", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 1)
 
-        and: 'some messages without cluster'
-        insert(message(7, "type1", "G", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
-        insert(message(8, "type2", "H", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
-
-        when: 'reading with no types but cluster provided'
-        def messageResults = storage.read(["type2", "type3"], 0, "cluster1")
-
-        then: 'messages belonging to cluster1 are returned'
-        messageResults.messages.size() == 3
-        messageResults.messages*.key == ["D", "F", "H"]
-        messageResults.messages*.offset*.intValue() == [4, 6, 8]
-    }
-
-    def 'no messages are returned when cluster doesnt map to any messages'() {
-        given: 'some clusters are stored'
-        Long cluster1 = insertCluster("cluster1")
-        Long cluster2 = insertCluster("cluster2")
-
-        and: 'some messages are stored'
-        insertWithCluster(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
-        insertWithCluster(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster2)
-        insertWithCluster(message(4, "type2", "D", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(5, "type1", "E", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-        insertWithCluster(message(6, "type3", "F", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), cluster1)
-
-        when: 'reading with a different cluster'
-        def messageResults = storage.read(["type2", "type3"], 0, "cluster3")
+        when: 'reading with a location having no messages mapped to its clusters'
+        def messageResults = storage.read(["type2", "type3"], 0, "location2")
 
         then: 'messages are not returned, and no exception is thrown'
         messageResults.messages.size() == 0
@@ -453,7 +388,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(9, "type1", "I", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
 
         when: 'reading all messages'
-        def messageResults = storage.read(["type1"], 0, "cluster1")
+        def messageResults = storage.read(["type1"], 0, "locationUuid")
 
         then: 'messages are provided for the given type'
         messageResults.messages.size() == 3
@@ -462,7 +397,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.globalLatestOffset == OptionalLong.of(9)
 
         when: "read again from further offset"
-        messageResults = storage.read(["type1"], 4, "")
+        messageResults = storage.read(["type1"], 4, "locationUuid")
 
         then: "we should still get relevant messages back even if they are further down from the given offset"
         messageResults.messages.size() == 3
@@ -517,7 +452,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(8, "type1", "H", "content-type", ZonedDateTime.parse("2000-12-01T10:00:01Z"), "data"))
 
         when: 'reading all messages'
-        def messageResults = storage.read(types, 1, "")
+        def messageResults = storage.read(types, 1, "locationUuid")
 
         then: 'messages are provided for the given type'
         messageResults.messages.size() == 3
@@ -535,13 +470,13 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         offsetFetcher.currentTimestamp = "TO_TIMESTAMP( '2000-12-01 10:00:01', 'YYYY-MM-DD HH:MI:SS' )"
         storage = new PostgresqlStorage(dataSource, limit, retryAfter, batchSize, offsetFetcher, 1, 1, 4, locationResolver)
 
-        insertLocationInCache("locationUuid", [2L, 3L])
-        insertWithCluster(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2L)
-        insertWithCluster(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 3L)
-        insertWithCluster(message(3, "type1", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 4L)
+        insertLocationInCache("someLocationUuid", [2L, 3L])
+        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2L)
+        insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 3L)
+        insert(message(3, "type1", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 4L)
 
         when: 'reading all messages'
-        def messageResults = storage.read(["type1"], 0, "locationUuid")
+        def messageResults = storage.read(["type1"], 0, "someLocationUuid")
 
         then: 'messages are provided for the given location'
         messageResults.messages.size() == 2
@@ -556,7 +491,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
 
         when: 'reading all messages'
-        def messageResults = storage.read(types, 1, "")
+        def messageResults = storage.read(types, 1, "locationUuid")
 
         then: 'messages are provided for the given type'
         messageResults.messages.size() == 1
@@ -578,27 +513,19 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         noExceptionThrown()
     }
 
-    void insert(Message msg, int maxMessageSize=0, def time = Timestamp.valueOf(msg.created.toLocalDateTime()) ) {
 
+    void insert(Message msg, Long clusterId, int messageSize=0, def time = Timestamp.valueOf(msg.created.toLocalDateTime())) {
         if (msg.offset == null) {
             sql.execute(
-                "INSERT INTO EVENTS(msg_key, content_type, type, created_utc, data, event_size) VALUES(?,?,?,?,?,?);",
-                msg.key, msg.contentType, msg.type, time, msg.data, maxMessageSize
+                "INSERT INTO EVENTS(msg_key, content_type, type, created_utc, data, event_size, cluster_id) VALUES(?,?,?,?,?,?,?);",
+                msg.key, msg.contentType, msg.type, time, msg.data, messageSize, clusterId
             )
         } else {
             sql.execute(
-                "INSERT INTO EVENTS(msg_offset, msg_key, content_type, type, created_utc, data, event_size) VALUES(?,?,?,?,?,?,?);",
-                msg.offset, msg.key, msg.contentType, msg.type, time, msg.data, maxMessageSize
+                "INSERT INTO EVENTS(msg_offset, msg_key, content_type, type, created_utc, data, event_size, cluster_id) VALUES(?,?,?,?,?,?,?,?);",
+                msg.offset, msg.key, msg.contentType, msg.type, time, msg.data, messageSize, clusterId
             )
         }
-    }
-
-    @Override
-    void insertWithCluster(Message msg, Long clusterId, def time = Timestamp.valueOf(msg.created.toLocalDateTime()), int maxMessageSize=0) {
-        sql.execute(
-            "INSERT INTO EVENTS(msg_offset, msg_key, content_type, type, created_utc, data, event_size, cluster_id) VALUES(?,?,?,?,?,?,?,?);",
-            msg.offset, msg.key, msg.contentType, msg.type, time, msg.data, maxMessageSize, clusterId
-        )
     }
 
     void insertWithClusterAndTTL(

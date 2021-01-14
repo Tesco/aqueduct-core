@@ -25,14 +25,13 @@ abstract class StorageSpec extends Specification {
     def msg2 = message(offset: 107, key:"y")
 
     abstract Reader getStorage();
-    abstract void insertWithCluster(Message msg, Long clusterId = 1L);
+    abstract void insert(Message msg, Long clusterId = 1L);
     abstract void insertLocationInCache(String locationUuid, List<Long> clusterIds, def expiry = Timestamp.valueOf(LocalDateTime.now() + TimeUnit.MINUTES.toMillis(1)), boolean valid = true)
 
     def "can persist messages without offset"() {
         given:
-        insertLocationInCache("locationUuid", [1L])
-        insertWithCluster(message(offset: null))
-        insertWithCluster(message(offset: null))
+        insert(message(offset: null))
+        insert(message(offset: null))
 
         when:
         List<Message> messages = storage.read(null, 0, "locationUuid").messages
@@ -44,8 +43,8 @@ abstract class StorageSpec extends Specification {
     // test for the test insert method
     def "can persist message with offset if set"() {
         given:
-        insertWithCluster(msg1)
-        insertWithCluster(msg2)
+        insert(msg1)
+        insert(msg2)
 
         when:
         List<Message> messages = storage.read(null, 0, "locationUuid").messages
@@ -57,7 +56,7 @@ abstract class StorageSpec extends Specification {
     def "can get the message we inserted"() {
         given: "A message in database"
         def msg = message(offset: 1)
-        insertWithCluster(msg)
+        insert(msg)
 
         when: "When we read"
         List<Message> messages = storage.read(null, 0, "locationUuid").messages
@@ -69,11 +68,11 @@ abstract class StorageSpec extends Specification {
     def "number of entities returned respects limit"() {
         given: "more messages in database than the limit"
         (limit * 2).times {
-            insertWithCluster(message(key: "$it"))
+            insert(message(key: "$it"))
         }
 
         when:
-        def messages = storage.read(null, 0, "").messages.toList()
+        def messages = storage.read(null, 0, "locationUuid").messages.toList()
 
         then:
         messages.size() == limit
@@ -83,9 +82,9 @@ abstract class StorageSpec extends Specification {
     @Unroll
     def "filter by types #types"() {
         given:
-        insertWithCluster(message(type: "type-v1"))
-        insertWithCluster(message(type: "type-v2"))
-        insertWithCluster(message(type: "type-v3"))
+        insert(message(type: "type-v1"))
+        insert(message(type: "type-v2"))
+        insert(message(type: "type-v3"))
 
         when:
         List<Message> messages = storage.read(types, 0, "locationUuid").messages
@@ -108,8 +107,8 @@ abstract class StorageSpec extends Specification {
     @Unroll
     def "basic message behaviour - #rule"() {
         when:
-        insertWithCluster(msg1)
-        insertWithCluster(msg2)
+        insert(msg1)
+        insert(msg2)
 
         then:
         storage.read(null, offset, "locationUuid").messages == result
@@ -125,9 +124,9 @@ abstract class StorageSpec extends Specification {
 
     def "compaction - same not immediately compacted"() {
         when:
-        insertWithCluster(message(key:"x"))
-        insertWithCluster(message(key:"x"))
-        insertWithCluster(message(key:"x"))
+        insert(message(key:"x"))
+        insert(message(key:"x"))
+        insert(message(key:"x"))
 
         then:
         storage.read(null, 0, "locationUuid").messages.size() == 3
