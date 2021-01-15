@@ -18,9 +18,15 @@ public class ClusterStorage implements LocationResolver {
 
     private static final PipeLogger LOG = new PipeLogger(LoggerFactory.getLogger(ClusterStorage.class));
     private static final String CURRENT_TIMESTAMP = "CURRENT_TIMESTAMP";
-    private static final String CLUSTER_CACHE_QUERY = "SELECT cluster_ids FROM cluster_cache WHERE location_uuid = ? AND expiry > " + CURRENT_TIMESTAMP + " AND valid = true;";
+
+    private static final String CLUSTER_CACHE_QUERY = "SELECT cluster_ids FROM cluster_cache WHERE " +
+        "location_uuid = ? AND expiry > " + CURRENT_TIMESTAMP + " AND valid = true;";
+
     private static final String INSERT_CLUSTER = " INSERT INTO CLUSTERS (cluster_uuid) VALUES (?) ON CONFLICT DO NOTHING;";
-    private static final String INSERT_CLUSTER_CACHE = " INSERT INTO CLUSTER_CACHE (location_uuid, cluster_ids, expiry) VALUES (?, ?, ?) ON CONFLICT DO NOTHING;";
+
+    private static final String INSERT_CLUSTER_CACHE = " INSERT INTO CLUSTER_CACHE (location_uuid, cluster_ids, expiry) VALUES (?, ?, ?) " +
+        "ON CONFLICT (location_uuid) DO UPDATE SET cluster_ids = ?, expiry = ?, valid = true;";
+
     private static final String SELECT_CLUSTER_ID = " SELECT cluster_id FROM CLUSTERS WHERE ((cluster_uuid)::text = ANY (string_to_array(?, ',')));";
 
     private final DataSource dataSource;
@@ -122,9 +128,14 @@ public class ClusterStorage implements LocationResolver {
 
     private void insertClusterCache(String locationUuid, List<Long> clusterids, Connection connection) {
         try (PreparedStatement statement = connection.prepareStatement(INSERT_CLUSTER_CACHE)) {
+            Array clustersPgArray = connection.createArrayOf(CLUSTER_IDS_TYPE, clusterids.toArray());
+            Timestamp expiry = Timestamp.valueOf(LocalDateTime.now().plus(10, MINUTES));
+
             statement.setString(1, locationUuid);
-            statement.setArray(2, connection.createArrayOf(CLUSTER_IDS_TYPE, clusterids.toArray()));
-            statement.setTimestamp(3, Timestamp.valueOf(LocalDateTime.now().plus(10, MINUTES)));
+            statement.setArray(2, clustersPgArray);
+            statement.setTimestamp(3, expiry);
+            statement.setArray(4, clustersPgArray);
+            statement.setTimestamp(5, expiry);
 
             statement.execute();
         } catch (SQLException exception) {

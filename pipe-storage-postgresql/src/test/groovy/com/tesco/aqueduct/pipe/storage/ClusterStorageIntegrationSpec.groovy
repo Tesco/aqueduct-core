@@ -140,7 +140,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         1 * connection2.close()
     }
 
-    def "when location is not cached then clusters are resolved from location service and persisted in clusters and cache"() {
+    def "when location is not cached, then clusters are resolved from location service and persisted in clusters and cache"() {
         given:
         def anotherLocationUuid = "anotherLocationUuid"
 
@@ -154,7 +154,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterIds.isPresent()
         clusterIds.get() == [1l,2l]
 
-        and: "cluster uuids are persiste in clusters table"
+        and: "cluster uuids are persisted in clusters table"
         def clusterIdRows = sql.rows("select cluster_id from clusters where cluster_uuid in (?,?)", "clusterUuid1", "clusterUuid2")
         clusterIdRows.size() == 2
         clusterIdRows.get(0).get("cluster_id") == 1
@@ -165,6 +165,52 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterCacheRows.size() == 1
         Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
         Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [1l,2l]
+    }
+
+    def "when location entry is invalidate, then clusters are resolved from location service and updated in clusters and cache"() {
+        given:
+        def anotherLocationUuid = "anotherLocationUuid"
+        Long cluster1 = insertCluster("clusterUuid1")
+        Long cluster2 = insertCluster("clusterUuid2")
+        insertLocationInCache(anotherLocationUuid, [cluster1, cluster2], Timestamp.valueOf(LocalDateTime.now().plusSeconds(30)), false)
+
+        when:
+        def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid)
+
+        then:
+        1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid3", "clusterUuid4"]
+
+        and: "correct cluster ids are returned"
+        clusterIds.isPresent()
+        clusterIds.get() == [3l,4l]
+
+        and: "cluster uuids are persisted in clusters table"
+        def clusterIdRows = sql.rows("select cluster_id from clusters where cluster_uuid in (?,?)", "clusterUuid3", "clusterUuid4")
+        clusterIdRows.size() == 2
+        clusterIdRows.get(0).get("cluster_id") == 3
+        clusterIdRows.get(1).get("cluster_id") == 4
+
+        and: "cluster cache is populated correctly"
+        def clusterCacheRows = sql.rows("select cluster_ids from cluster_cache where location_uuid = ? AND valid = true", anotherLocationUuid)
+        clusterCacheRows.size() == 1
+        Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
+        Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [3l,4l]
+    }
+
+    def "when location service call fails, then the exception is propagated to the caller"() {
+        given:
+        def anotherLocationUuid = "anotherLocationUuid"
+        locationService.getClusterUuids(anotherLocationUuid) >> { throw new Exception() }
+
+        when:
+        clusterStorage.getClusterIds(anotherLocationUuid)
+
+        then:
+        thrown(Exception)
+    }
+
+    Long insertCluster(String clusterUuid){
+        sql.executeInsert("INSERT INTO CLUSTERS(cluster_uuid) VALUES (?);", [clusterUuid]).first()[0]
     }
 
     void insertLocationInCache(

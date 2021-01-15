@@ -576,10 +576,6 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         )
     }
 
-    Long insertCluster(String clusterUuid){
-        sql.executeInsert("INSERT INTO CLUSTERS(cluster_uuid) VALUES (?);", [clusterUuid]).first()[0]
-    }
-
     @NamedVariant
     @Override
     Message message(Long offset, String type, String key, String contentType, ZonedDateTime created, String data) {
