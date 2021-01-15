@@ -63,7 +63,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         def clusterIds = clusterStorage.getClusterIds("locationUuid")
 
         then:
-        clusterIds == Optional.of([1L])
+        clusterIds == [1L]
     }
 
     def "cache is missed if location entry is expired"() {
@@ -154,8 +154,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid1", "clusterUuid2"]
 
         and: "correct cluster ids are returned"
-        clusterIds.isPresent()
-        clusterIds.get() == [1l,2l]
+        clusterIds == [1l,2l]
 
         and: "cluster uuids are persisted in clusters table"
         def clusterIdRows = sql.rows("select cluster_id from clusters where cluster_uuid in (?,?)", "clusterUuid1", "clusterUuid2")
@@ -187,7 +186,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterCacheRows.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
     }
 
-    def "when location entry is invalidate, then clusters are resolved from location service and updated in clusters and cache"() {
+    def "when location entry is invalid, then clusters are resolved from location service and updated in clusters and cache"() {
         given:
         def anotherLocationUuid = "anotherLocationUuid"
         Long cluster1 = insertCluster("clusterUuid1")
@@ -201,8 +200,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid3", "clusterUuid4"]
 
         and: "correct cluster ids are returned"
-        clusterIds.isPresent()
-        clusterIds.get() == [3l,4l]
+        clusterIds == [3l,4l]
 
         and: "cluster uuids are persisted in clusters table"
         def clusterIdRows = sql.rows("select cluster_id from clusters where cluster_uuid in (?,?)", "clusterUuid3", "clusterUuid4")
@@ -243,8 +241,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid1", "clusterUuid2"]
 
         and: "correct cluster ids are returned"
-        clusterIds.isPresent()
-        clusterIds.get() == [1l,2l]
+        clusterIds == [1l,2l]
 
         and: "cluster cache is now populated with correct expiry time"
         def clusterCacheRows = sql.rows("select expiry from cluster_cache where location_uuid = ?", anotherLocationUuid)

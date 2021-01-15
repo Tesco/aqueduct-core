@@ -17,7 +17,6 @@ import java.util.Optional;
 public class ClusterStorage implements LocationResolver {
 
     private static final PipeLogger LOG = new PipeLogger(LoggerFactory.getLogger(ClusterStorage.class));
-    private static final String CURRENT_TIMESTAMP = "CURRENT_TIMESTAMP";
 
     private static final String CLUSTER_CACHE_QUERY = "SELECT location_uuid, cluster_ids, expiry, valid FROM cluster_cache WHERE " +
         "location_uuid = ?";
@@ -25,7 +24,7 @@ public class ClusterStorage implements LocationResolver {
     private static final String INSERT_CLUSTER = " INSERT INTO CLUSTERS (cluster_uuid) VALUES (?) ON CONFLICT DO NOTHING;";
 
     private static final String UPSERT_CLUSTER_CACHE = " INSERT INTO CLUSTER_CACHE (location_uuid, cluster_ids, expiry) VALUES (?, ?, ?) " +
-        "ON CONFLICT (location_uuid) DO UPDATE SET cluster_ids = ?, expiry = ?;";
+        "ON CONFLICT (location_uuid) DO UPDATE SET cluster_ids = ?, expiry = ?, valid = true;";
 
     private static final String UPDATE_CLUSTER_CACHE = " UPDATE CLUSTER_CACHE SET cluster_ids=?,expiry=? where location_uuid=? and valid = true";
 
