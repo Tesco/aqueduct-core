@@ -26,7 +26,7 @@ public class ClusterStorage implements LocationResolver {
     private static final String UPSERT_CLUSTER_CACHE = " INSERT INTO CLUSTER_CACHE (location_uuid, cluster_ids, expiry) VALUES (?, ?, ?) " +
         "ON CONFLICT (location_uuid) DO UPDATE SET cluster_ids = ?, expiry = ?, valid = true;";
 
-    private static final String UPDATE_CLUSTER_CACHE = " UPDATE CLUSTER_CACHE SET cluster_ids=?,expiry=? where location_uuid=? and valid = true";
+    private static final String UPDATE_CLUSTER_CACHE = " UPDATE CLUSTER_CACHE SET cluster_ids=?,expiry=? where location_uuid = ? and valid = true";
 
     private static final String SELECT_CLUSTER_ID = " SELECT cluster_id FROM CLUSTERS WHERE ((cluster_uuid)::text = ANY (string_to_array(?, ',')));";
 
@@ -177,10 +177,10 @@ public class ClusterStorage implements LocationResolver {
 
             statement.execute();
         } catch (SQLException exception) {
-            LOG.error("cluster storage", "insert cluster cache statement", exception);
+            LOG.error("cluster storage", "upsert cluster cache statement", exception);
             throw new RuntimeException(exception);
         }
-        LOG.info("cluster storage", "New cluster cache inserted for: " + locationUuid);
+        LOG.info("cluster storage", "New cluster cache upserted for: " + locationUuid);
     }
 
     private int updateClusterCache(String locationUuid, List<Long> clusterids, Connection connection) {
