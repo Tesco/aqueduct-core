@@ -63,6 +63,28 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterIds == Optional.of([1L])
     }
 
+    def "cache is missed if location entry is expired"() {
+        given: "an expired entry for a location"
+        insertLocationInCache("anotherLocationUuid", [1L], Timestamp.valueOf(LocalDateTime.now().minusSeconds(10)))
+
+        when: "cache is read"
+        clusterStorage.getClusterIds("anotherLocationUuid")
+
+        then: "location service is called to resolve the cluster ids"
+        1 * locationService.getClusterUuids("anotherLocationUuid") >> ["someCluster"]
+    }
+
+    def "cache is missed if location entry is invalidated"() {
+        given: "an invalidated entry for a location"
+        insertLocationInCache("anotherLocationUuid", [1L], Timestamp.valueOf(LocalDateTime.now().plusSeconds(30)), false)
+
+        when: "cache is read"
+        clusterStorage.getClusterIds("anotherLocationUuid")
+
+        then: "location service is called to resolve the cluster ids"
+        1 * locationService.getClusterUuids("anotherLocationUuid") >> ["someCluster"]
+    }
+
     def "when there is an error, a runtime exception is thrown"() {
         given: "a datasource and an exception thrown when executing the query"
         def dataSource = Mock(DataSource)
@@ -144,7 +166,6 @@ class ClusterStorageIntegrationSpec extends Specification {
         Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
         Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [1l,2l]
     }
-
 
     void insertLocationInCache(
         String locationUuid,
