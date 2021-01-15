@@ -4,6 +4,8 @@ import com.tesco.aqueduct.pipe.api.LocationService;
 import com.tesco.aqueduct.pipe.api.TokenProvider;
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenClient;
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenProvider;
+import com.tesco.aqueduct.pipe.location.CloudLocationService;
+import com.tesco.aqueduct.pipe.location.LocationServiceClient;
 import com.tesco.aqueduct.pipe.metrics.Measure;
 import com.tesco.aqueduct.pipe.storage.ClusterStorage;
 import com.tesco.aqueduct.pipe.storage.LocationResolver;
@@ -80,6 +82,11 @@ public class Bindings {
         @Property(name = "authentication.identity.client.secret") String identityClientSecret
     ) {
         return new IdentityIssueTokenProvider(identityIssueTokenClient, identityClientId, identityClientSecret);
+    }
+
+    @Singleton
+    LocationService locationService(final Provider<LocationServiceClient> locationServiceClientProvider) {
+        return new CloudLocationService(locationServiceClientProvider);
     }
 
     @Singleton

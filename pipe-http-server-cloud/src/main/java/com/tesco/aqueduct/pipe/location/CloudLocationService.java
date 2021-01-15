@@ -7,12 +7,10 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import javax.inject.Provider;
-import javax.inject.Singleton;
 import javax.validation.constraints.NotNull;
 import java.util.List;
 import java.util.UUID;
 
-@Singleton
 public class CloudLocationService implements LocationService {
 
     private static final PipeLogger LOG = new PipeLogger(LoggerFactory.getLogger(CloudLocationService.class));

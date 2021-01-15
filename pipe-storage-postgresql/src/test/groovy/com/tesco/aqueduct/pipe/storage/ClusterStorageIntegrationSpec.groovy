@@ -49,6 +49,8 @@ class ClusterStorageIntegrationSpec extends Specification {
             expiry TIMESTAMP NOT NULL,
             valid BOOLEAN NOT NULL DEFAULT TRUE
         );
+        
+        ALTER TABLE CLUSTERS ADD CONSTRAINT unique_cluster_uuid UNIQUE (cluster_uuid);
         """)
 
         insertLocationInCache("locationUuid", [1L])
@@ -225,6 +227,72 @@ class ClusterStorageIntegrationSpec extends Specification {
 
         then:
         thrown(Exception)
+    }
+
+    def "when location entry is expired, then it is updated with correct expiry time"() {
+        given:
+        def anotherLocationUuid = "anotherLocationUuid"
+        Long cluster1 = insertCluster("clusterUuid1")
+        Long cluster2 = insertCluster("clusterUuid2")
+        insertLocationInCache(anotherLocationUuid, [cluster1, cluster2], Timestamp.valueOf(LocalDateTime.now().minusSeconds(30)))
+
+        when:
+        def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid)
+
+        then: "location service is called to resolve clusters again"
+        1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid1", "clusterUuid2"]
+
+        and: "correct cluster ids are returned"
+        clusterIds.isPresent()
+        clusterIds.get() == [1l,2l]
+
+        and: "cluster cache is now populated with correct expiry time"
+        def clusterCacheRows = sql.rows("select expiry from cluster_cache where location_uuid = ?", anotherLocationUuid)
+        clusterCacheRows.size() == 1
+        clusterCacheRows.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
+        clusterCacheRows.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
+    }
+
+    def "when location entry is expired, but invalidated while it is being resolved then it discards last read and resolve clusters again"() {
+        given:
+        def anotherLocationUuid = "anotherLocationUuid"
+        Long cluster1 = insertCluster("clusterUuid1")
+        Long cluster2 = insertCluster("clusterUuid2")
+        insertLocationInCache(anotherLocationUuid, [cluster1, cluster2], Timestamp.valueOf(LocalDateTime.now().minusSeconds(30)))
+
+        when:
+        def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid)
+
+        then: "location service is called to resolve clusters again and cache is invalidated"
+        1 * locationService.getClusterUuids(anotherLocationUuid) >> {
+            invalidateClusterCacheFor(anotherLocationUuid)
+            ["clusterUuid1", "clusterUuid2"]
+        }
+
+        then: "location service is called again"
+        1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid3", "clusterUuid4"]
+
+        and: "correct cluster ids are returned"
+        clusterIds == [3l,4l]
+
+        and: "new cluster uuids are persisted in clusters table"
+        def clusterIdRows = sql.rows("select cluster_id from clusters where cluster_uuid in (?,?)", "clusterUuid3", "clusterUuid4")
+        clusterIdRows.size() == 2
+        clusterIdRows.get(0).get("cluster_id") == 3
+        clusterIdRows.get(1).get("cluster_id") == 4
+
+        and: "cluster cache is populated with correct cluster ids and expiry time"
+        def clusterCacheRows = sql.rows("select * from cluster_cache where location_uuid = ? and valid=true", anotherLocationUuid)
+        clusterCacheRows.size() == 1
+        clusterCacheRows.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
+        clusterCacheRows.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
+
+        Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
+        Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [3l,4l]
+    }
+
+    private boolean invalidateClusterCacheFor(String anotherLocationUuid) {
+        sql.execute("UPDATE CLUSTER_CACHE SET valid=false where location_uuid=?", anotherLocationUuid)
     }
 
     Long insertCluster(String clusterUuid){
