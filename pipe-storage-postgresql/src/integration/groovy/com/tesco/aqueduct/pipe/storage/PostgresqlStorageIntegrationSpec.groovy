@@ -141,7 +141,6 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         def preparedStatement = Mock(PreparedStatement)
         def resultSet = Mock(ResultSet)
         preparedStatement.executeQuery() >> resultSet
-        resultSet.next() >>> [false, true, false]
         resultSet.getArray(1) >> Mock(Array)
         connection.prepareStatement(_ as String) >> preparedStatement
 
@@ -151,7 +150,6 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         then: "a query is created that contain given type and location"
         2 * preparedStatement.setLong(_, 0)
         1 * preparedStatement.setString(_, "some_type")
-        1 * preparedStatement.setString(_, "locationUuid")
     }
 
     def "the messages returned are no larger than the maximum batch size when reading without a type"() {
@@ -355,10 +353,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     }
 
     def 'no messages are returned when cluster does not map to any messages'() {
-        given: 'a location is cached'
-        insertLocationInCache("location2", [3,4])
-
-        and: 'some messages are stored'
+        given: 'some messages are stored'
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 1)
         insert(message(2, "type2", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2)
         insert(message(3, "type3", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2)
@@ -370,6 +365,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         def messageResults = storage.read(["type2", "type3"], 0, "location2")
 
         then: 'messages are not returned, and no exception is thrown'
+        1 * locationResolver.getClusterIds("location2") >> [3,4]
         messageResults.messages.size() == 0
         noExceptionThrown()
     }
@@ -598,10 +594,10 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     }
 
     void insertLocationInCache(
-            String locationUuid,
-            List<Long> clusterIds,
-            def expiry = Timestamp.valueOf(LocalDateTime.now() + TimeUnit.MINUTES.toMillis(1)),
-            boolean valid = true
+        String locationUuid,
+        List<Long> clusterIds,
+        def expiry = Timestamp.valueOf(LocalDateTime.now() + TimeUnit.MINUTES.toMillis(1)),
+        boolean valid = true
     ) {
         Connection connection = DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
         Array clusters = connection.createArrayOf("integer", clusterIds.toArray())
