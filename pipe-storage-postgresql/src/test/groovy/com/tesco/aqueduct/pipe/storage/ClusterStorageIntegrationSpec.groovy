@@ -88,10 +88,6 @@ class ClusterStorageIntegrationSpec extends Specification {
         def connection2 = Mock(Connection)
         def getCacheQuery = Mock(PreparedStatement)
         def otherQueries = Mock(PreparedStatement)
-/*
-        def preparedStatement = Mock(PreparedStatement)
-        connection.prepareStatement(_) >> preparedStatement
-*/
 
         and: "location uuid is not cached"
         def uncachedLocationUuid = "uncachedLocationUuid"
@@ -119,7 +115,6 @@ class ClusterStorageIntegrationSpec extends Specification {
         1 * dataSource.getConnection() >> connection2
         3 * connection2.prepareStatement(_) >> otherQueries
         1 * otherQueries.executeQuery() >> Mock(ResultSet)
-        1 * connection1.close()
         1 * connection2.close()
     }
 

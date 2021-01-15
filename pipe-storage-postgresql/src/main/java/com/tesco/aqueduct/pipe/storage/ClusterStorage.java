@@ -35,24 +35,37 @@ public class ClusterStorage implements LocationResolver {
 
     @Override
     public Optional<List<Long>> getClusterIds(String locationUuid) {
+        Optional<List<Long>> clusterIdsFromCache = getClusterIdsFromCache(locationUuid);
+
+        if(clusterIdsFromCache.isPresent()) {
+            return clusterIdsFromCache;
+        } else {
+            return resolveClusterIds(locationUuid, clusterIdsFromCache);
+        }
+    }
+
+    private Optional<List<Long>> resolveClusterIds(String locationUuid, Optional<List<Long>> clusterIdsFromCache) {
+        if (clusterIdsFromCache.isPresent()) {
+            return clusterIdsFromCache;
+        } else {
+            final List<String> resolvedClusterUuids = locationService.getClusterUuids(locationUuid);
+
+            try (Connection newConnection = dataSource.getConnection()) {
+                insertClusterUuids(resolvedClusterUuids, newConnection);
+                final List<Long> newClusterIds = resolveClusterUuidsToClusterIds(resolvedClusterUuids, newConnection);
+                insertClusterCache(locationUuid, newClusterIds, newConnection);
+                return Optional.of(newClusterIds);
+            } catch (SQLException exception) {
+                LOG.error("cluster storage", "resolve cluster ids", exception);
+                throw new RuntimeException();
+            }
+        }
+    }
+
+    private Optional<List<Long>> getClusterIdsFromCache(String locationUuid) {
         long start = System.currentTimeMillis();
         try (Connection connection = dataSource.getConnection()) {
-
-            final Optional<List<Long>> clusterIdsFromCache = getClusterIdsFromCache(locationUuid, connection);
-
-            if (clusterIdsFromCache.isPresent()) {
-                return clusterIdsFromCache;
-            } else {
-                connection.close();
-                final List<String> resolvedClusterUuids = locationService.getClusterUuids(locationUuid);
-
-                try (Connection newConnection = dataSource.getConnection()) {
-                    insertClusterUuids(resolvedClusterUuids, newConnection);
-                    final List<Long> newClusterIds = resolveClusterUuidsToClusterIds(resolvedClusterUuids, newConnection);
-                    insertClusterCache(locationUuid, newClusterIds, newConnection);
-                    return Optional.of(newClusterIds);
-                }
-            }
+            return resolveLocationUuidToClusterIds(locationUuid, connection);
         } catch (SQLException exception) {
             LOG.error("cluster storage", "get cluster ids", exception);
             throw new RuntimeException(exception);
@@ -62,11 +75,7 @@ public class ClusterStorage implements LocationResolver {
         }
     }
 
-    private Optional<List<Long>> getClusterIdsFromCache(String locationUuid, Connection connection) {
-       return resolveLocationUuidToClusterIds(connection, locationUuid);
-    }
-
-    private Optional<List<Long>> resolveLocationUuidToClusterIds(Connection connection, String locationUuid) {
+    private Optional<List<Long>> resolveLocationUuidToClusterIds(String locationUuid, Connection connection) {
         try(PreparedStatement statement = getLocationToClusterIdsStatement(connection, locationUuid)) {
             return runLocationToClusterIdsQuery(statement);
         } catch (SQLException exception) {
