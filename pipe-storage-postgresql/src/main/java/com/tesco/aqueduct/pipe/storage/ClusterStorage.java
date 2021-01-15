@@ -6,13 +6,12 @@ import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.sql.*;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-
-import static java.time.temporal.ChronoUnit.MINUTES;
 
 public class ClusterStorage implements LocationResolver {
 
@@ -31,11 +30,13 @@ public class ClusterStorage implements LocationResolver {
 
     private final DataSource dataSource;
     private final LocationService locationService;
+    private final Duration cacheExpiryDuration;
     private static final String CLUSTER_IDS_TYPE = "BIGINT";
 
-    public ClusterStorage(DataSource dataSource, LocationService locationService) {
+    public ClusterStorage(DataSource dataSource, LocationService locationService, Duration cacheExpiryDuration) {
         this.dataSource = dataSource;
         this.locationService = locationService;
+        this.cacheExpiryDuration = cacheExpiryDuration;
     }
 
     @Override
@@ -129,7 +130,7 @@ public class ClusterStorage implements LocationResolver {
     private void insertClusterCache(String locationUuid, List<Long> clusterids, Connection connection) {
         try (PreparedStatement statement = connection.prepareStatement(INSERT_CLUSTER_CACHE)) {
             Array clustersPgArray = connection.createArrayOf(CLUSTER_IDS_TYPE, clusterids.toArray());
-            Timestamp expiry = Timestamp.valueOf(LocalDateTime.now().plus(10, MINUTES));
+            Timestamp expiry = Timestamp.valueOf(LocalDateTime.now().plus(cacheExpiryDuration));
 
             statement.setString(1, locationUuid);
             statement.setArray(2, clustersPgArray);

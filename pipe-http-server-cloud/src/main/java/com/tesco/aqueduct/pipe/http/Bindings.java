@@ -5,6 +5,8 @@ import com.tesco.aqueduct.pipe.api.TokenProvider;
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenClient;
 import com.tesco.aqueduct.pipe.identity.issuer.IdentityIssueTokenProvider;
 import com.tesco.aqueduct.pipe.metrics.Measure;
+import com.tesco.aqueduct.pipe.storage.ClusterStorage;
+import com.tesco.aqueduct.pipe.storage.LocationResolver;
 import com.tesco.aqueduct.pipe.storage.OffsetFetcher;
 import com.tesco.aqueduct.pipe.storage.PostgresqlStorage;
 import com.tesco.aqueduct.registry.model.NodeRegistry;
@@ -39,11 +41,20 @@ public class Bindings {
         @Value("${persistence.read.work-mem-mb:4}") final int workMemMb,
         @Named("pipe") final DataSource dataSource,
         final OffsetFetcher offsetFetcher,
-        LocationService locationService
+        LocationResolver locationResolver
     ) {
         return new PostgresqlStorage(
-            dataSource, limit, retryAfter, maxBatchSize, offsetFetcher, expectedNodeCount, clusterDBPoolSize, workMemMb, locationService
+            dataSource, limit, retryAfter, maxBatchSize, offsetFetcher, expectedNodeCount, clusterDBPoolSize, workMemMb, locationResolver
         );
+    }
+
+    @Singleton
+    LocationResolver locationResolver(
+        @Named("pipe") final DataSource dataSource,
+        @Property(name = "location.cluster-cache.expire-after-write:1h") final Duration duration,
+        final LocationService locationService
+    ) {
+        return new ClusterStorage(dataSource, locationService, duration);
     }
 
     @Singleton

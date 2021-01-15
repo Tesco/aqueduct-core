@@ -12,7 +12,6 @@ import javax.validation.constraints.NotNull;
 import java.util.List;
 import java.util.UUID;
 
-// It needs @Singleton because otherwise Micronaut @Cacheable won't intercept the cached method call
 @Singleton
 public class CloudLocationService implements LocationService {
 

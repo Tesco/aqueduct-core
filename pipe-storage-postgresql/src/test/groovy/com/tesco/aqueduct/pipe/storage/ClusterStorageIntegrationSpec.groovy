@@ -11,6 +11,7 @@ import spock.lang.Specification
 
 import javax.sql.DataSource
 import java.sql.*
+import java.time.Duration
 import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
 
@@ -52,7 +53,7 @@ class ClusterStorageIntegrationSpec extends Specification {
 
         insertLocationInCache("locationUuid", [1L])
 
-        clusterStorage = new ClusterStorage(dataSource, locationService)
+        clusterStorage = new ClusterStorage(dataSource, locationService, Duration.ofMinutes(1))
     }
 
     def "when cluster cache is hit, clusters ids are returned"() {
@@ -90,7 +91,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         def dataSource = Mock(DataSource)
         def connection = Mock(Connection)
 
-        def clusterStorage = new ClusterStorage(dataSource, locationService)
+        def clusterStorage = new ClusterStorage(dataSource, locationService, Duration.ofMinutes(1))
         dataSource.getConnection() >> connection
         def preparedStatement = Mock(PreparedStatement)
         connection.prepareStatement(_) >> preparedStatement
@@ -115,7 +116,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         def uncachedLocationUuid = "uncachedLocationUuid"
 
         and: "initialized cluster storage with mocks"
-        def clusterStorage = new ClusterStorage(dataSource, locationService)
+        def clusterStorage = new ClusterStorage(dataSource, locationService, Duration.ofMinutes(1))
 
         when: "cluster ids are read"
         clusterStorage.getClusterIds(uncachedLocationUuid)
@@ -165,6 +166,23 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterCacheRows.size() == 1
         Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
         Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [1l,2l]
+    }
+
+    def "location cache is persisted with the correct expiry time"() {
+        given:
+        def anotherLocationUuid = "anotherLocationUuid"
+
+        when:
+        clusterStorage.getClusterIds(anotherLocationUuid)
+
+        then:
+        1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid1", "clusterUuid2"]
+
+        and: "cluster cache is set with correct expiry time"
+        def clusterCacheRows = sql.rows("select expiry from cluster_cache where location_uuid = ?", anotherLocationUuid)
+        clusterCacheRows.size() == 1
+        clusterCacheRows.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
+        clusterCacheRows.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
     }
 
     def "when location entry is invalidate, then clusters are resolved from location service and updated in clusters and cache"() {
