@@ -113,12 +113,14 @@ class ClusterStorageIntegrationSpec extends Specification {
         1 * connection1.close()
 
         then: "location service is invoked"
-        1 * locationService.getClusterUuids(uncachedLocationUuid) >> [1, 2]
+        1 * locationService.getClusterUuids(uncachedLocationUuid) >> ["cluster1", "cluster2"]
 
         then: "a new connection is created"
         1 * dataSource.getConnection() >> connection2
         3 * connection2.prepareStatement(_) >> otherQueries
         1 * otherQueries.executeQuery() >> Mock(ResultSet)
+        1 * connection1.close()
+        1 * connection2.close()
     }
 
     def "when location is not cached then clusters are resolved from location service and persisted in clusters and cache"() {

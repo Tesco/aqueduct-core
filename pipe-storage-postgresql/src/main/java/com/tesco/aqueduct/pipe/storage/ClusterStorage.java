@@ -43,19 +43,22 @@ public class ClusterStorage implements LocationResolver {
             if (clusterIdsFromCache.isPresent()) {
                 return clusterIdsFromCache;
             } else {
-                // TODO close the database connection before calling location service here
+                connection.close();
                 final List<String> resolvedClusterUuids = locationService.getClusterUuids(locationUuid);
-                insertClusterUuids(resolvedClusterUuids, connection);
-                final List<Long> newClusterIds = resolveClusterUuidsToClusterIds(resolvedClusterUuids, connection);
-                insertClusterCache(locationUuid, newClusterIds, connection);
-                return Optional.of(newClusterIds);
+
+                try (Connection newConnection = dataSource.getConnection()) {
+                    insertClusterUuids(resolvedClusterUuids, newConnection);
+                    final List<Long> newClusterIds = resolveClusterUuidsToClusterIds(resolvedClusterUuids, newConnection);
+                    insertClusterCache(locationUuid, newClusterIds, newConnection);
+                    return Optional.of(newClusterIds);
+                }
             }
         } catch (SQLException exception) {
             LOG.error("cluster storage", "get cluster ids", exception);
             throw new RuntimeException(exception);
         } finally {
             long end = System.currentTimeMillis();
-            LOG.info("rungetClusterIds:time", Long.toString(end - start));
+            LOG.info("runGetClusterIds:time", Long.toString(end - start));
         }
     }
 
@@ -110,7 +113,7 @@ public class ClusterStorage implements LocationResolver {
             LOG.error("cluster storage", "insert clusters statement", exception);
             throw new RuntimeException(exception);
         }
-        LOG.info("Persistence", "New clusters inserted: " + clusterUuids);
+        LOG.info("cluster storage", "New clusters inserted: " + clusterUuids);
     }
 
     private void insertClusterCache(String locationUuid, List<Long> clusterids, Connection connection) {
@@ -124,7 +127,7 @@ public class ClusterStorage implements LocationResolver {
             LOG.error("cluster storage", "insert cluster cache statement", exception);
             throw new RuntimeException(exception);
         }
-        LOG.info("Persistence", "New cluster cache inserted for: " + locationUuid);
+        LOG.info("cluster storage", "New cluster cache inserted for: " + locationUuid);
     }
 
     private List<Long> resolveClusterUuidsToClusterIds(List<String> clusterUuids, Connection connection) {
