@@ -10,12 +10,7 @@ import spock.lang.Shared
 import spock.lang.Specification
 
 import javax.sql.DataSource
-import java.sql.Array
-import java.sql.Connection
-import java.sql.DriverManager
-import java.sql.PreparedStatement
-import java.sql.SQLException
-import java.sql.Timestamp
+import java.sql.*
 import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
 
@@ -27,7 +22,7 @@ class ClusterStorageIntegrationSpec extends Specification {
     Sql sql
     ClusterStorage clusterStorage
     DataSource dataSource
-    LocationService locationService
+    LocationService locationService = Mock(LocationService)
 
     def setup() {
         sql = new Sql(pg.embeddedPostgres.postgresDatabase.connection)
@@ -60,7 +55,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterStorage = new ClusterStorage(dataSource, locationService)
     }
 
-    def "when cluster cached is hit, clusters ids are returned"() {
+    def "when cluster cache is hit, clusters ids are returned"() {
         when:
         def clusterIds = clusterStorage.getClusterIds("locationUuid")
 
@@ -85,6 +80,34 @@ class ClusterStorageIntegrationSpec extends Specification {
         then: "a runtime exception is thrown"
         thrown(RuntimeException)
     }
+
+    def "when location is not cached then clusters are resolved from location service and persisted in clusters and cache"() {
+        given:
+        def anotherLocationUuid = "anotherLocationUuid"
+
+        when:
+        def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid)
+
+        then:
+        1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid1", "clusterUuid2"]
+
+        and: "correct cluster ids are returned"
+        clusterIds.isPresent()
+        clusterIds.get() == [1l,2l]
+
+        and: "cluster uuids are persiste in clusters table"
+        def clusterIdRows = sql.rows("select cluster_id from clusters where cluster_uuid in (?,?)", "clusterUuid1", "clusterUuid2")
+        clusterIdRows.size() == 2
+        clusterIdRows.get(0).get("cluster_id") == 1
+        clusterIdRows.get(1).get("cluster_id") == 2
+
+        and: "cluster cache is populated correctly"
+        def clusterCacheRows = sql.rows("select cluster_ids from cluster_cache where location_uuid = ?", anotherLocationUuid)
+        clusterCacheRows.size() == 1
+        Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
+        Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [1l,2l]
+    }
+
 
     void insertLocationInCache(
         String locationUuid,

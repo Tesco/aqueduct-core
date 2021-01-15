@@ -2,23 +2,31 @@ package com.tesco.aqueduct.pipe.storage;
 
 import com.tesco.aqueduct.pipe.api.LocationService;
 import com.tesco.aqueduct.pipe.logger.PipeLogger;
-import jdk.internal.net.http.common.Log;
 import org.slf4j.LoggerFactory;
 
 import javax.sql.DataSource;
 import java.sql.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+
+import static java.time.temporal.ChronoUnit.MINUTES;
 
 public class ClusterStorage implements LocationResolver {
 
     private static final PipeLogger LOG = new PipeLogger(LoggerFactory.getLogger(ClusterStorage.class));
     private static final String CURRENT_TIMESTAMP = "CURRENT_TIMESTAMP";
     private static final String CLUSTER_CACHE_QUERY = "SELECT cluster_ids FROM cluster_cache WHERE location_uuid = ? AND expiry > " + CURRENT_TIMESTAMP + ";";
+    private static final String INSERT_CLUSTER = " INSERT INTO CLUSTERS (cluster_uuid) VALUES (?) ON CONFLICT DO NOTHING;";
+    private static final String INSERT_CLUSTER_CACHE = " INSERT INTO CLUSTER_CACHE (location_uuid, cluster_ids, expiry) VALUES (?, ?, ?) ON CONFLICT DO NOTHING;";
+    private static final String SELECT_CLUSTER_ID = " SELECT cluster_id FROM CLUSTERS WHERE ((cluster_uuid)::text = ANY (string_to_array(?, ',')));";
+
 
     private final DataSource dataSource;
     private final LocationService locationService;
+    private static final String CLUSTER_IDS_TYPE = "BIGINT";
 
     public ClusterStorage(DataSource dataSource, LocationService locationService) {
         this.dataSource = dataSource;
@@ -29,7 +37,19 @@ public class ClusterStorage implements LocationResolver {
     public Optional<List<Long>> getClusterIds(String locationUuid) {
         long start = System.currentTimeMillis();
         try (Connection connection = dataSource.getConnection()) {
-           return resolveLocationUuidToClusterIds(connection, locationUuid);
+
+            final Optional<List<Long>> clusterIdsFromCache = getClusterIdsFromCache(locationUuid, connection);
+
+            if (clusterIdsFromCache.isPresent()) {
+                return clusterIdsFromCache;
+            } else {
+                // TODO close the database connection before calling location service here
+                final List<String> resolvedClusterUuids = locationService.getClusterUuids(locationUuid);
+                insertClusterUuids(resolvedClusterUuids, connection);
+                final List<Long> newClusterIds = resolveClusterUuidsToClusterIds(resolvedClusterUuids, connection);
+                insertClusterCache(locationUuid, newClusterIds, connection);
+                return Optional.of(newClusterIds);
+            }
         } catch (SQLException exception) {
             LOG.error("cluster storage", "get cluster ids", exception);
             throw new RuntimeException(exception);
@@ -37,6 +57,10 @@ public class ClusterStorage implements LocationResolver {
             long end = System.currentTimeMillis();
             LOG.info("rungetClusterIds:time", Long.toString(end - start));
         }
+    }
+
+    private Optional<List<Long>> getClusterIdsFromCache(String locationUuid, Connection connection) {
+       return resolveLocationUuidToClusterIds(connection, locationUuid);
     }
 
     private Optional<List<Long>> resolveLocationUuidToClusterIds(Connection connection, String locationUuid) {
@@ -73,5 +97,55 @@ public class ClusterStorage implements LocationResolver {
             LOG.error("cluster storage", "get location to clusterIds statement", exception);
             throw new RuntimeException(exception);
         }
+    }
+
+    private void insertClusterUuids(List<String> clusterUuids, Connection connection) {
+        try (PreparedStatement statement = connection.prepareStatement(INSERT_CLUSTER)) {
+            for (String clusterUuid : clusterUuids) {
+                statement.setString(1, clusterUuid);
+                statement.addBatch();
+            }
+            statement.executeBatch();
+        } catch (SQLException exception) {
+            LOG.error("cluster storage", "insert clusters statement", exception);
+            throw new RuntimeException(exception);
+        }
+        LOG.info("Persistence", "New clusters inserted: " + clusterUuids);
+    }
+
+    private void insertClusterCache(String locationUuid, List<Long> clusterids, Connection connection) {
+        try (PreparedStatement statement = connection.prepareStatement(INSERT_CLUSTER_CACHE)) {
+            statement.setString(1, locationUuid);
+            statement.setArray(2, connection.createArrayOf(CLUSTER_IDS_TYPE, clusterids.toArray()));
+            statement.setTimestamp(3, Timestamp.valueOf(LocalDateTime.now().plus(10, MINUTES)));
+
+            statement.execute();
+        } catch (SQLException exception) {
+            LOG.error("cluster storage", "insert cluster cache statement", exception);
+            throw new RuntimeException(exception);
+        }
+        LOG.info("Persistence", "New cluster cache inserted for: " + locationUuid);
+    }
+
+    private List<Long> resolveClusterUuidsToClusterIds(List<String> clusterUuids, Connection connection) {
+        final List<Long> clusterIds = new ArrayList<>();
+
+        try (PreparedStatement statement = connection.prepareStatement(SELECT_CLUSTER_ID)) {
+
+            final String strClusters = String.join(",", clusterUuids);
+            statement.setString(1, strClusters);
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    LOG.debug("location cluster validator", "matched clusterId");
+                    final long cluster_id = resultSet.getLong("cluster_id");
+                    clusterIds.add(cluster_id);
+                }
+            }
+        } catch (SQLException sqlException) {
+            LOG.error("cluster storage", "resolve cluster uuids to cluster ids statement", sqlException);
+            throw new RuntimeException(sqlException);
+        }
+        return clusterIds;
     }
 }
