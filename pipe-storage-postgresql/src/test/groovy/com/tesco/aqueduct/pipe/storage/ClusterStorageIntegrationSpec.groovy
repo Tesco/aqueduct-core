@@ -81,6 +81,46 @@ class ClusterStorageIntegrationSpec extends Specification {
         thrown(RuntimeException)
     }
 
+    def "DB connection is closed before calling location service when cache is not found"() {
+        given: "a datasource and connections"
+        def dataSource = Mock(DataSource)
+        def connection1 = Mock(Connection)
+        def connection2 = Mock(Connection)
+        def getCacheQuery = Mock(PreparedStatement)
+        def otherQueries = Mock(PreparedStatement)
+/*
+        def preparedStatement = Mock(PreparedStatement)
+        connection.prepareStatement(_) >> preparedStatement
+*/
+
+        and: "location uuid is not cached"
+        def uncachedLocationUuid = "uncachedLocationUuid"
+
+        and: "initialized cluster storage with mocks"
+        def clusterStorage = new ClusterStorage(dataSource, locationService)
+
+        when: "cluster ids are read"
+        clusterStorage.getClusterIds(uncachedLocationUuid)
+
+        then: "connection is obtained"
+        1 * dataSource.getConnection() >> connection1
+
+        then: "no data found in cache"
+        1 * connection1.prepareStatement(_) >> getCacheQuery
+        1 * getCacheQuery.executeQuery() >> Mock(ResultSet)
+
+        then: "connection is closed"
+        1 * connection1.close()
+
+        then: "location service is invoked"
+        1 * locationService.getClusterUuids(uncachedLocationUuid) >> [1, 2]
+
+        then: "a new connection is created"
+        1 * dataSource.getConnection() >> connection2
+        3 * connection2.prepareStatement(_) >> otherQueries
+        1 * otherQueries.executeQuery() >> Mock(ResultSet)
+    }
+
     def "when location is not cached then clusters are resolved from location service and persisted in clusters and cache"() {
         given:
         def anotherLocationUuid = "anotherLocationUuid"
