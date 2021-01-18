@@ -49,7 +49,6 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         DROP TABLE IF EXISTS CLUSTERS;
         DROP TABLE IF EXISTS REGISTRY;
         DROP TABLE IF EXISTS NODE_REQUESTS;
-        DROP TABLE IF EXISTS CLUSTER_CACHE;
           
         CREATE TABLE EVENTS(
             msg_offset BIGSERIAL PRIMARY KEY NOT NULL,
@@ -80,17 +79,8 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
             cluster_uuid VARCHAR NOT NULL
         );
         
-        CREATE TABLE CLUSTER_CACHE(
-            location_uuid VARCHAR PRIMARY KEY NOT NULL,
-            cluster_ids INT[] NOT NULL,
-            expiry TIMESTAMP NOT NULL,
-            valid BOOLEAN NOT NULL DEFAULT TRUE
-        );
-
         INSERT INTO CLUSTERS (cluster_uuid) VALUES ('NONE');
         """)
-
-        insertLocationInCache("locationUuid", [1L])
 
         locationResolver = Mock(LocationResolver)
         locationResolver.getClusterIds("locationUuid") >> [1L]
@@ -500,25 +490,11 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         then: "clusters are resolved from location resolver"
         1 * locationResolver.getClusterIds(someLocationUuid) >> [2L, 3L]
 
-        and: "clusters are stored in clusters table"
-        def clusters = sql.rows("select * from clusters")
-        clusters.size() == 3
-        clusters.get(1).get("cluster_id") == 2
-        clusters.get(1).get("cluster_uuid") == "clusterUuid1"
-
-        clusters.get(2).get("cluster_id") == 3
-        clusters.get(2).get("cluster_uuid") == "clusterUuid2"
-
-        and: "location cache is populated with respective cluster ids"
-        def clusterCache = sql.rows("select * from cluster_cache where location_uuid = '$someLocationUuid'")
-        clusterCache.size() == 1
-        clusterCache.get(0).get("cluster_ids") == [2, 3]
-
         then: 'messages are provided for the given location'
         messageResults.messages.size() == 2
         messageResults.messages*.key == ["A", "B"]
         messageResults.messages*.offset*.intValue() == [1, 2]
-        messageResults.globalLatestOffset == OptionalLong.of(3)
+        messageResults.globalLatestOffset == OptionalLong.of(2)
     }
 
     @Unroll
