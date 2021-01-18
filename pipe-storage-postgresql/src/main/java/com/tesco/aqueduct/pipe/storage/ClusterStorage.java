@@ -64,14 +64,14 @@ public class ClusterStorage implements LocationResolver {
         final List<String> resolvedClusterUuids = locationService.getClusterUuids(locationUuid);
 
         try (Connection newConnection = dataSource.getConnection()) {
+            insertClusterUuids(resolvedClusterUuids, newConnection);
+            final List<Long> clusterIds = resolveClusterUuidsToClusterIds(resolvedClusterUuids, newConnection);
+
             if (!clusterCache.isPresent() || !clusterCache.get().isValid) {
-                insertClusterUuids(resolvedClusterUuids, newConnection);
-                final List<Long> clusterIds = resolveClusterUuidsToClusterIds(resolvedClusterUuids, newConnection);
                 upsertClusterCache(locationUuid, clusterIds, newConnection);
                 return Optional.of(clusterIds);
 
             } else { // it is expired
-                final List<Long> clusterIds = resolveClusterUuidsToClusterIds(resolvedClusterUuids, newConnection);
                 final int updatedRowCount = updateClusterCache(locationUuid, clusterIds, newConnection);
 
                 if (updatedRowCount == 0) {
@@ -82,7 +82,7 @@ public class ClusterStorage implements LocationResolver {
             }
         } catch (SQLException exception) {
             LOG.error("cluster storage", "resolve cluster ids", exception);
-            throw new RuntimeException();
+            throw new RuntimeException(exception);
         }
     }
 

@@ -3,6 +3,7 @@ package com.tesco.aqueduct.pipe.storage
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
 import com.tesco.aqueduct.pipe.api.LocationService
+import groovy.sql.GroovyRowResult
 import groovy.sql.Sql
 import org.junit.ClassRule
 import spock.lang.AutoCleanup
@@ -14,6 +15,7 @@ import java.sql.*
 import java.time.Duration
 import java.time.LocalDateTime
 import java.util.concurrent.TimeUnit
+import java.util.stream.Collectors
 
 class ClusterStorageIntegrationSpec extends Specification {
     @Shared @ClassRule
@@ -64,9 +66,12 @@ class ClusterStorageIntegrationSpec extends Specification {
 
         then:
         clusterIds == [1L]
+
+        and: "location service is not called"
+        0 * locationService.getClusterUuids("locationUuid")
     }
 
-    def "cache is missed if location entry is expired"() {
+    def "resolve clusters if location entry is expired"() {
         given: "an expired entry for a location"
         insertLocationInCache("anotherLocationUuid", [1L], Timestamp.valueOf(LocalDateTime.now().minusSeconds(10)))
 
@@ -77,7 +82,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         1 * locationService.getClusterUuids("anotherLocationUuid") >> ["someCluster"]
     }
 
-    def "cache is missed if location entry is invalidated"() {
+    def "resolve clusters if location entry is invalidated"() {
         given: "an invalidated entry for a location"
         insertLocationInCache("anotherLocationUuid", [1L], Timestamp.valueOf(LocalDateTime.now().plusSeconds(30)), false)
 
@@ -104,6 +109,18 @@ class ClusterStorageIntegrationSpec extends Specification {
 
         then: "a runtime exception is thrown"
         thrown(RuntimeException)
+    }
+
+    def "when location service call fails, then the exception is propagated to the caller"() {
+        given:
+        def anotherLocationUuid = "anotherLocationUuid"
+        locationService.getClusterUuids(anotherLocationUuid) >> { throw new Exception() }
+
+        when:
+        clusterStorage.getClusterIds(anotherLocationUuid)
+
+        then:
+        thrown(Exception)
     }
 
     def "DB connection is closed before calling location service when cache is not found"() {
@@ -163,7 +180,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterIdRows.get(1).get("cluster_id") == 2
 
         and: "cluster cache is populated correctly"
-        def clusterCacheRows = sql.rows("select cluster_ids from cluster_cache where location_uuid = ?", anotherLocationUuid)
+        def clusterCacheRows = sql.rows("select cluster_ids from cluster_cache where location_uuid = ? and valid=true", anotherLocationUuid)
         clusterCacheRows.size() == 1
         Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
         Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [1l,2l]
@@ -180,7 +197,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid1", "clusterUuid2"]
 
         and: "cluster cache is set with correct expiry time"
-        def clusterCacheRows = sql.rows("select expiry from cluster_cache where location_uuid = ?", anotherLocationUuid)
+        def clusterCacheRows = sql.rows("select expiry from cluster_cache where location_uuid = ? and valid=true", anotherLocationUuid)
         clusterCacheRows.size() == 1
         clusterCacheRows.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
         clusterCacheRows.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
@@ -203,7 +220,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterIds == [3l,4l]
 
         and: "cluster uuids are persisted in clusters table"
-        def clusterIdRows = sql.rows("select cluster_id from clusters where cluster_uuid in (?,?)", "clusterUuid3", "clusterUuid4")
+        List<GroovyRowResult> clusterIdRows = getClusterIdsFor("clusterUuid3", "clusterUuid4")
         clusterIdRows.size() == 2
         clusterIdRows.get(0).get("cluster_id") == 3
         clusterIdRows.get(1).get("cluster_id") == 4
@@ -214,20 +231,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
         Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [3l,4l]
     }
-
-    def "when location service call fails, then the exception is propagated to the caller"() {
-        given:
-        def anotherLocationUuid = "anotherLocationUuid"
-        locationService.getClusterUuids(anotherLocationUuid) >> { throw new Exception() }
-
-        when:
-        clusterStorage.getClusterIds(anotherLocationUuid)
-
-        then:
-        thrown(Exception)
-    }
-
-    def "when location entry is expired, then it is updated with correct expiry time"() {
+    def "when location entry is expired, then it is updated with correct clusters and expiry time"() {
         given:
         def anotherLocationUuid = "anotherLocationUuid"
         Long cluster1 = insertCluster("clusterUuid1")
@@ -238,19 +242,35 @@ class ClusterStorageIntegrationSpec extends Specification {
         def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid)
 
         then: "location service is called to resolve clusters again"
-        1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid1", "clusterUuid2"]
+        1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid1", "clusterUuid2", "clusterUuid3"]
 
         and: "correct cluster ids are returned"
-        clusterIds == [1l,2l]
+        // third id will not be 3 but 5 because batch insertion will get conflict on the first two clusters and generated serial will not be inserted
+        clusterIds == [1l,2l, 5l]
 
         and: "cluster cache is now populated with correct expiry time"
-        def clusterCacheRows = sql.rows("select expiry from cluster_cache where location_uuid = ?", anotherLocationUuid)
+        def clusterCacheRows = sql.rows("select expiry, cluster_ids from cluster_cache where location_uuid = ? and valid=true", anotherLocationUuid)
         clusterCacheRows.size() == 1
         clusterCacheRows.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
         clusterCacheRows.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
+
+        and:"expected cluster ids are updated within cluster cache"
+        clusterIdsFrom(clusterCacheRows) == [1l, 2l, 5l]
+
+        and: "clusters table is updated with the resolved cluster uuids"
+        List<GroovyRowResult> clusterIdRows = getClusterIdsFor("clusterUuid1", "clusterUuid2", "clusterUuid3")
+        clusterIdRows.size() == 3
+        clusterIdRows.get(0).get("cluster_id") == 1
+        clusterIdRows.get(1).get("cluster_id") == 2
+        clusterIdRows.get(2).get("cluster_id") == 5
     }
 
-    def "when location entry is expired, but invalidated while it is being resolved then it discards last read and resolve clusters again"() {
+    private List<Long> clusterIdsFrom(List<GroovyRowResult> clusterCacheRows) {
+        Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
+        Arrays.asList(fetchedClusterIds.getArray() as Long[])
+    }
+
+    def "when location entry is expired, and invalidated while it is being resolved then it discards last read and resolve clusters again"() {
         given:
         def anotherLocationUuid = "anotherLocationUuid"
         Long cluster1 = insertCluster("clusterUuid1")
@@ -270,23 +290,30 @@ class ClusterStorageIntegrationSpec extends Specification {
         1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid3", "clusterUuid4"]
 
         and: "correct cluster ids are returned"
-        clusterIds == [3l,4l]
+        // cluster id 3 and 4 will be skipped due to conflict
+        clusterIds == [5l,6l]
 
         and: "new cluster uuids are persisted in clusters table"
         def clusterIdRows = sql.rows("select cluster_id from clusters where cluster_uuid in (?,?)", "clusterUuid3", "clusterUuid4")
         clusterIdRows.size() == 2
-        clusterIdRows.get(0).get("cluster_id") == 3
-        clusterIdRows.get(1).get("cluster_id") == 4
+        clusterIdRows.get(0).get("cluster_id") == 5
+        clusterIdRows.get(1).get("cluster_id") == 6
 
         and: "cluster cache is populated with correct cluster ids and expiry time"
-        def clusterCacheRows = sql.rows("select * from cluster_cache where location_uuid = ? and valid=true", anotherLocationUuid)
-        clusterCacheRows.size() == 1
-        clusterCacheRows.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
-        clusterCacheRows.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
+        def updatedClusterCacheRows = sql.rows("select * from cluster_cache where location_uuid = ? and valid=true", anotherLocationUuid)
+        updatedClusterCacheRows.size() == 1
+        updatedClusterCacheRows.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
+        updatedClusterCacheRows.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
 
-        Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
-        Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [3l,4l]
+        Array fetchedClusterIds = updatedClusterCacheRows.get(0).get("cluster_ids") as Array
+        Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [5l,6l]
     }
+
+    private List<GroovyRowResult> getClusterIdsFor(String... clusterUuids) {
+        def params = Arrays.asList(clusterUuids).stream().map { "?" }.collect(Collectors.joining(","))
+        return sql.rows("select cluster_id from clusters where cluster_uuid in (" + params + ")", clusterUuids)
+    }
+
 
     private boolean invalidateClusterCacheFor(String anotherLocationUuid) {
         sql.execute("UPDATE CLUSTER_CACHE SET valid=false where location_uuid=?", anotherLocationUuid)
@@ -297,10 +324,10 @@ class ClusterStorageIntegrationSpec extends Specification {
     }
 
     void insertLocationInCache(
-        String locationUuid,
-        List<Long> clusterIds,
-        def expiry = Timestamp.valueOf(LocalDateTime.now() + TimeUnit.MINUTES.toMillis(1)),
-        boolean valid = true
+            String locationUuid,
+            List<Long> clusterIds,
+            def expiry = Timestamp.valueOf(LocalDateTime.now() + TimeUnit.MINUTES.toMillis(1)),
+            boolean valid = true
     ) {
         Connection connection = DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
         Array clusters = connection.createArrayOf("integer", clusterIds.toArray())
