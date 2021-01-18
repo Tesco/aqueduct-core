@@ -150,14 +150,6 @@ public class ClusterStorage implements LocationResolver {
         }
     }
 
-    @Data
-    private static class ClusterCache {
-        private final String locationUuid;
-        private final List<Long> clusterIds;
-        private final LocalDateTime expiry;
-        private final boolean isValid;
-    }
-
     private void insertClusterUuids(List<String> clusterUuids, Connection connection) {
         try (PreparedStatement statement = connection.prepareStatement(INSERT_CLUSTER)) {
             for (String clusterUuid : clusterUuids) {
@@ -229,5 +221,13 @@ public class ClusterStorage implements LocationResolver {
             throw new RuntimeException(sqlException);
         }
         return clusterIds;
+    }
+
+    @Data
+    private static class ClusterCache {
+        private final String locationUuid;
+        private final List<Long> clusterIds;
+        private final LocalDateTime expiry;
+        private final boolean isValid;
     }
 }
