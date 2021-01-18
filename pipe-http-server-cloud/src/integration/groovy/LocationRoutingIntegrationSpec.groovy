@@ -1,5 +1,6 @@
 import Helper.IdentityMock
 import Helper.LocationMock
+import Helper.SqlWrapper
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
 import com.tesco.aqueduct.pipe.api.Message
@@ -88,7 +89,7 @@ class LocationRoutingIntegrationSpec extends Specification {
     }
 
     void setup() {
-        setupPostgres(pg.embeddedPostgres.postgresDatabase)
+        sql = new SqlWrapper(pg.embeddedPostgres.postgresDatabase).sql
         identityMockService.acceptIdentityTokenValidationRequest()
         identityMockService.issueValidTokenFromIdentity()
     }
@@ -143,46 +144,6 @@ class LocationRoutingIntegrationSpec extends Specification {
         Arrays.asList(response.getBody().as(Message[].class)) == [message1, message4, message5, message6]
     }
 
-    def "messages for default cluster are routed when no clusters are found for the given location"() {
-        given: "a location UUID"
-        def locationUuid = UUID.randomUUID().toString()
-
-        and: "location service returning clusters for the location uuid"
-        locationMockService.getClusterForGiven(locationUuid, [])
-
-        and: "some clusters in the storage"
-        Long clusterA = insertCluster("Cluster_A")
-        Long clusterB = insertCluster("Cluster_B")
-
-        and: "messages in the storage for default clusters"
-        def message1 = message(1, "type1", "A", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
-        def message2 = message(2, "type2", "B", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
-        def message3 = message(3, "type3", "C", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
-        def message4 = message(4, "type2", "D", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
-        def message5 = message(5, "type1", "E", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
-        def message6 = message(6, "type3", "F", "content-type", utcZoned("2000-12-01T10:00:00Z"), "data")
-
-        insertWithCluster(message1, clusterA)
-        insertWithCluster(message2, clusterB)
-        insertWithoutCluster(message3)
-        insertWithoutCluster(message4)
-        insertWithCluster(message5, clusterA)
-        insertWithoutCluster(message6)
-
-        when: "read messages for the given location"
-        def response = RestAssured.given()
-            .header("Authorization", "Bearer $ACCESS_TOKEN")
-            .get("/pipe/0?location=$locationUuid")
-
-        then: "http ok response code"
-        response
-            .then()
-            .statusCode(200)
-
-        and: "response body has messages only for default cluster"
-        Arrays.asList(response.getBody().as(Message[].class)) == [message3, message4, message6]
-    }
-
     def "messages are routed for the given location's cluster and default cluster when both exists in storage"() {
         given: "a location UUID"
         def locationUuid = UUID.randomUUID().toString()
@@ -208,12 +169,6 @@ class LocationRoutingIntegrationSpec extends Specification {
         insertWithCluster(message5, clusterA)
         insertWithCluster(message6, clusterA)
 
-        and: "some messages with default cluster"
-        def message7 = message(7, "type4", "G", "content-type", utcZoned("2000-12-03T10:00:00Z"), "data")
-        def message8 = message(8, "type5", "H", "content-type", utcZoned("2000-12-03T10:00:00Z"), "data")
-        insertWithoutCluster(message7)
-        insertWithoutCluster(message8)
-
         when: "read messages for the given location"
         def response = RestAssured.given()
             .header("Authorization", "Bearer $ACCESS_TOKEN")
@@ -225,10 +180,10 @@ class LocationRoutingIntegrationSpec extends Specification {
             .statusCode(200)
 
         and: "response body has messages only for the given location"
-        Arrays.asList(response.getBody().as(Message[].class)) == [message1, message4, message5, message6, message7, message8]
+        Arrays.asList(response.getBody().as(Message[].class)) == [message1, message4, message5, message6]
     }
 
-    def "messages are routed for the default cluster when no clustered message exists in storage"() {
+    def "messages are not routed if the location does not belong to the clusters"() {
         given: "a location UUID"
         def locationUuid = UUID.randomUUID().toString()
 
@@ -252,7 +207,7 @@ class LocationRoutingIntegrationSpec extends Specification {
             .statusCode(200)
 
         and: "response body has messages only for the given location"
-        Arrays.asList(response.getBody().as(Message[].class)) == [message1, message2]
+        Arrays.asList(response.getBody().as(Message[].class)) == []
     }
 
     def "messages are routed for the given location belonging to multiple clusters"() {
@@ -334,32 +289,5 @@ class LocationRoutingIntegrationSpec extends Specification {
 
     Long insertCluster(String clusterUuid){
         sql.executeInsert("INSERT INTO CLUSTERS(cluster_uuid) VALUES (?);", [clusterUuid]).first()[0] as Long
-    }
-
-    private void setupPostgres(DataSource dataSource) {
-        sql = new Sql(dataSource.connection)
-        sql.execute("""
-        DROP TABLE IF EXISTS EVENTS;
-        DROP TABLE IF EXISTS CLUSTERS;
-          
-        CREATE TABLE EVENTS(
-            msg_offset BIGSERIAL PRIMARY KEY NOT NULL,
-            msg_key varchar NOT NULL, 
-            content_type varchar NOT NULL, 
-            type varchar NOT NULL, 
-            created_utc timestamp NOT NULL, 
-            data text NULL,
-            event_size int NOT NULL,
-            cluster_id BIGINT NOT NULL DEFAULT 1,
-            time_to_live TIMESTAMP NULL
-        );
-        
-        CREATE TABLE CLUSTERS(
-            cluster_id BIGSERIAL PRIMARY KEY NOT NULL,
-            cluster_uuid VARCHAR NOT NULL
-        );
-        
-        INSERT INTO CLUSTERS (cluster_uuid) VALUES ('NONE');
-        """)
     }
 }

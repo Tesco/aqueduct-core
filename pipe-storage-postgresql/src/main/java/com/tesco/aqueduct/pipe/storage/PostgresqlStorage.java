@@ -13,7 +13,6 @@ import java.util.*;
 public class PostgresqlStorage implements CentralStorage {
 
     private static final PipeLogger LOG = new PipeLogger(LoggerFactory.getLogger(PostgresqlStorage.class));
-    public static final String DEFAULT_CLUSTER = "NONE";
 
     private final int limit;
     private final DataSource dataSource;
@@ -198,29 +197,6 @@ public class PostgresqlStorage implements CentralStorage {
         return messages;
     }
 
-    private Array runClusterIdsQuery(final PreparedStatement query) throws SQLException {
-        long start = System.currentTimeMillis();
-        try (ResultSet rs = query.executeQuery()) {
-            rs.next();
-            return rs.getArray(1);
-        } finally {
-            long end = System.currentTimeMillis();
-            LOG.info("runClusterIdsQuery:time", Long.toString(end - start));
-        }
-    }
-
-    private PreparedStatement getClusterIdStatement(final Connection connection, final List<String> clusterUuids) {
-        try {
-            final String strClusters = String.join(",", clusterUuidsWithDefaultCluster(clusterUuids));
-            PreparedStatement query = connection.prepareStatement(getClusterIdQuery());
-            query.setString(1, strClusters);
-            return query;
-        } catch (SQLException exception) {
-            LOG.error("postgresql storage", "get cluster ids statement", exception);
-            throw new RuntimeException(exception);
-        }
-    }
-
     private PreparedStatement getMessagesStatement(
         final Connection connection,
         final List<String> types,
@@ -255,14 +231,6 @@ public class PostgresqlStorage implements CentralStorage {
             LOG.error("postgresql storage", "get message statement", exception);
             throw new RuntimeException(exception);
         }
-    }
-
-    private List<String> clusterUuidsWithDefaultCluster(List<String> clusterUuids) {
-        // It is not safe to assume that clusterUuids is a mutable list when its not created here, hence create a copy
-        // before adding default cluster to it
-        final List<String> clusterUuidsWithDefaultCluster = new ArrayList<>(clusterUuids);
-        clusterUuidsWithDefaultCluster.add(DEFAULT_CLUSTER);
-        return Collections.unmodifiableList(clusterUuidsWithDefaultCluster);
     }
 
     public void compact() {
@@ -326,10 +294,6 @@ public class PostgresqlStorage implements CentralStorage {
         return
             " WHERE " +
             " cluster_id = ANY (?) ";
-    }
-
-    private String getClusterIdQuery() {
-        return "SELECT array_agg(cluster_id) FROM clusters WHERE ((cluster_uuid)::text = ANY (string_to_array(?, ',')));";
     }
 
     private static String getCompactionQuery() {

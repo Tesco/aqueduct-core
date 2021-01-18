@@ -20,7 +20,6 @@ class LocationServiceIntegrationSpec extends Specification {
     private final static String ACCESS_TOKEN = "some_encrypted_token"
     private final static String CLIENT_ID = "someClientId"
     private final static String CLIENT_SECRET = "someClientSecret"
-    private final static String CACHE_EXPIRY_HOURS = "1h"
 
     @Shared LocationMock locationMockService
     @Shared IdentityMock identityMockService
@@ -40,7 +39,6 @@ class LocationServiceIntegrationSpec extends Specification {
             .properties(
                 parseYamlConfig(
                 """
-                micronaut.caches.cluster-cache.expire-after-write: $CACHE_EXPIRY_HOURS
                 location:
                     url:                                ${locationMockService.getUrl()}
                     clusters.get.path:                  ${LocationMock.LOCATION_CLUSTER_PATH_WITH_QUERY_PARAM}
@@ -123,70 +121,6 @@ class LocationServiceIntegrationSpec extends Specification {
         thrown(LocationServiceException)
 
         and: "location service is called once"
-        locationMockService.verify()
-
-        and: "identity service is called once"
-        identityMockService.verify()
-    }
-
-    def "Location resolver caches the response"() {
-        given:
-        def locationUuid = "locationUuid"
-
-        and: "a mocked Identity service for issue token endpoint"
-        identityMockService.issueValidTokenFromIdentity()
-
-        and: "location service returning list of clusters for a given Uuid"
-        locationMockService.getClusterForGiven(locationUuid, ["Cluster_A", "Cluster_B"])
-
-        and: "location service bean is initialized"
-        def locationResolver = context.getBean(LocationService)
-
-        when: "get clusters for a location Uuid"
-        def clusters = locationResolver.getClusterUuids(locationUuid)
-
-        then:
-        clusters == ["Cluster_A","Cluster_B"]
-
-        when: "get clusters again for the same location Uuid"
-        def clusters2 = locationResolver.getClusterUuids(locationUuid)
-
-        then:
-        clusters2 == ["Cluster_A","Cluster_B"]
-
-        and: "location service is called once"
-        locationMockService.verify()
-    }
-
-    def "Location resolver does not cache when location service throws error"() {
-        given:
-        def locationUuid = "locationUuid"
-
-        and: "a mocked Identity service for issue token endpoint"
-        identityMockService.issueValidTokenFromIdentity()
-
-        and: "location service returning 5xx error and has expectation on how many times it should be called"
-        locationMockService.returningError(locationUuid, 500, 6) // 4 times on first call and 2 times on second invocation
-
-        and: "location service bean is initialized"
-        def locationResolver = context.getBean(LocationService)
-
-        when: "get clusters for a location Uuid"
-        locationResolver.getClusterUuids(locationUuid)
-
-        then: "throw an error"
-        thrown(LocationServiceException)
-
-        when: "circuit breaker is reset to half-open"
-        sleep(50)
-
-        and: "get clusters for a location Uuid"
-        locationResolver.getClusterUuids(locationUuid)
-
-        then: "error is thrown again"
-        thrown(LocationServiceException)
-
-        and: "location service is called again and exception was not cached"
         locationMockService.verify()
 
         and: "identity service is called once"
