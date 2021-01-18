@@ -105,9 +105,8 @@ class CodecIntegrationSpec extends Specification {
         }
     }
 
-
     void setup() {
-        sql = new SqlWrapper(pg.embeddedPostgres.postgresDatabase).setup()
+        sql = new SqlWrapper(pg.embeddedPostgres.postgresDatabase)
         identityMockService.acceptIdentityTokenValidationRequest()
         identityMockService.issueValidTokenFromIdentity()
     }
