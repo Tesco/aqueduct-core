@@ -11,7 +11,7 @@ class PostgresqlStorageSpec extends Specification {
 
     @Shared
     def retryAfter = 30000
-    LocationService locationResolver = Mock(LocationService)
+    LocationResolver locationResolver = Mock(LocationResolver)
 
     @Unroll
     def "retry after is #result when queryTime is #timeOfQueryMs and message result size is #noOfMessages"() {
