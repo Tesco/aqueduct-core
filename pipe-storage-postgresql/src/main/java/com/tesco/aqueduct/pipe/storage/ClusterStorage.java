@@ -64,10 +64,9 @@ public class ClusterStorage implements LocationResolver {
         final List<String> resolvedClusterUuids = locationService.getClusterUuids(locationUuid);
 
         try (Connection newConnection = dataSource.getConnection()) {
-            insertClusterUuids(resolvedClusterUuids, newConnection);
-            final List<Long> clusterIds = resolveClusterUuidsToClusterIds(resolvedClusterUuids, newConnection);
+            final List<Long> clusterIds = resolveClusterIdsFor(resolvedClusterUuids, newConnection);
 
-            if (!clusterCache.isPresent() || !clusterCache.get().isValid) {
+            if (cacheNotPresentOrInvalid(clusterCache)) {
                 upsertClusterCache(locationUuid, clusterIds, newConnection);
                 return Optional.of(clusterIds);
 
@@ -84,6 +83,15 @@ public class ClusterStorage implements LocationResolver {
             LOG.error("cluster storage", "resolve cluster ids", exception);
             throw new RuntimeException(exception);
         }
+    }
+
+    private boolean cacheNotPresentOrInvalid(Optional<ClusterCache> clusterCache) {
+        return !clusterCache.isPresent() || !clusterCache.get().isValid;
+    }
+
+    private List<Long> resolveClusterIdsFor(List<String> resolvedClusterUuids, Connection newConnection) {
+        insertClusterUuids(resolvedClusterUuids, newConnection);
+        return fetchClusterIdsFor(resolvedClusterUuids, newConnection);
     }
 
     private Optional<ClusterCache> getClusterIdsFromCache(String locationUuid) {
@@ -201,7 +209,7 @@ public class ClusterStorage implements LocationResolver {
         }
     }
 
-    private List<Long> resolveClusterUuidsToClusterIds(List<String> clusterUuids, Connection connection) {
+    private List<Long> fetchClusterIdsFor(List<String> clusterUuids, Connection connection) {
         final List<Long> clusterIds = new ArrayList<>();
 
         try (PreparedStatement statement = connection.prepareStatement(SELECT_CLUSTER_ID)) {
