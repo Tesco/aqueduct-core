@@ -67,9 +67,7 @@ location:
   url: "${LOCATION_URL}"
   clusters.get.path: "${LOCATION_CLUSTERS_GET_PATH}"
   clusters.get.path.filter.pattern: "${LOCATION_CLUSTERS_GET_PATH_FILTER_PATTERN}"
-  cluster-cache:
-    expire-after-write: 1h
-
+  clusters.cache.expire-after-write: 1h
 
 pipe:
   server:
