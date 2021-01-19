@@ -1,6 +1,5 @@
 package com.tesco.aqueduct.pipe.storage
 
-import com.tesco.aqueduct.pipe.api.LocationService
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
