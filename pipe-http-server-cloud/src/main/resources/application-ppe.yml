@@ -47,4 +47,4 @@ persistence:
     read-delay-seconds: 60
     work-mem-mb: 512
 
-location.clusters.cache.expire-after-write: 10s
+location.clusters.cache.expire-after-write: 30s
