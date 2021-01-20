@@ -46,5 +46,3 @@ persistence:
     cluster-db-pool-size: 24
     read-delay-seconds: 60
     work-mem-mb: 512
-
-location.clusters.cache.expire-after-write: 5s
