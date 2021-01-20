@@ -69,10 +69,12 @@ public class ClusterStorage implements LocationResolver {
                 upsertClusterCache(locationUuid, clusterIds, newConnection);
                 return Optional.of(clusterIds);
 
-            } else { // it is expired
+            } else {
+                // the entry is present and valid but it wasn't a cache hit, hence we are here only when it is expired
                 final int updatedRowCount = updateClusterCache(locationUuid, clusterIds, newConnection);
 
                 if (updatedRowCount == 0) {
+                    // the entry has been invalidated while the request to location service was in flight
                     return Optional.empty();
                 } else {
                     return Optional.of(clusterIds);

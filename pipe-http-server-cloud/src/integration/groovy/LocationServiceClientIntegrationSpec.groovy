@@ -26,7 +26,6 @@ class LocationServiceClientIntegrationSpec extends Specification {
     private final static String ACCESS_TOKEN = "some_encrypted_token"
     private final static String CLIENT_ID = "someClientId"
     private final static String CLIENT_SECRET = "someClientSecret"
-    private final static String CACHE_EXPIRY_HOURS = "1h"
 
     @Shared
     @AutoCleanup
@@ -64,7 +63,7 @@ class LocationServiceClientIntegrationSpec extends Specification {
                         url:                    $locationBasePath
                         clusters.get.path:      ${LOCATION_CLUSTER_PATH+"?"+CLUSTER_QUERY_PARAM+"="+CLUSTER_QUERY_PARAM_VALUE}
                         clusters.get.path.filter.pattern: $LOCATION_CLUSTER_PATH_FILTER_PATTERN
-                        clusters.cache.expire-after-write: $CACHE_EXPIRY_HOURS
+                        clusters.cache.expire-after-write: 1h
                         attempts:               3
                         delay:                  500ms  
                         reset:                  5s
