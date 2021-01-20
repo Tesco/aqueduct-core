@@ -53,7 +53,7 @@ public class Bindings {
     @Singleton
     LocationResolver locationResolver(
         @Named("pipe") final DataSource dataSource,
-        @Value("${location.clusters.cache.expire-after-write:1h}") final Duration expireAfter,
+        @Value("${location.clusters.cache.expire-after-write}") final Duration expireAfter,
         final LocationService locationService
     ) {
         return new ClusterStorage(dataSource, locationService, expireAfter);

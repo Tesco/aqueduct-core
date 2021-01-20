@@ -281,13 +281,13 @@ class ClusterStorageIntegrationSpec extends Specification {
         when:
         def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid)
 
-        then: "location service is called to resolve clusters again and cache is invalidated"
+        then: "location service is called to resolve clusters again and cache is invalidated while request is in flight"
         1 * locationService.getClusterUuids(anotherLocationUuid) >> {
             invalidateClusterCacheFor(anotherLocationUuid)
             ["clusterUuid1", "clusterUuid2"]
         }
 
-        then: "location service is called again"
+        then: "location service is called again to read the newly published clusters"
         1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid3", "clusterUuid4"]
 
         and: "correct cluster ids are returned"

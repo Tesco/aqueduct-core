@@ -206,7 +206,7 @@ class LocationRoutingIntegrationSpec extends Specification {
             .then()
             .statusCode(200)
 
-        and: "response body has messages only for the given location"
+        and: "response body has no messages for the given location"
         Arrays.asList(response.getBody().as(Message[].class)) == []
     }
 
