@@ -60,11 +60,11 @@ class LocationServiceClientIntegrationSpec extends Specification {
                 .properties(
                     parseYamlConfig(
                     """
-                    micronaut.caches.cluster-cache..expire-after-write: $CACHE_EXPIRY_HOURS
                     location:
                         url:                    $locationBasePath
                         clusters.get.path:      ${LOCATION_CLUSTER_PATH+"?"+CLUSTER_QUERY_PARAM+"="+CLUSTER_QUERY_PARAM_VALUE}
                         clusters.get.path.filter.pattern: $LOCATION_CLUSTER_PATH_FILTER_PATTERN
+                        clusters.cache.expire-after-write: $CACHE_EXPIRY_HOURS
                         attempts:               3
                         delay:                  500ms  
                         reset:                  5s
