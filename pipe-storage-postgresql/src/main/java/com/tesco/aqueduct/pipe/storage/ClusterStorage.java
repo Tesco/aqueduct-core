@@ -60,6 +60,7 @@ public class ClusterStorage implements LocationResolver {
     }
 
     private Optional<List<Long>> resolveClusterIds(String locationUuid, Optional<ClusterCache> clusterCache) {
+        long start = System.currentTimeMillis();
 
         final List<String> resolvedClusterUuids = locationService.getClusterUuids(locationUuid);
 
@@ -82,6 +83,9 @@ public class ClusterStorage implements LocationResolver {
         } catch (SQLException exception) {
             LOG.error("cluster storage", "resolve cluster ids", exception);
             throw new RuntimeException(exception);
+        } finally {
+            long end = System.currentTimeMillis();
+            LOG.info("runResolveClusterIds:time", Long.toString(end - start));
         }
     }
 
@@ -103,7 +107,7 @@ public class ClusterStorage implements LocationResolver {
             throw new RuntimeException(exception);
         } finally {
             long end = System.currentTimeMillis();
-            LOG.info("runGetClusterIds:time", Long.toString(end - start));
+            LOG.info("runGetClusterIdsFromCache:time", Long.toString(end - start));
         }
     }
 
