@@ -48,12 +48,11 @@ public class ClusterStorage implements LocationResolver {
         if(isCached(clusterCache)) {
             return clusterCache.map(ClusterCache::getClusterIds);
         } else {
-            // close connection
-            // TODO handle exception and have a test for this
             try {
                 connection.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
+            } catch (SQLException exception) {
+                LOG.error("cluster storage", "cannot properly close connection", exception);
+                throw new RuntimeException(exception);
             }
           return resolveClusterIds(locationUuid, clusterCache);
         }

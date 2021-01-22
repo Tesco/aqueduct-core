@@ -173,18 +173,24 @@ class ClusterStorageIntegrationSpec extends Specification {
         given: "a datasource and connections"
         def dataSource = Mock(DataSource)
         def connection = Mock(Connection)
+        def getCacheQuery = Mock(PreparedStatement)
 
         and: "initialized cluster storage with mocks"
         def clusterStorage = new ClusterStorage(dataSource, locationService, Duration.ofMinutes(1))
 
         and:
-        connection.close() >> {throw new SQLException("some reason")}
+        connection.close() >> { throw new SQLException("some reason") }
+
+        and:
+        1 * connection.prepareStatement(_) >> getCacheQuery
+        1 * getCacheQuery.executeQuery() >> Mock(ResultSet)
 
         when: "cluster ids are read"
         clusterStorage.getClusterIds("someLocationUuid", connection)
 
-        then: "exception is cached and rethrown"
+        then: "exception is intercepted and rethrown"
         thrown(RuntimeException)
+        0 * locationService.getClusterUuids("someLocationUuid")
     }
 
     def "location cache is persisted with the correct expiry time"() {
