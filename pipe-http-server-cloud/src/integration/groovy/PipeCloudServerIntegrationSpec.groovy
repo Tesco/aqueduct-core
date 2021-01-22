@@ -3,7 +3,7 @@ import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
 import com.tesco.aqueduct.pipe.api.HttpHeaders
 import com.tesco.aqueduct.pipe.api.Message
-import com.tesco.aqueduct.pipe.storage.LocationResolver
+import com.tesco.aqueduct.pipe.storage.ClusterStorage
 import groovy.sql.Sql
 import io.micronaut.context.ApplicationContext
 import io.micronaut.inject.qualifiers.Qualifiers
@@ -15,6 +15,7 @@ import spock.lang.Shared
 import spock.lang.Specification
 
 import javax.sql.DataSource
+import java.sql.Connection
 import java.time.LocalDateTime
 
 import static org.hamcrest.Matchers.equalTo
@@ -28,14 +29,14 @@ class PipeCloudServerIntegrationSpec extends Specification {
     @AutoCleanup("stop") ApplicationContext context
 
     DataSource dataSource
-    LocationResolver locationResolver
+    ClusterStorage clusterStorage
 
     def setup() {
 
         sql = new SqlWrapper(pg.embeddedPostgres.postgresDatabase).sql
 
         dataSource = Mock()
-        locationResolver = Mock()
+        clusterStorage = Mock()
 
         dataSource.connection >>> [
             new Sql(pg.embeddedPostgres.postgresDatabase.connection).connection,
@@ -64,7 +65,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
             .registerSingleton(DataSource, dataSource, Qualifiers.byName("pipe"))
             .registerSingleton(DataSource, dataSource, Qualifiers.byName("registry"))
             .registerSingleton(DataSource, dataSource, Qualifiers.byName("compaction"))
-            .registerSingleton(LocationResolver, locationResolver)
+            .registerSingleton(ClusterStorage, clusterStorage)
 
         context.start()
 
@@ -84,7 +85,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
         insert(101, "b", "contentType", "type1", time, null)
 
         and: "location to cluster resolution"
-        locationResolver.getClusterIds("someLocation",) >> [1L]
+        clusterStorage.getClusterIds("someLocation", _ as Connection) >> [1L]
 
         when:
         def request = RestAssured.get("/pipe/100?location=someLocation")
@@ -107,7 +108,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
         insert(101, "b", "contentType", "type1", time, null)
 
         and: "location to cluster resolution"
-        locationResolver.getClusterIds("someLocation",) >> [1L]
+        clusterStorage.getClusterIds("someLocation", _ as Connection) >> [1L]
 
         when:
         def request1 = RestAssured.get("/pipe/100?location=someLocation")

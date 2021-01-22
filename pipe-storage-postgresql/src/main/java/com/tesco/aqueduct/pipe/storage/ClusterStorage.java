@@ -14,7 +14,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-public class ClusterStorage implements LocationResolver {
+public class ClusterStorage {
 
     private static final PipeLogger LOG = new PipeLogger(LoggerFactory.getLogger(ClusterStorage.class));
 
@@ -41,7 +41,6 @@ public class ClusterStorage implements LocationResolver {
         this.cacheExpiryDuration = cacheExpiryDuration;
     }
 
-    @Override
     public Optional<List<Long>> getClusterIds(String locationUuid, Connection connection) {
         Optional<ClusterCache> clusterCache = getClusterIdsFromCache(locationUuid, connection);
 
@@ -56,6 +55,15 @@ public class ClusterStorage implements LocationResolver {
             }
           return resolveClusterIds(locationUuid, clusterCache, connection);
         }
+    }
+
+    public Optional<List<Long>> getClusterIds(String locationUuid, List<String> clusterUuids, Connection connection) {
+        // update clusters table
+        // Update clusters cache
+
+        return null;
+
+
     }
 
     private boolean isCached(Optional<ClusterCache> entry) {
@@ -222,6 +230,10 @@ public class ClusterStorage implements LocationResolver {
             throw new RuntimeException(sqlException);
         }
         return clusterIds;
+    }
+
+    public List<String> resolveClustersFor(String location) {
+        return null;
     }
 
     @Data
