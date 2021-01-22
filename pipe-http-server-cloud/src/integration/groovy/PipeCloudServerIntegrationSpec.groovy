@@ -84,7 +84,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
         insert(101, "b", "contentType", "type1", time, null)
 
         and: "location to cluster resolution"
-        locationResolver.getClusterIds("someLocation") >> [1L]
+        locationResolver.getClusterIds("someLocation",) >> [1L]
 
         when:
         def request = RestAssured.get("/pipe/100?location=someLocation")
@@ -107,7 +107,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
         insert(101, "b", "contentType", "type1", time, null)
 
         and: "location to cluster resolution"
-        locationResolver.getClusterIds("someLocation") >> [1L]
+        locationResolver.getClusterIds("someLocation",) >> [1L]
 
         when:
         def request1 = RestAssured.get("/pipe/100?location=someLocation")

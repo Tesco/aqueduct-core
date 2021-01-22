@@ -42,19 +42,25 @@ public class ClusterStorage implements LocationResolver {
     }
 
     @Override
-    public List<Long> getClusterIds(String locationUuid) {
+    public Optional<List<Long>> getClusterIds(String locationUuid, Connection connection) {
         Optional<ClusterCache> clusterCache = getClusterIdsFromCache(locationUuid);
 
-        return clusterCache
-            .filter(this::isCached)
-            .map(ClusterCache::getClusterIds)
-            .orElseGet(() ->
-                resolveClusterIds(locationUuid, clusterCache).orElseGet(() -> getClusterIds(locationUuid))
-            );
+        if(isCached(clusterCache)) {
+            return clusterCache.map(ClusterCache::getClusterIds);
+        } else {
+            // close connection
+            // TODO handle exception and have a test for this
+            try {
+                connection.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+          return resolveClusterIds(locationUuid, clusterCache);
+        }
     }
 
-    private boolean isCached(ClusterCache entry) {
-        return entry.isValid() && entry.getExpiry().isAfter(LocalDateTime.now());
+    private boolean isCached(Optional<ClusterCache> entry) {
+        return entry.filter(it -> it.isValid() && it.getExpiry().isAfter(LocalDateTime.now())).isPresent();
     }
 
     private Optional<List<Long>> resolveClusterIds(String locationUuid, Optional<ClusterCache> clusterCache) {

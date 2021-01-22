@@ -63,7 +63,6 @@ public class PostgresqlStorage implements CentralStorage {
         final String locationUuid
     ) {
         long start = System.currentTimeMillis();
-        final List<Long> clusterIds = locationResolver.getClusterIds(locationUuid);
 
         try (Connection connection = pipeDataSource.getConnection()) {
             LOG.info("getConnection:time", Long.toString(System.currentTimeMillis() - start));
@@ -71,9 +70,16 @@ public class PostgresqlStorage implements CentralStorage {
             connection.setAutoCommit(false);
             setWorkMem(connection);
 
+            final Optional<List<Long>> clusterIds = locationResolver.getClusterIds(locationUuid, connection);
+
+            if (!clusterIds.isPresent()) {
+                // connection has been closed
+                read(types, startOffset, locationUuid);
+            }
+
             final long globalLatestOffset = offsetFetcher.getGlobalLatestOffset(connection);
 
-            try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, globalLatestOffset, clusterIds)) {
+            try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, globalLatestOffset, clusterIds.get())) {
 
                 final List<Message> messages = runMessagesQuery(messagesQuery);
                 long end = System.currentTimeMillis();

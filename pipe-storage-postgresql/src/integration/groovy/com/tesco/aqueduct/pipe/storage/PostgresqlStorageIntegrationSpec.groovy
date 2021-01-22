@@ -83,7 +83,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         """)
 
         locationResolver = Mock(LocationResolver)
-        locationResolver.getClusterIds("locationUuid") >> [1L]
+        locationResolver.getClusterIds("locationUuid",) >> [1L]
         storage = new PostgresqlStorage(dataSource, dataSource, limit, retryAfter, batchSize, new OffsetFetcher(0), 1, 1, 4, locationResolver)
     }
 
@@ -355,7 +355,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         def messageResults = storage.read(["type2", "type3"], 0, "location2")
 
         then: 'messages are not returned, and no exception is thrown'
-        1 * locationResolver.getClusterIds("location2") >> [3,4]
+        1 * locationResolver.getClusterIds("location2",) >> [3, 4]
         messageResults.messages.size() == 0
         noExceptionThrown()
     }
@@ -459,7 +459,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         offsetFetcher.currentTimestamp = "TO_TIMESTAMP( '2000-12-01 10:00:01', 'YYYY-MM-DD HH:MI:SS' )"
         storage = new PostgresqlStorage(dataSource, dataSource, limit, retryAfter, batchSize, offsetFetcher, 1, 1, 4, locationResolver)
 
-        locationResolver.getClusterIds("someLocationUuid") >> [2L, 3L]
+        locationResolver.getClusterIds("someLocationUuid",) >> [2L, 3L]
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2L)
         insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 3L)
         insert(message(3, "type1", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 4L)
@@ -488,7 +488,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         def messageResults = storage.read(["type1"], 0, someLocationUuid)
 
         then: "clusters are resolved from location resolver"
-        1 * locationResolver.getClusterIds(someLocationUuid) >> [2L, 3L]
+        1 * locationResolver.getClusterIds(someLocationUuid,) >> [2L, 3L]
 
         then: 'messages are provided for the given location'
         messageResults.messages.size() == 2

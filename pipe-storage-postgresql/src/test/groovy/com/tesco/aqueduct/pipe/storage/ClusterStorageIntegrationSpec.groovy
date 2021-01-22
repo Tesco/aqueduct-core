@@ -26,6 +26,7 @@ class ClusterStorageIntegrationSpec extends Specification {
     ClusterStorage clusterStorage
     DataSource dataSource
     LocationService locationService = Mock(LocationService)
+    Connection connection
 
     def setup() {
         sql = new Sql(pg.embeddedPostgres.postgresDatabase.connection)
@@ -35,6 +36,8 @@ class ClusterStorageIntegrationSpec extends Specification {
         dataSource.connection >> {
             DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
         }
+
+        connection = DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
 
         sql.execute("""
         DROP TABLE IF EXISTS CLUSTERS;
@@ -62,10 +65,10 @@ class ClusterStorageIntegrationSpec extends Specification {
 
     def "when cluster cache is hit, clusters ids are returned"() {
         when:
-        def clusterIds = clusterStorage.getClusterIds("locationUuid")
+        def clusterIds = clusterStorage.getClusterIds("locationUuid", connection)
 
         then:
-        clusterIds == [1L]
+        clusterIds == Optional.of([1L])
 
         and: "location service is not called"
         0 * locationService.getClusterUuids("locationUuid")
@@ -76,7 +79,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         insertLocationInCache("anotherLocationUuid", [1L], Timestamp.valueOf(LocalDateTime.now().minusSeconds(10)))
 
         when: "cache is read"
-        clusterStorage.getClusterIds("anotherLocationUuid")
+        clusterStorage.getClusterIds("anotherLocationUuid", connection)
 
         then: "location service is called to resolve the cluster ids"
         1 * locationService.getClusterUuids("anotherLocationUuid") >> ["someCluster"]
@@ -87,7 +90,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         insertLocationInCache("anotherLocationUuid", [1L], Timestamp.valueOf(LocalDateTime.now().plusSeconds(30)), false)
 
         when: "cache is read"
-        clusterStorage.getClusterIds("anotherLocationUuid")
+        clusterStorage.getClusterIds("anotherLocationUuid", connection)
 
         then: "location service is called to resolve the cluster ids"
         1 * locationService.getClusterUuids("anotherLocationUuid") >> ["someCluster"]
@@ -105,7 +108,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         preparedStatement.executeQuery() >> {throw new SQLException()}
 
         when: "cluster ids are read"
-        clusterStorage.getClusterIds("locationUuid")
+        clusterStorage.getClusterIds("locationUuid", connection)
 
         then: "a runtime exception is thrown"
         thrown(RuntimeException)
@@ -117,7 +120,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         locationService.getClusterUuids(anotherLocationUuid) >> { throw new Exception() }
 
         when:
-        clusterStorage.getClusterIds(anotherLocationUuid)
+        clusterStorage.getClusterIds(anotherLocationUuid, connection)
 
         then:
         thrown(Exception)
@@ -138,7 +141,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         def clusterStorage = new ClusterStorage(dataSource, locationService, Duration.ofMinutes(1))
 
         when: "cluster ids are read"
-        clusterStorage.getClusterIds(uncachedLocationUuid)
+        clusterStorage.getClusterIds(uncachedLocationUuid, connection)
 
         then: "connection is obtained"
         1 * dataSource.getConnection() >> connection1
@@ -165,7 +168,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         def anotherLocationUuid = "anotherLocationUuid"
 
         when:
-        clusterStorage.getClusterIds(anotherLocationUuid)
+        clusterStorage.getClusterIds(anotherLocationUuid, connection)
 
         then:
         1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid1", "clusterUuid2"]
@@ -182,13 +185,13 @@ class ClusterStorageIntegrationSpec extends Specification {
         def anotherLocationUuid = "anotherLocationUuid"
 
         when:
-        def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid)
+        def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid, connection)
 
         then:
         1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid1", "clusterUuid2"]
 
         and: "correct cluster ids are returned"
-        clusterIds == [1L, 2L]
+        clusterIds == Optional.of([1L, 2L])
 
         and: "cluster uuids are persisted in clusters table"
         def clusterIdRows = sql.rows("SELECT cluster_id FROM clusters WHERE cluster_uuid in (?,?)", "clusterUuid1", "clusterUuid2")
@@ -211,13 +214,13 @@ class ClusterStorageIntegrationSpec extends Specification {
         insertLocationInCache(anotherLocationUuid, [cluster1, cluster2], Timestamp.valueOf(LocalDateTime.now().plusSeconds(30)), false)
 
         when:
-        def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid)
+        def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid, connection)
 
         then:
         1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid3", "clusterUuid4"]
 
         and: "correct cluster ids are returned"
-        clusterIds == [3L, 4L]
+        clusterIds == Optional.of([3L, 4L])
 
         and: "cluster uuids are persisted in clusters table"
         List<GroovyRowResult> clusterIdRows = getClusterIdsFor("clusterUuid3", "clusterUuid4")
@@ -240,14 +243,14 @@ class ClusterStorageIntegrationSpec extends Specification {
         insertLocationInCache(anotherLocationUuid, [cluster1, cluster2], Timestamp.valueOf(LocalDateTime.now().minusSeconds(30)))
 
         when:
-        def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid)
+        def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid, connection)
 
         then: "location service is called to resolve clusters again"
         1 * locationService.getClusterUuids(anotherLocationUuid) >> ["clusterUuid1", "clusterUuid2", "clusterUuid3"]
 
         and: "correct cluster ids are returned"
         // third id will not be 3 but 5 because batch insertion will get conflict on the first two clusters and generated serial will not be inserted
-        clusterIds == [1L, 2L, 5L]
+        clusterIds == Optional.of([1L, 2L, 5L])
 
         and: "cluster cache is now populated with correct expiry time"
         def clusterCacheRows = sql.rows("SELECT expiry, cluster_ids FROM cluster_cache WHERE location_uuid = ? AND valid = TRUE", anotherLocationUuid)
@@ -279,7 +282,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         insertLocationInCache(anotherLocationUuid, [cluster1, cluster2], Timestamp.valueOf(LocalDateTime.now().minusSeconds(30)))
 
         when:
-        def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid)
+        def clusterIds = clusterStorage.getClusterIds(anotherLocationUuid, connection)
 
         then: "location service is called to resolve clusters again and cache is invalidated while request is in flight"
         1 * locationService.getClusterUuids(anotherLocationUuid) >> {
@@ -292,7 +295,7 @@ class ClusterStorageIntegrationSpec extends Specification {
 
         and: "correct cluster ids are returned"
         // cluster id 3 and 4 will be skipped due to conflict
-        clusterIds == [5L, 6L]
+        clusterIds == Optional.of([5L, 6L])
 
         and: "new cluster uuids are persisted in clusters table"
         def clusterIdRows = sql.rows("SELECT cluster_id FROM clusters WHERE cluster_uuid in (?,?)", "clusterUuid3", "clusterUuid4")
