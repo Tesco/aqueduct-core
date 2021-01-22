@@ -43,7 +43,7 @@ public class ClusterStorage implements LocationResolver {
 
     @Override
     public Optional<List<Long>> getClusterIds(String locationUuid, Connection connection) {
-        Optional<ClusterCache> clusterCache = getClusterIdsFromCache(locationUuid);
+        Optional<ClusterCache> clusterCache = getClusterIdsFromCache(locationUuid, connection);
 
         if(isCached(clusterCache)) {
             return clusterCache.map(ClusterCache::getClusterIds);
@@ -104,25 +104,16 @@ public class ClusterStorage implements LocationResolver {
         return fetchClusterIdsFor(resolvedClusterUuids, newConnection);
     }
 
-    private Optional<ClusterCache> getClusterIdsFromCache(String locationUuid) {
+    private Optional<ClusterCache> getClusterIdsFromCache(String locationUuid, Connection connection) {
         long start = System.currentTimeMillis();
-        try (Connection connection = dataSource.getConnection()) {
-            return resolveLocationUuidToClusterIds(locationUuid, connection);
-        } catch (SQLException exception) {
-            LOG.error("cluster storage", "get cluster ids", exception);
-            throw new RuntimeException(exception);
-        } finally {
-            long end = System.currentTimeMillis();
-            LOG.info("runGetClusterIdsFromCache:time", Long.toString(end - start));
-        }
-    }
-
-    private Optional<ClusterCache> resolveLocationUuidToClusterIds(String locationUuid, Connection connection) {
-        try(PreparedStatement statement = getLocationToClusterIdsStatement(connection, locationUuid)) {
+        try (PreparedStatement statement = getLocationToClusterIdsStatement(connection, locationUuid)) {
             return runLocationToClusterIdsQuery(statement);
         } catch (SQLException exception) {
             LOG.error("cluster storage", "resolve location to clusterIds", exception);
             throw new RuntimeException(exception);
+        } finally {
+            long end = System.currentTimeMillis();
+            LOG.info("runGetClusterIdsFromCache:time", Long.toString(end - start));
         }
     }
 
