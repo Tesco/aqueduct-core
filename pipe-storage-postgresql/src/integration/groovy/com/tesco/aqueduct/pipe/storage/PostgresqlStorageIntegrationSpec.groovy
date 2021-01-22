@@ -497,7 +497,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.globalLatestOffset == OptionalLong.of(2)
     }
 
-    def "Read is perfomed twice when cluster cache invalidated when location service request is in flight"() {
+    def "Read is performed twice when cluster cache is invalidated while location service request is in flight"() {
         given:
         def someLocationUuid = "someLocationUuid"
         def offsetFetcher = new OffsetFetcher(0)

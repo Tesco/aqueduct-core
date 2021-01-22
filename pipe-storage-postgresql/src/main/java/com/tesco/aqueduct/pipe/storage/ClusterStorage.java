@@ -54,7 +54,7 @@ public class ClusterStorage implements LocationResolver {
                 LOG.error("cluster storage", "cannot properly close connection", exception);
                 throw new RuntimeException(exception);
             }
-          return resolveClusterIds(locationUuid, clusterCache);
+          return resolveClusterIds(locationUuid, clusterCache, connection);
         }
     }
 
@@ -62,21 +62,22 @@ public class ClusterStorage implements LocationResolver {
         return entry.filter(it -> it.isValid() && it.getExpiry().isAfter(LocalDateTime.now())).isPresent();
     }
 
-    private Optional<List<Long>> resolveClusterIds(String locationUuid, Optional<ClusterCache> clusterCache) {
+    private Optional<List<Long>> resolveClusterIds(String locationUuid, Optional<ClusterCache> clusterCache, Connection connection) {
         long start = System.currentTimeMillis();
 
         final List<String> resolvedClusterUuids = locationService.getClusterUuids(locationUuid);
 
-        try (Connection newConnection = dataSource.getConnection()) {
-            final List<Long> clusterIds = resolveClusterIdsFor(resolvedClusterUuids, newConnection);
+        try {
+            connection = dataSource.getConnection();
+            final List<Long> clusterIds = resolveClusterIdsFor(resolvedClusterUuids, connection);
 
             if (cacheNotPresentOrInvalid(clusterCache)) {
-                upsertClusterCache(locationUuid, clusterIds, newConnection);
+                upsertClusterCache(locationUuid, clusterIds, connection);
                 return Optional.of(clusterIds);
 
             } else {
                 // the entry is present and valid but it wasn't a cache hit, hence we are here only when it is expired
-                final int updatedRowCount = updateClusterCache(locationUuid, clusterIds, newConnection);
+                final int updatedRowCount = updateClusterCache(locationUuid, clusterIds, connection);
 
                 if (updatedRowCount == 0) {
                     // the entry has been invalidated while the request to location service was in flight
