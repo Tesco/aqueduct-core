@@ -497,6 +497,29 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.globalLatestOffset == OptionalLong.of(2)
     }
 
+    def "Read is perfomed twice when cluster cache invalidated when location service request is in flight"() {
+        given:
+        def someLocationUuid = "someLocationUuid"
+        def offsetFetcher = new OffsetFetcher(0)
+        offsetFetcher.currentTimestamp = "TO_TIMESTAMP( '2000-12-01 10:00:01', 'YYYY-MM-DD HH:MI:SS' )"
+        storage = new PostgresqlStorage(dataSource, dataSource, limit, retryAfter, batchSize, offsetFetcher, 1, 1, 4, locationResolver)
+
+        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2L)
+        insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 3L)
+
+        when: 'reading all messages with a location'
+        def messageResults = storage.read(["type1"], 0, someLocationUuid)
+
+        then: "clusters are resolved from location resolver only at the second time round"
+        2 * locationResolver.getClusterIds(someLocationUuid, _ as Connection) >>> [Optional.empty(), Optional.of([2L, 3L])]
+
+        then: 'messages are provided for the given location'
+        messageResults.messages.size() == 2
+        messageResults.messages*.key == ["A", "B"]
+        messageResults.messages*.offset*.intValue() == [1, 2]
+        messageResults.globalLatestOffset == OptionalLong.of(2)
+    }
+
     @Unroll
     def "read up to the last message in the pipe when all are in the visibility window"() {
         given:

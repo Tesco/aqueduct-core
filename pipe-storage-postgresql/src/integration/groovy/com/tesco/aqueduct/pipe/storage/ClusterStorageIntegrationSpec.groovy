@@ -322,23 +322,6 @@ class ClusterStorageIntegrationSpec extends Specification {
 
         and: "cluster ids are empty"
         clusterIds == Optional.empty()
-
-/*
-        and: "new cluster uuids are persisted in clusters table"
-        def clusterIdRows = sql.rows("SELECT cluster_id FROM clusters WHERE cluster_uuid in (?,?)", "clusterUuid3", "clusterUuid4")
-        clusterIdRows.size() == 2
-        clusterIdRows.get(0).get("cluster_id") == 5
-        clusterIdRows.get(1).get("cluster_id") == 6
-
-        and: "cluster cache is populated with correct cluster ids and expiry time"
-        def updatedClusterCacheRows = sql.rows("SELECT * FROM cluster_cache WHERE location_uuid = ? AND valid = TRUE", anotherLocationUuid)
-        updatedClusterCacheRows.size() == 1
-        updatedClusterCacheRows.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
-        updatedClusterCacheRows.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
-
-        Array fetchedClusterIds = updatedClusterCacheRows.get(0).get("cluster_ids") as Array
-        Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [5L, 6L]
-*/
     }
 
     private List<GroovyRowResult> getClusterIdsFor(String... clusterUuids) {

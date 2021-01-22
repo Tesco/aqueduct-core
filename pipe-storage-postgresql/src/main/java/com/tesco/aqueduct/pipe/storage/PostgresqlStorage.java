@@ -72,23 +72,24 @@ public class PostgresqlStorage implements CentralStorage {
 
             final Optional<List<Long>> clusterIds = locationResolver.getClusterIds(locationUuid, connection);
 
-            if (!clusterIds.isPresent()) {
+            if (clusterIds.isPresent()) {
+                final long globalLatestOffset = offsetFetcher.getGlobalLatestOffset(connection);
+
+                try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, globalLatestOffset, clusterIds.get())) {
+
+                    final List<Message> messages = runMessagesQuery(messagesQuery);
+                    long end = System.currentTimeMillis();
+
+                    final long retry = calculateRetryAfter(end - start, messages.size());
+
+                    LOG.info("PostgresSqlStorage:retry", String.valueOf(retry));
+                    return new MessageResults(messages, retry, OptionalLong.of(globalLatestOffset), PipeState.UP_TO_DATE);
+                }
+            } else {
                 // connection has been closed
-                read(types, startOffset, locationUuid);
+                return read(types, startOffset, locationUuid);
             }
 
-            final long globalLatestOffset = offsetFetcher.getGlobalLatestOffset(connection);
-
-            try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, globalLatestOffset, clusterIds.get())) {
-
-                final List<Message> messages = runMessagesQuery(messagesQuery);
-                long end = System.currentTimeMillis();
-
-                final long retry = calculateRetryAfter(end - start, messages.size());
-
-                LOG.info("PostgresSqlStorage:retry", String.valueOf(retry));
-                return new MessageResults(messages, retry, OptionalLong.of(globalLatestOffset), PipeState.UP_TO_DATE);
-            }
         } catch (SQLException exception) {
             LOG.error("postgresql storage", "read", exception);
             throw new RuntimeException(exception);
