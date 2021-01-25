@@ -66,8 +66,8 @@ public class ClusterStorage {
         return null;
     }
 
-    public List<String> resolveClustersFor(String location) {
-        return null;
+    public List<String> resolveClustersFor(String locationUuid) {
+        return locationService.getClusterUuids(locationUuid);
     }
 
     private boolean isCached(ClusterCache entry) {

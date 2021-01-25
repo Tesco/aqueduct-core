@@ -103,11 +103,22 @@ class ClusterStorageIntegrationSpec extends Specification {
         when: "resolving clusteruuids for the given location"
         def clustersUuids = clusterStorage.resolveClustersFor("someLocationUuid")
 
-        then: "location service is called to resolve the cluster ids and given connection is closed"
+        then: "location service is called to resolve the cluster ids"
         1 * locationService.getClusterUuids("someLocationUuid") >> ["someClusterUuid1", "someClusterUuid2"]
 
         and:
         clustersUuids == ["someClusterUuid1", "someClusterUuid2"]
+    }
+
+    def "when cluster resolution fails, an exception is thrown to the caller"() {
+        given: "an exception is thrown when calling location service"
+        locationService.getClusterUuids("someLocationUuid") >> { throw new Exception() }
+
+        when:
+        clusterStorage.resolveClustersFor("someLocationUuid")
+
+        then: "the exception is thrown to the caller"
+        thrown(Exception)
     }
 
     def "when there is an error, a runtime exception is thrown"() {
