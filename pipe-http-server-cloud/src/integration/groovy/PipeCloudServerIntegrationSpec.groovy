@@ -3,6 +3,7 @@ import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
 import com.tesco.aqueduct.pipe.api.HttpHeaders
 import com.tesco.aqueduct.pipe.api.Message
+import com.tesco.aqueduct.pipe.storage.ClusterCache
 import com.tesco.aqueduct.pipe.storage.ClusterStorage
 import groovy.sql.Sql
 import io.micronaut.context.ApplicationContext
@@ -85,7 +86,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
         insert(101, "b", "contentType", "type1", time, null)
 
         and: "location to cluster resolution"
-        clusterStorage.getClusterCache("someLocation", _ as Connection) >> [1L]
+        clusterStorage.getClusterCache("someLocation", _ as Connection) >> clusterCache("someLocation", [1L])
 
         when:
         def request = RestAssured.get("/pipe/100?location=someLocation")
@@ -108,7 +109,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
         insert(101, "b", "contentType", "type1", time, null)
 
         and: "location to cluster resolution"
-        clusterStorage.getClusterCache("someLocation", _ as Connection) >> [1L]
+        clusterStorage.getClusterCache("someLocation", _ as Connection) >> clusterCache("someLocation", [1L])
 
         when:
         def request1 = RestAssured.get("/pipe/100?location=someLocation")
@@ -129,6 +130,10 @@ class PipeCloudServerIntegrationSpec extends Specification {
         request2
             .then()
             .header(HttpHeaders.GLOBAL_LATEST_OFFSET.toString(), equalTo("101"))
+    }
+
+    Optional<ClusterCache> clusterCache(String locationUuid, List<Long> clusterIds) {
+        Optional.of(new ClusterCache(locationUuid, clusterIds, LocalDateTime.now().plusMinutes(1), true))
     }
 
     void insert(Long msg_offset, String msg_key, String content_type, String type, LocalDateTime created, String data) {

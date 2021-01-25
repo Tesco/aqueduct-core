@@ -71,8 +71,9 @@ public class PostgresqlStorage implements CentralStorage {
 
             final Optional<ClusterCache> clusterCache = clusterStorage.getClusterCache(locationUuid, connection);
 
-            if (clusterCache.isPresent() && clusterCache.get().isCached()) {
+            if (clusterCache.isPresent() && clusterCache.get().isValidAndUnExpired()) {
                 return readMessages(types, start, startOffset, clusterCache.get().getClusterIds(), connection);
+
             } else {
                 close(connection);
 
@@ -125,7 +126,8 @@ public class PostgresqlStorage implements CentralStorage {
                 connection.close();
             }
         } catch (SQLException exception) {
-            exception.printStackTrace();
+            LOG.error("postgresql storage", "close", exception);
+            throw new RuntimeException(exception);
         }
     }
 

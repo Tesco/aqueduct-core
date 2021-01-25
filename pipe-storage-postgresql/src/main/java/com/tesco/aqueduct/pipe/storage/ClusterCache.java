@@ -12,7 +12,7 @@ public class ClusterCache {
     private final LocalDateTime expiry;
     private final boolean isValid;
 
-    public boolean isCached() {
+    public boolean isValidAndUnExpired() {
         return isValid && expiry.isAfter(LocalDateTime.now());
     }
 }
