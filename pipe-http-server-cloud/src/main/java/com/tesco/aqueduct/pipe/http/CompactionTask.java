@@ -33,13 +33,9 @@ class CompactionTask {
     void compaction() {
         longTaskTimer.record(() -> {
             LOG.info("compaction", "compaction started");
-            postgresqlStorage.compact();
+            postgresqlStorage.compactAndMaintain();
             LOG.info("compaction", "compaction finished");
         });
-
-        postgresqlStorage.vacuumAnalyseEvents();
-
-        postgresqlStorage.runVisibilityCheck();
     }
 
     private void isValid(final String cronExpression) {

@@ -19,7 +19,7 @@ public class PostgresqlStorage implements CentralStorage {
     private final DataSource compactionDataSource;
     private final long maxBatchSize;
     private final long retryAfter;
-    private OffsetFetcher offsetFetcher;
+    private final OffsetFetcher offsetFetcher;
     private final int nodeCount;
     private final long clusterDBPoolSize;
     private final int workMemMb;
@@ -180,10 +180,23 @@ public class PostgresqlStorage implements CentralStorage {
     }
 
     @Override
+    @Deprecated
     public void runVisibilityCheck() {
         try (Connection connection = compactionDataSource.getConnection()) {
             Map<String, Long> messageCountByType = getMessageCountByType(connection);
 
+            messageCountByType.forEach((key, value) ->
+                LOG.info("count:type:" + key, String.valueOf(value))
+            );
+        } catch (SQLException exception) {
+            LOG.error("postgres storage", "run visibility check", exception);
+            throw new RuntimeException(exception);
+        }
+    }
+
+    private void runVisibilityCheck(Connection connection) {
+        try {
+            Map<String, Long> messageCountByType = getMessageCountByType(connection);
             messageCountByType.forEach((key, value) ->
                 LOG.info("count:type:" + key, String.valueOf(value))
             );
@@ -275,9 +288,8 @@ public class PostgresqlStorage implements CentralStorage {
         }
     }
 
-    public void compact() {
-        try (Connection connection = compactionDataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(getCompactionQuery())) {
+    private void compact(Connection connection) {
+        try (PreparedStatement statement = connection.prepareStatement(getCompactionQuery())) {
             final int rowsAffected = statement.executeUpdate();
             LOG.info("compaction", "compacted " + rowsAffected + " rows");
         } catch (SQLException e) {
@@ -285,9 +297,45 @@ public class PostgresqlStorage implements CentralStorage {
         }
     }
 
-    public void vacuumAnalyseEvents() {
-        try (Connection connection = compactionDataSource.getConnection();
-             PreparedStatement statement = connection.prepareStatement(getVacuumAnalyseQuery())) {
+    public boolean compactAndMaintain() {
+        boolean compacted = false;
+        try (Connection connection = compactionDataSource.getConnection()) {
+            connection.setAutoCommit(false);
+            if(attemptToLock(connection)){
+                compacted=true;
+                LOG.info("compact and maintain", "obtained lock, compacting");
+                compact(connection);
+                runVisibilityCheck(connection);
+
+                //start a new transaction for vacuuming
+                connection.commit();
+                connection.setAutoCommit(true);
+
+                vacuumAnalyseEvents(connection);
+            } else {
+                LOG.info("compact and maintain", "didn't obtain lock");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return compacted;
+    }
+
+    private boolean attemptToLock(Connection connection) {
+        try (PreparedStatement statement = connection.prepareStatement(getLockingQuery())) {
+            return statement.execute();
+        } catch (SQLException e) {
+            if(e.getSQLState().equals("55P03")) {
+                //lock was not available
+                return false;
+            } else {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private void vacuumAnalyseEvents(Connection connection) {
+        try (PreparedStatement statement = connection.prepareStatement(getVacuumAnalyseQuery())) {
             statement.executeUpdate();
             LOG.info("vacuum analyse", "vacuum analyse complete");
         } catch (SQLException e) {
@@ -353,7 +401,11 @@ public class PostgresqlStorage implements CentralStorage {
     private String getWorkMemQuery() {
         return " SET LOCAL work_mem TO '" + workMemMb + "MB';";
     }
-    
+
+    private String getLockingQuery() {
+        return "SELECT * from clusters where cluster_id=1 FOR UPDATE NOWAIT;";
+    }
+
     private static String getMessageCountByTypeQuery() {
         return "SELECT type, COUNT(type) FROM events GROUP BY type;";
     }

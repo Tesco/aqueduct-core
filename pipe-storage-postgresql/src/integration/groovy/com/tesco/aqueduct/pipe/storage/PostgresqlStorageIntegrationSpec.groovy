@@ -12,11 +12,15 @@ import org.junit.ClassRule
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Unroll
+import spock.util.concurrent.PollingConditions
 
 import javax.sql.DataSource
 import java.sql.*
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class PostgresqlStorageIntegrationSpec extends StorageSpec {
@@ -216,7 +220,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insertWithClusterAndTTL(3, "A", 1, LocalDateTime.now().plusMinutes(60))
 
         when: 'compaction with ttl is run'
-        storage.compact()
+        storage.compactAndMaintain()
 
         and: 'all messages are read'
         MessageResults result = storage.read(null, 0, "locationUuid")
@@ -233,7 +237,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insertWithClusterAndTTL(3, "A", 1, LocalDateTime.now().minusMinutes(1))
 
         when: 'compaction with ttl is run'
-        storage.compact()
+        storage.compactAndMaintain()
 
         and: 'all messages are read'
         MessageResults result = storage.read(null, 0, "locationUuid")
@@ -243,6 +247,57 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         retrievedMessages.size() == 0
     }
 
+    def 'Compaction only runs once when called in parallel'() {
+        given: 'database with lots of data ready to be compacted'
+        100000.times{i ->
+            insertWithClusterAndTTL(i, "A", 1, LocalDateTime.now().minusMinutes(60))
+        }
+
+        and:'multiple threads attempting to compact in parallel'
+        def completed = [] as Set
+        def compactionRan = [] as Set
+
+        ExecutorService pool = Executors.newFixedThreadPool(5)
+        CompletableFuture startLock = new CompletableFuture()
+
+        5.times{ i ->
+            pool.execute{
+                startLock.get()
+                boolean compacted = storage.compactAndMaintain()
+                completed.add(i)
+
+                if(compacted) {
+                    compactionRan.add(i)
+                }
+            }
+        }
+
+        startLock.complete(true)
+
+        expect: 'compaction only ran once'
+        PollingConditions conditions = new PollingConditions(timeout: 5)
+
+        conditions.eventually {
+            completed.size() == 5
+            compactionRan.size() == 1
+        }
+
+    }
+
+    def 'locking fails gracefully when lock cannot be obtained'() {
+        given: 'lock is held by the test'
+        Connection connection = sql.connection
+        connection.setAutoCommit(false)
+        Statement statement = connection.prepareStatement("SELECT * from clusters where cluster_id=1 FOR UPDATE;")
+        print statement.execute()
+
+        when: 'call compact'
+        boolean gotLock = storage.attemptToLock(DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres")))
+
+        then: 'compaction didnt happen'
+        !gotLock
+    }
+
     def 'Variety of TTL value messages are compacted correctly'() {
         given: 'messages stored with cluster id and TTL set to today'
         insertWithClusterAndTTL(1, "A", 1, LocalDateTime.now().plusMinutes(60))
@@ -250,7 +305,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insertWithClusterAndTTL(3, "A", 1, LocalDateTime.now().minusMinutes(1))
 
         when: 'compaction with ttl is run'
-        storage.compact()
+        storage.compactAndMaintain()
 
         and: 'all messages are read'
         MessageResults result = storage.read(null, 0, "locationUuid")
@@ -267,7 +322,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(3, "type", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
 
         when: 'compaction with ttl is run'
-        storage.compact()
+        storage.compactAndMaintain()
 
         and: 'all messages are read'
         MessageResults result = storage.read(null, 0, "locationUuid")
@@ -412,7 +467,6 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         insert(message(9, "type1", "I", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
 
         when: "getMessageCountByType is called"
-        storage.runVisibilityCheck()
         Map<String, Long> result = storage.getMessageCountByType(dataSource.connection)
 
         then: "the correct count is returned"
@@ -665,8 +719,8 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
     def "vacuum analyse query is valid"() {
         given: "a database"
 
-        when: "vacuum analyse is called"
-        storage.vacuumAnalyseEvents()
+        when: "vacuum analyse is called via compact and maintain method"
+        storage.compactAndMaintain()
 
         then: "no exception thrown"
         noExceptionThrown()

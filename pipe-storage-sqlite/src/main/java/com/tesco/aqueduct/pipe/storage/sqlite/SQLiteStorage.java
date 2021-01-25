@@ -386,6 +386,7 @@ public class SQLiteStorage implements DistributedStorage {
 
     public void runMaintenanceTasks() {
         try (Connection connection = dataSource.getConnection()) {
+            shrinkMemory(connection);
             vacuumDatabase(connection);
             checkpointWalFile(connection);
         } catch (SQLException exception) {
@@ -418,6 +419,13 @@ public class SQLiteStorage implements DistributedStorage {
         try (PreparedStatement statement = connection.prepareStatement(SQLiteQueries.VACUUM_DB)) {
             statement.execute();
             LOG.info("vacuumDatabase", String.format("Vacuum result: %d", statement.getUpdateCount()));
+        }
+    }
+
+    private void shrinkMemory(Connection connection) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(SQLiteQueries.SHRINK_MEMORY)) {
+            statement.execute();
+            LOG.info("shrinkMemory","Memory shrunk");
         }
     }
 

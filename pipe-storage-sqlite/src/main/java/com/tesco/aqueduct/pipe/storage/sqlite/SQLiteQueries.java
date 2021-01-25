@@ -59,6 +59,7 @@ final class SQLiteQueries {
     static final String VACUUM_DB = "VACUUM;";
     static final String CHECKPOINT_DB = "PRAGMA wal_checkpoint(TRUNCATE);";
     static final String INTEGRITY_CHECK = "PRAGMA quick_check(1);";
+    static final String SHRINK_MEMORY = "PRAGMA shrink_memory;";
 
     static String getReadEvent(final int typesCount, final long maxBatchSize) {
         final StringBuilder queryBuilder = new StringBuilder()
