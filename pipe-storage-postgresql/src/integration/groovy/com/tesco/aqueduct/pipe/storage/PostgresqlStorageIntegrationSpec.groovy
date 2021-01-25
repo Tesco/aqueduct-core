@@ -83,7 +83,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         """)
 
         clusterStorage = Mock(ClusterStorage)
-        clusterStorage.getClusterIds("locationUuid", _ as Connection) >> Optional.of([1L])
+        clusterStorage.getClusterCache("locationUuid", _ as Connection) >> cacheEntry("locationUuid", [1L])
         storage = new PostgresqlStorage(dataSource, dataSource, limit, retryAfter, batchSize, new OffsetFetcher(0), 1, 1, 4, clusterStorage)
     }
 
@@ -355,7 +355,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         def messageResults = storage.read(["type2", "type3"], 0, "location2")
 
         then: 'messages are not returned, and no exception is thrown'
-        1 * clusterStorage.getClusterIds("location2", _ as Connection) >> Optional.of([3, 4])
+        1 * clusterStorage.getClusterCache("location2", _ as Connection) >> cacheEntry("location2", [3, 4])
         messageResults.messages.size() == 0
         noExceptionThrown()
     }
@@ -459,7 +459,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         offsetFetcher.currentTimestamp = "TO_TIMESTAMP( '2000-12-01 10:00:01', 'YYYY-MM-DD HH:MI:SS' )"
         storage = new PostgresqlStorage(dataSource, dataSource, limit, retryAfter, batchSize, offsetFetcher, 1, 1, 4, clusterStorage)
 
-        clusterStorage.getClusterIds("someLocationUuid", _ as Connection) >> Optional.of([2L, 3L])
+        clusterStorage.getClusterCache("someLocationUuid", _ as Connection) >> cacheEntry("someLocationUuid", [2L, 3L])
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2L)
         insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 3L)
         insert(message(3, "type1", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 4L)
@@ -499,7 +499,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         1 * dataSource.connection >> connection1
 
         then: "clusters for given location are not cached"
-        1 * clusterStorage.getClusterIds(someLocationUuid, connection1) >> Optional.empty()
+        1 * clusterStorage.getClusterCache(someLocationUuid, connection1) >> Optional.empty()
 
         then: "First connection is closed"
         connection1.isClosed()
@@ -511,7 +511,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         1 * dataSource.connection >> connection2
 
         then: "location cache is populated"
-        1 * clusterStorage.getClusterIds(someLocationUuid, ["clusterUuid2", "clusterUuid3"], connection2) >> [2L, 3l]
+        1 * clusterStorage.updateAndGetClusterIds(someLocationUuid, ["clusterUuid2", "clusterUuid3"], Optional.empty(), connection2) >> [2L, 3l]
 
         then: 'messages are provided for the given location'
         messageResults.messages.size() == 2
@@ -526,6 +526,8 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         def offsetFetcher = new OffsetFetcher(0)
         offsetFetcher.currentTimestamp = "TO_TIMESTAMP( '2000-12-01 10:00:01', 'YYYY-MM-DD HH:MI:SS' )"
         storage = new PostgresqlStorage(dataSource, dataSource, limit, retryAfter, batchSize, offsetFetcher, 1, 1, 4, clusterStorage)
+        def firstCacheRead = cacheEntry(someLocationUuid, [1L], LocalDateTime.now().minusMinutes(1))
+        def secondCacheRead = cacheEntry(someLocationUuid, [1L], LocalDateTime.now().plusMinutes(1), false)
 
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2L)
         insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 3L)
@@ -534,18 +536,48 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         def messageResults = storage.read(["type1"], 0, someLocationUuid)
 
         then: "cluster cache is expired"
-        1 * clusterStorage.getClusterIds(someLocationUuid, _ as Connection) >> Optional.empty()
+        1 * clusterStorage.getClusterCache(someLocationUuid, _ as Connection) >> firstCacheRead
 
         then: "clusters are resolved from location service"
         1 * clusterStorage.resolveClustersFor(someLocationUuid) >> ["clusterUuid2", "clusterUuid3"]
 
         then: "cache is invalidated hence returns no result"
-        1 * clusterStorage.getClusterIds(someLocationUuid, ["clusterUuid2", "clusterUuid3"], _ as Connection) >> Optional.empty()
+        1 * clusterStorage.updateAndGetClusterIds(someLocationUuid, ["clusterUuid2", "clusterUuid3"], firstCacheRead, _ as Connection) >> Optional.empty()
 
         then: "clusters are resolved again"
-        1 * clusterStorage.getClusterIds(someLocationUuid, _ as Connection) >> Optional.empty()
+        1 * clusterStorage.getClusterCache(someLocationUuid, _ as Connection) >> secondCacheRead
         1 * clusterStorage.resolveClustersFor(someLocationUuid) >> ["clusterUuid2", "clusterUuid3"]
-        1 * clusterStorage.getClusterIds(someLocationUuid, ["clusterUuid2", "clusterUuid3"], _ as Connection) >> [2L, 3L]
+        1 * clusterStorage.updateAndGetClusterIds(someLocationUuid, ["clusterUuid2", "clusterUuid3"], secondCacheRead, _ as Connection) >> [2L, 3L]
+
+        then: 'messages are provided for the given location'
+        messageResults.messages.size() == 2
+        messageResults.messages*.key == ["A", "B"]
+        messageResults.messages*.offset*.intValue() == [1, 2]
+        messageResults.globalLatestOffset == OptionalLong.of(2)
+    }
+
+    def "clusters are resolved when cluster cache is expired"() {
+        given:
+        def someLocationUuid = "someLocationUuid"
+        def offsetFetcher = new OffsetFetcher(0)
+        offsetFetcher.currentTimestamp = "TO_TIMESTAMP( '2000-12-01 10:00:01', 'YYYY-MM-DD HH:MI:SS' )"
+        storage = new PostgresqlStorage(dataSource, dataSource, limit, retryAfter, batchSize, offsetFetcher, 1, 1, 4, clusterStorage)
+        def cacheRead = cacheEntry(someLocationUuid, [2L, 3L], LocalDateTime.now().minusMinutes(1))
+
+        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2L)
+        insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 3L)
+
+        when: 'reading all messages with a location'
+        def messageResults = storage.read(["type1"], 0, someLocationUuid)
+
+        then: "cluster cache is expired"
+        1 * clusterStorage.getClusterCache(someLocationUuid, _ as Connection) >> cacheRead
+
+        then: "clusters are resolved from location service"
+        1 * clusterStorage.resolveClustersFor(someLocationUuid) >> ["clusterUuid2", "clusterUuid3"]
+
+        then: "cache is invalidated hence returns no result"
+        1 * clusterStorage.updateAndGetClusterIds(someLocationUuid, ["clusterUuid2", "clusterUuid3"], cacheRead, _ as Connection) >> Optional.of([2L, 3L])
 
         then: 'messages are provided for the given location'
         messageResults.messages.size() == 2
@@ -620,6 +652,10 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
             created ?: time,
             data ?: "data"
         )
+    }
+
+    Optional<ClusterCache> cacheEntry(String location, List<Long> clusterIds, LocalDateTime expiry = LocalDateTime.now().plusMinutes(1), boolean valid = true) {
+        Optional.of(new ClusterCache(location, clusterIds, expiry, valid))
     }
 
     void insertLocationInCache(

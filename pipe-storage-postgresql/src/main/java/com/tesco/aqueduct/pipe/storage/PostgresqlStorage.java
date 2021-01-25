@@ -69,10 +69,10 @@ public class PostgresqlStorage implements CentralStorage {
 
             LOG.info("getConnection:time", Long.toString(System.currentTimeMillis() - start));
 
-            final Optional<List<Long>> clusterIds = clusterStorage.getClusterIds(locationUuid, connection);
+            final Optional<ClusterCache> clusterCache = clusterStorage.getClusterCache(locationUuid, connection);
 
-            if (clusterIds.isPresent()) {
-                return readMessages(types, start, startOffset, clusterIds.get(), connection);
+            if (clusterCache.isPresent() && clusterCache.get().isCached()) {
+                return readMessages(types, start, startOffset, clusterCache.get().getClusterIds(), connection);
             } else {
                 close(connection);
 
@@ -80,7 +80,7 @@ public class PostgresqlStorage implements CentralStorage {
 
                 connection = pipeDataSource.getConnection();
 
-                final Optional<List<Long>> newClusterIds = clusterStorage.getClusterIds(locationUuid, clusterUuids, connection);
+                final Optional<List<Long>> newClusterIds = clusterStorage.updateAndGetClusterIds(locationUuid, clusterUuids, clusterCache, connection);
 
                 if (newClusterIds.isPresent()) {
                     return readMessages(types, start, startOffset, newClusterIds.get(), connection);
