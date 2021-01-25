@@ -56,7 +56,7 @@ public class Bindings {
         @Value("${location.clusters.cache.expire-after-write}") final Duration expireAfter,
         final LocationService locationService
     ) {
-        return new ClusterStorage(dataSource, locationService, expireAfter);
+        return new ClusterStorage(locationService, expireAfter);
     }
 
     @Singleton

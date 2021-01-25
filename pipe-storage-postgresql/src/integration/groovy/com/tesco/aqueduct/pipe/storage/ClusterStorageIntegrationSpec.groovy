@@ -31,12 +31,6 @@ class ClusterStorageIntegrationSpec extends Specification {
     def setup() {
         sql = new Sql(pg.embeddedPostgres.postgresDatabase.connection)
 
-        dataSource = Mock()
-
-        dataSource.connection >> {
-            DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
-        }
-
         connection = DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
 
         sql.execute("""
@@ -60,7 +54,7 @@ class ClusterStorageIntegrationSpec extends Specification {
 
         insertLocationInCache("locationUuid", [1L])
 
-        clusterStorage = new ClusterStorage(dataSource, locationService, Duration.ofMinutes(1))
+        clusterStorage = new ClusterStorage(locationService, Duration.ofMinutes(1))
     }
 
     def "when cluster cache is hit, clusters ids are returned"() {
@@ -73,36 +67,47 @@ class ClusterStorageIntegrationSpec extends Specification {
         and: "location service is not called"
         0 * locationService.getClusterUuids("locationUuid")
 
-        and: "no new connections should be opened"
-        0 * dataSource.getConnection()
+        and:"connection is not closed"
+        !connection.isClosed()
     }
 
-    def "resolve clusters if location entry is expired and passed connection is closed before it"() {
+    def "return empty results when cache is expired"() {
         given: "an expired entry for a location"
         insertLocationInCache("anotherLocationUuid", [1L], Timestamp.valueOf(LocalDateTime.now().minusSeconds(10)))
 
         when: "cache is read"
-        clusterStorage.getClusterIds("anotherLocationUuid", connection)
+        def clusterIds = clusterStorage.getClusterIds("anotherLocationUuid", connection)
 
-        then: "location service is called to resolve the cluster ids and given connection is closed"
-        1 * locationService.getClusterUuids("anotherLocationUuid") >> {
-            assert connection.isClosed()
-            ["someCluster"]
-        }
+        then:
+        clusterIds.isEmpty()
+
+        and: "location service is not called"
+        0 * locationService.getClusterUuids("locationUuid")
     }
 
-    def "resolve clusters if location entry is invalidated and passed connection is closed before it"() {
-        given: "an invalidated entry for a location"
-        insertLocationInCache("anotherLocationUuid", [1L], Timestamp.valueOf(LocalDateTime.now().plusSeconds(30)), false)
+    def "return empty results when cache is not valid"() {
+        given: "an expired entry for a location"
+        insertLocationInCache("anotherLocationUuid", [1L], Timestamp.valueOf(LocalDateTime.now().plusSeconds(10)), false)
 
         when: "cache is read"
-        clusterStorage.getClusterIds("anotherLocationUuid", connection)
+        def clusterIds = clusterStorage.getClusterIds("anotherLocationUuid", connection)
+
+        then:
+        clusterIds.isEmpty()
+
+        and: "location service is not called"
+        0 * locationService.getClusterUuids("locationUuid")
+    }
+
+    def "resolve clusters from location service for a given location id"() {
+        when: "resolving clusteruuids for the given location"
+        def clustersUuids = clusterStorage.resolveClustersFor("someLocationUuid")
 
         then: "location service is called to resolve the cluster ids and given connection is closed"
-        1 * locationService.getClusterUuids("anotherLocationUuid") >> {
-            assert connection.isClosed()
-            ["someCluster"]
-        }
+        1 * locationService.getClusterUuids("someLocationUuid") >> ["someClusterUuid1", "someClusterUuid2"]
+
+        and:
+        clustersUuids == ["someClusterUuid1", "someClusterUuid2"]
     }
 
     def "when there is an error, a runtime exception is thrown"() {
@@ -110,7 +115,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         def dataSource = Mock(DataSource)
         def connection = Mock(Connection)
 
-        def clusterStorage = new ClusterStorage(dataSource, locationService, Duration.ofMinutes(1))
+        def clusterStorage = new ClusterStorage(locationService, Duration.ofMinutes(1))
         dataSource.getConnection() >> connection
         def preparedStatement = Mock(PreparedStatement)
         connection.prepareStatement(_) >> preparedStatement
@@ -147,7 +152,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         def uncachedLocationUuid = "uncachedLocationUuid"
 
         and: "initialized cluster storage with mocks"
-        def clusterStorage = new ClusterStorage(dataSource, locationService, Duration.ofMinutes(1))
+        def clusterStorage = new ClusterStorage(locationService, Duration.ofMinutes(1))
 
         when: "cluster ids are read"
         clusterStorage.getClusterIds(uncachedLocationUuid, connection1)
@@ -176,7 +181,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         def getCacheQuery = Mock(PreparedStatement)
 
         and: "initialized cluster storage with mocks"
-        def clusterStorage = new ClusterStorage(dataSource, locationService, Duration.ofMinutes(1))
+        def clusterStorage = new ClusterStorage(locationService, Duration.ofMinutes(1))
 
         and:
         connection.close() >> { throw new SQLException("some reason") }

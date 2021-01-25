@@ -5,7 +5,6 @@ import com.tesco.aqueduct.pipe.logger.PipeLogger;
 import lombok.Data;
 import org.slf4j.LoggerFactory;
 
-import javax.sql.DataSource;
 import java.sql.*;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -30,23 +29,26 @@ public class ClusterStorage {
 
     private static final String SELECT_CLUSTER_ID = " SELECT cluster_id FROM CLUSTERS WHERE ((cluster_uuid)::text = ANY (string_to_array(?, ',')));";
 
-    private final DataSource dataSource;
     private final LocationService locationService;
     private final Duration cacheExpiryDuration;
     private static final String CLUSTER_IDS_TYPE = "BIGINT";
 
-    public ClusterStorage(DataSource dataSource, LocationService locationService, Duration cacheExpiryDuration) {
-        this.dataSource = dataSource;
+    public ClusterStorage(LocationService locationService, Duration cacheExpiryDuration) {
         this.locationService = locationService;
         this.cacheExpiryDuration = cacheExpiryDuration;
     }
 
     public Optional<List<Long>> getClusterIds(String locationUuid, Connection connection) {
-        Optional<ClusterCache> clusterCache = getClusterIdsFromCache(locationUuid, connection);
 
+        return getClusterIdsFromCache(locationUuid, connection)
+            .filter(this::isCached)
+            .map(ClusterCache::getClusterIds);
+
+        /*
         if(isCached(clusterCache)) {
             return clusterCache.map(ClusterCache::getClusterIds);
-        } else {
+        }
+        else {
             try {
                 connection.close();
             } catch (SQLException exception) {
@@ -54,7 +56,7 @@ public class ClusterStorage {
                 throw new RuntimeException(exception);
             }
           return resolveClusterIds(locationUuid, clusterCache, connection);
-        }
+        }*/
     }
 
     public Optional<List<Long>> getClusterIds(String locationUuid, List<String> clusterUuids, Connection connection) {
@@ -62,12 +64,14 @@ public class ClusterStorage {
         // Update clusters cache
 
         return null;
-
-
     }
 
-    private boolean isCached(Optional<ClusterCache> entry) {
-        return entry.filter(it -> it.isValid() && it.getExpiry().isAfter(LocalDateTime.now())).isPresent();
+    public List<String> resolveClustersFor(String location) {
+        return null;
+    }
+
+    private boolean isCached(ClusterCache entry) {
+        return entry.isValid() && entry.getExpiry().isAfter(LocalDateTime.now());
     }
 
     private Optional<List<Long>> resolveClusterIds(String locationUuid, Optional<ClusterCache> clusterCache, Connection connection) {
@@ -76,7 +80,6 @@ public class ClusterStorage {
         final List<String> resolvedClusterUuids = locationService.getClusterUuids(locationUuid);
 
         try {
-            connection = dataSource.getConnection();
             final List<Long> clusterIds = resolveClusterIdsFor(resolvedClusterUuids, connection);
 
             if (cacheNotPresentOrInvalid(clusterCache)) {
@@ -94,9 +97,6 @@ public class ClusterStorage {
                     return Optional.of(clusterIds);
                 }
             }
-        } catch (SQLException exception) {
-            LOG.error("cluster storage", "resolve cluster ids", exception);
-            throw new RuntimeException(exception);
         } finally {
             long end = System.currentTimeMillis();
             LOG.info("runResolveClusterIds:time", Long.toString(end - start));
@@ -230,10 +230,6 @@ public class ClusterStorage {
             throw new RuntimeException(sqlException);
         }
         return clusterIds;
-    }
-
-    public List<String> resolveClustersFor(String location) {
-        return null;
     }
 
     @Data
