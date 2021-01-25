@@ -24,7 +24,6 @@ class ClusterStorageIntegrationSpec extends Specification {
     @AutoCleanup
     Sql sql
     ClusterStorage clusterStorage
-    DataSource dataSource
     LocationService locationService = Mock(LocationService)
     Connection connection
 
@@ -58,13 +57,13 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterStorage = new ClusterStorage(locationService, Duration.ofMinutes(1))
     }
 
-    def "when cluster cache is read, a cluster cache optional is returned"() {
+    def "when cluster cache is read successfully, a cluster cache optional containing results is returned"() {
         when:
-        def cacheEntry = clusterStorage.getClusterCache("locationUuid", connection)
+        def cacheResult = clusterStorage.getClusterCache("locationUuid", connection)
 
         then:
-        cacheEntry.isPresent()
-        def entry = cacheEntry.get()
+        cacheResult.isPresent()
+        def entry = cacheResult.get()
         entry.isValid()
         entry.getClusterIds() == [1L]
         entry.getExpiry() > LocalDateTime.now()
@@ -75,10 +74,10 @@ class ClusterStorageIntegrationSpec extends Specification {
 
     def "return optional empty when location is not cached"() {
         when: "cache is read"
-        def clusterIds = clusterStorage.getClusterCache("anotherLocationUuid", connection)
+        def cacheResults = clusterStorage.getClusterCache("anotherLocationUuid", connection)
 
         then:
-        clusterIds.isEmpty()
+        !cacheResults.isPresent()
 
         and:"connection is not closed"
         !connection.isClosed()
@@ -93,7 +92,10 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterStorage.getClusterCache("anotherLocationUuid", connection)
 
         then:
-        thrown(RuntimeException)
+        def exception = thrown(RuntimeException)
+
+        and:
+        exception.getCause() instanceof SQLException
     }
 
     def "resolve clusters from location service for a given location id"() {
@@ -118,7 +120,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         thrown(Exception)
     }
 
-    def "when there is an error, a runtime exception is thrown"() {
+    def "when there is an error during cache read, a runtime exception is thrown"() {
         given: "a datasource and an exception thrown when executing the query"
         def dataSource = Mock(DataSource)
         def connection = Mock(Connection)
@@ -132,8 +134,11 @@ class ClusterStorageIntegrationSpec extends Specification {
         when: "cluster ids are read"
         clusterStorage.getClusterCache("locationUuid", connection)
 
-        then: "a runtime exception is thrown"
-        thrown(RuntimeException)
+        then:
+        def exception = thrown(RuntimeException)
+
+        and:
+        exception.getCause() instanceof SQLException
     }
 
     def "cluster cache is updated with given clusters when cache not present"() {
@@ -163,7 +168,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterCacheRows.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
     }
 
-    def "cluster cache is updated with given clusters when location entry is invalid"() {
+    def "cluster cache is updated with given clusters when location cache entry is invalid"() {
         given:
         def anotherLocationUuid = "anotherLocationUuid"
         Optional<ClusterCache> clusterCache = Optional.of(new ClusterCache("anotherLocationUuid", [], LocalDateTime.now(), false))
@@ -194,7 +199,7 @@ class ClusterStorageIntegrationSpec extends Specification {
     def "when location entry is expired, then it is updated with correct clusters and expiry time"() {
         given:
         def anotherLocationUuid = "anotherLocationUuid"
-        Optional<ClusterCache> clusterCache = Optional.of(new ClusterCache("anotherLocationUuid", ["clusterUuid1"], LocalDateTime.now().minusMinutes(1), true))
+        Optional<ClusterCache> clusterCache = Optional.of(new ClusterCache("anotherLocationUuid", [2L], LocalDateTime.now().minusMinutes(1), true))
 
         insertCluster("clusterUuid1")
         insertLocationInCache(anotherLocationUuid, [2L],  LocalDateTime.now().minusMinutes(1))
@@ -222,10 +227,10 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterIdRows.get(1).get("cluster_id") == 4
     }
 
-    def "when location entry is expired and invalidated while being resolved again, then empty optional is returned"() {
+    def "when location cache entry is expired and invalidated while being resolved, then empty optional is returned"() {
         given:
         def anotherLocationUuid = "anotherLocationUuid"
-        Optional<ClusterCache> clusterCache = Optional.of(new ClusterCache("anotherLocationUuid", ["clusterUuid1"], LocalDateTime.now().minusMinutes(1), true))
+        Optional<ClusterCache> clusterCache = Optional.of(new ClusterCache("anotherLocationUuid", [2L], LocalDateTime.now().minusMinutes(1), true))
 
         insertCluster("clusterUuid1")
         insertLocationInCache(anotherLocationUuid, [2L],  LocalDateTime.now().minusMinutes(1), false)
@@ -254,10 +259,6 @@ class ClusterStorageIntegrationSpec extends Specification {
     private List<GroovyRowResult> getClusterIdsFor(String... clusterUuids) {
         def params = Arrays.asList(clusterUuids).stream().map { "?" }.collect(Collectors.joining(","))
         return sql.rows("SELECT cluster_id FROM clusters WHERE cluster_uuid in (" + params + ")", clusterUuids)
-    }
-
-    private boolean invalidateClusterCacheFor(String anotherLocationUuid) {
-        sql.execute("UPDATE CLUSTER_CACHE SET valid = FALSE WHERE location_uuid = ?", anotherLocationUuid)
     }
 
     Long insertCluster(String clusterUuid){
