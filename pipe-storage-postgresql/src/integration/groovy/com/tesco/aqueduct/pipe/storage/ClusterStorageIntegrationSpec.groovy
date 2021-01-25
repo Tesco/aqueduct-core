@@ -186,7 +186,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterIdRows.get(1).get("cluster_id") == 3
 
         and: "cluster cache is populated correctly"
-        def clusterCacheRows = sql.rows("SELECT cluster_ids, expiry FROM cluster_cache WHERE location_uuid = ? AND valid = true", anotherLocationUuid)
+        def clusterCacheRows = sql.rows("SELECT cluster_ids, expiry FROM cluster_cache WHERE location_uuid = ? AND valid = TRUE", anotherLocationUuid)
         clusterCacheRows.size() == 1
         Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
         Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [2L, 3L]
@@ -266,16 +266,16 @@ class ClusterStorageIntegrationSpec extends Specification {
     }
 
     void insertLocationInCache(
-            String locationUuid,
-            List<Long> clusterIds,
-            def expiry = Timestamp.valueOf(LocalDateTime.now() + TimeUnit.MINUTES.toMillis(1)),
-            boolean valid = true
+        String locationUuid,
+        List<Long> clusterIds,
+        def expiry = Timestamp.valueOf(LocalDateTime.now() + TimeUnit.MINUTES.toMillis(1)),
+        boolean valid = true
     ) {
         Connection connection = DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
         Array clusters = connection.createArrayOf("integer", clusterIds.toArray())
         sql.execute(
-                "INSERT INTO CLUSTER_CACHE(location_uuid, cluster_ids, expiry, valid) VALUES (?, ?, ?, ?)",
-                locationUuid, clusters, expiry, valid
+            "INSERT INTO CLUSTER_CACHE(location_uuid, cluster_ids, expiry, valid) VALUES (?, ?, ?, ?)",
+            locationUuid, clusters, expiry, valid
         )
     }
 }

@@ -68,15 +68,6 @@ public class ClusterStorage {
         return locationService.getClusterUuids(locationUuid);
     }
 
-    private boolean cacheNotPresentOrInvalid(Optional<ClusterCache> clusterCache) {
-        return !clusterCache.isPresent() || !clusterCache.get().isValid();
-    }
-
-    private List<Long> resolveClusterIdsFor(List<String> resolvedClusterUuids, Connection newConnection) {
-        insertClusterUuids(resolvedClusterUuids, newConnection);
-        return fetchClusterIdsFor(resolvedClusterUuids, newConnection);
-    }
-
     public Optional<ClusterCache> getClusterCache(String locationUuid, Connection connection) {
         long start = System.currentTimeMillis();
         try (PreparedStatement statement = getLocationToClusterIdsStatement(connection, locationUuid)) {
@@ -88,6 +79,15 @@ public class ClusterStorage {
             long end = System.currentTimeMillis();
             LOG.info("runGetClusterIdsFromCache:time", Long.toString(end - start));
         }
+    }
+
+    private boolean cacheNotPresentOrInvalid(Optional<ClusterCache> clusterCache) {
+        return !clusterCache.isPresent() || !clusterCache.get().isValid();
+    }
+
+    private List<Long> resolveClusterIdsFor(List<String> resolvedClusterUuids, Connection newConnection) {
+        insertClusterUuids(resolvedClusterUuids, newConnection);
+        return fetchClusterIdsFor(resolvedClusterUuids, newConnection);
     }
 
     private Optional<ClusterCache> runLocationToClusterIdsQuery(final PreparedStatement query) throws SQLException {
