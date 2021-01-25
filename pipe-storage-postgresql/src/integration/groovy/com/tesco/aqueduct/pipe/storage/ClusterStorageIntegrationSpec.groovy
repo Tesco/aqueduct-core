@@ -83,7 +83,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         !connection.isClosed()
     }
 
-    def "when an exception is thrown when reading the cluster cache, a runtime exception is thrown to the caller"() {
+    def "when an exception is thrown while prepareStatement operation during cache read, a runtime exception is propagated"() {
         given:
         Connection connection = Mock(Connection)
         connection.prepareStatement(_) >> { throw new SQLException() }
@@ -120,7 +120,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         thrown(Exception)
     }
 
-    def "when there is an error during cache read, a runtime exception is thrown"() {
+    def "when there is an error during cache read while executing the query, a runtime exception is propagated"() {
         given: "a datasource and an exception thrown when executing the query"
         def dataSource = Mock(DataSource)
         def connection = Mock(Connection)
