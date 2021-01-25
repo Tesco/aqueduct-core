@@ -520,6 +520,20 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.globalLatestOffset == OptionalLong.of(2)
     }
 
+    def "Any exception during cache read is propagated upstream"() {
+        given:
+        clusterStorage = Mock(ClusterStorage)
+
+        and:
+        clusterStorage.getClusterCache(*_) >> {throw new RuntimeException(new SQLException())}
+
+        when: 'reading all messages with a location'
+        storage.read(["type1"], 0, "someLocationUuid")
+
+        then: "First connection is obtained"
+        thrown(RuntimeException)
+    }
+
     def "Read is performed twice when cluster cache is invalidated while location service request is in flight"() {
         given:
         def someLocationUuid = "someLocationUuid"
@@ -556,7 +570,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.globalLatestOffset == OptionalLong.of(2)
     }
 
-    def "clusters are resolved when cluster cache is expired"() {
+    def "clusters are resolved from location service and updated when cluster cache is expired"() {
         given:
         def someLocationUuid = "someLocationUuid"
         def offsetFetcher = new OffsetFetcher(0)
@@ -584,6 +598,50 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.messages*.key == ["A", "B"]
         messageResults.messages*.offset*.intValue() == [1, 2]
         messageResults.globalLatestOffset == OptionalLong.of(2)
+    }
+
+    def "Exception during cache update is propagated upstream"() {
+        given:
+        def someLocationUuid = "someLocationUuid"
+        def offsetFetcher = new OffsetFetcher(0)
+        offsetFetcher.currentTimestamp = "TO_TIMESTAMP( '2000-12-01 10:00:01', 'YYYY-MM-DD HH:MI:SS' )"
+        storage = new PostgresqlStorage(dataSource, dataSource, limit, retryAfter, batchSize, offsetFetcher, 1, 1, 4, clusterStorage)
+        def cacheRead = cacheEntry(someLocationUuid, [2L, 3L], LocalDateTime.now().minusMinutes(1))
+
+        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2L)
+        insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 3L)
+
+        when: 'reading all messages with a location'
+        storage.read(["type1"], 0, someLocationUuid)
+
+        then: "cluster cache is expired"
+        1 * clusterStorage.getClusterCache(someLocationUuid, _ as Connection) >> cacheRead
+
+        then: "clusters are resolved from location service"
+        1 * clusterStorage.resolveClustersFor(someLocationUuid) >> ["clusterUuid2", "clusterUuid3"]
+
+        then: "cache is invalidated hence returns no result"
+        1 * clusterStorage.updateAndGetClusterIds(someLocationUuid, ["clusterUuid2", "clusterUuid3"], cacheRead, _ as Connection) >> { throw new RuntimeException() }
+
+        then: 'messages are provided for the given location'
+        thrown(RuntimeException)
+    }
+
+    def "Any exception during cache resolution from location service is propagated upstream"() {
+        given:
+        clusterStorage = Mock(ClusterStorage)
+
+        and:
+        clusterStorage.getClusterCache(*_) >> Optional.empty()
+
+        and:
+        clusterStorage.resolveClustersFor("someLocationUuid") >> {throw new RuntimeException()}
+
+        when: 'reading all messages with a location'
+        storage.read(["type1"], 0, "someLocationUuid")
+
+        then: "First connection is obtained"
+        thrown(RuntimeException)
     }
 
     @Unroll
