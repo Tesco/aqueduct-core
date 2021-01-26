@@ -98,6 +98,12 @@ ansiColor('xterm') {
             isolatedSystemTest(MP_AQUEDUCT_PIPE_IMAGE_VERSION: "integration-${scmVars.GIT_COMMIT.toString()}")
         }
 
+        stage("Publish") {
+            withCredentials([usernamePassword(credentialsId: 'nexus', passwordVariable: 'NEXUS_PASSWORD', usernameVariable: 'NEXUS_USERNAME')]) {
+                sh "#!/bin/sh -e\n./gradlew publish -PmavenUser=$NEXUS_USERNAME -PmavenPassword='$NEXUS_PASSWORD'"
+            }
+        }
+
         def version = readFile(file:"VERSION.txt")
 
         if (scmVars.GIT_BRANCH == "master") {
