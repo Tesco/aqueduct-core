@@ -59,7 +59,7 @@ class ClusterStorageIntegrationSpec extends Specification {
 
     def "when cluster cache is read successfully, a cluster cache optional containing results is returned"() {
         when:
-        def cacheResult = clusterStorage.getClusterCache("locationUuid", connection)
+        def cacheResult = clusterStorage.getClusterCacheEntry("locationUuid", connection)
 
         then:
         cacheResult.isPresent()
@@ -74,7 +74,7 @@ class ClusterStorageIntegrationSpec extends Specification {
 
     def "return optional empty when location is not cached"() {
         when: "cache is read"
-        def cacheResults = clusterStorage.getClusterCache("anotherLocationUuid", connection)
+        def cacheResults = clusterStorage.getClusterCacheEntry("anotherLocationUuid", connection)
 
         then:
         !cacheResults.isPresent()
@@ -89,7 +89,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         connection.prepareStatement(_) >> { throw new SQLException() }
 
         when: "cache is read"
-        clusterStorage.getClusterCache("anotherLocationUuid", connection)
+        clusterStorage.getClusterCacheEntry("anotherLocationUuid", connection)
 
         then:
         def exception = thrown(RuntimeException)
@@ -132,7 +132,7 @@ class ClusterStorageIntegrationSpec extends Specification {
         preparedStatement.executeQuery() >> {throw new SQLException()}
 
         when: "cluster ids are read"
-        clusterStorage.getClusterCache("locationUuid", connection)
+        clusterStorage.getClusterCacheEntry("locationUuid", connection)
 
         then:
         def exception = thrown(RuntimeException)
@@ -158,23 +158,23 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterIdRows.get(1).get("cluster_id") == 3
 
         and: "cluster cache is populated correctly"
-        def clusterCacheRows = sql.rows("SELECT cluster_ids, expiry FROM cluster_cache WHERE location_uuid = ? AND valid = TRUE", anotherLocationUuid)
-        clusterCacheRows.size() == 1
-        Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
+        def clusterCacheEntry = sql.rows("SELECT cluster_ids, expiry FROM cluster_cache WHERE location_uuid = ? AND valid = TRUE", anotherLocationUuid)
+        clusterCacheEntry.size() == 1
+        Array fetchedClusterIds = clusterCacheEntry.get(0).get("cluster_ids") as Array
         Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [2L, 3L]
 
         and: "expiry time is set correctly"
-        clusterCacheRows.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
-        clusterCacheRows.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
+        clusterCacheEntry.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
+        clusterCacheEntry.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
     }
 
     def "cluster cache is updated with given clusters when location cache entry is invalid"() {
         given:
         def anotherLocationUuid = "anotherLocationUuid"
-        Optional<ClusterCache> clusterCache = Optional.of(new ClusterCache("anotherLocationUuid", [], LocalDateTime.now(), false))
+        Optional<ClusterCacheEntry> entry = Optional.of(new ClusterCacheEntry("anotherLocationUuid", [], LocalDateTime.now(), false))
 
         when:
-        def clusterIds = clusterStorage.updateAndGetClusterIds(anotherLocationUuid, ["clusterUuid1", "clusterUuid2"], clusterCache, connection)
+        def clusterIds = clusterStorage.updateAndGetClusterIds(anotherLocationUuid, ["clusterUuid1", "clusterUuid2"], entry, connection)
 
         then: "correct cluster ids are returned"
         clusterIds == Optional.of([2L, 3L])
@@ -186,39 +186,39 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterIdRows.get(1).get("cluster_id") == 3
 
         and: "cluster cache is populated correctly"
-        def clusterCacheRows = sql.rows("SELECT cluster_ids, expiry FROM cluster_cache WHERE location_uuid = ? AND valid = TRUE", anotherLocationUuid)
-        clusterCacheRows.size() == 1
-        Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
+        def clusterCacheEntry = sql.rows("SELECT cluster_ids, expiry FROM cluster_cache WHERE location_uuid = ? AND valid = TRUE", anotherLocationUuid)
+        clusterCacheEntry.size() == 1
+        Array fetchedClusterIds = clusterCacheEntry.get(0).get("cluster_ids") as Array
         Arrays.asList(fetchedClusterIds.getArray() as Long[]) == [2L, 3L]
 
         and: "expiry time is set correctly"
-        clusterCacheRows.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
-        clusterCacheRows.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
+        clusterCacheEntry.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
+        clusterCacheEntry.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
     }
 
     def "when location entry is expired, then it is updated with correct clusters and expiry time"() {
         given:
         def anotherLocationUuid = "anotherLocationUuid"
-        Optional<ClusterCache> clusterCache = Optional.of(new ClusterCache("anotherLocationUuid", [2L], LocalDateTime.now().minusMinutes(1), true))
+        Optional<ClusterCacheEntry> entry = Optional.of(new ClusterCacheEntry("anotherLocationUuid", [2L], LocalDateTime.now().minusMinutes(1), true))
 
         insertCluster("clusterUuid1")
         insertLocationInCache(anotherLocationUuid, [2L],  LocalDateTime.now().minusMinutes(1))
 
         when:
-        def clusterIds = clusterStorage.updateAndGetClusterIds(anotherLocationUuid, ["clusterUuid1", "clusterUuid2"], clusterCache, connection)
+        def clusterIds = clusterStorage.updateAndGetClusterIds(anotherLocationUuid, ["clusterUuid1", "clusterUuid2"], entry, connection)
 
         then: "correct cluster ids are returned"
         // second id will not be 3 but 4 because batch insertion will get conflict on the first cluster and generated serial will not be inserted
         clusterIds == Optional.of([2L, 4L])
 
         and: "cluster cache is now populated with correct expiry time"
-        def clusterCacheRows = sql.rows("SELECT expiry, cluster_ids FROM cluster_cache WHERE location_uuid = ? AND valid = TRUE", anotherLocationUuid)
-        clusterCacheRows.size() == 1
-        clusterCacheRows.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
-        clusterCacheRows.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
+        def clusterCacheEntry = sql.rows("SELECT expiry, cluster_ids FROM cluster_cache WHERE location_uuid = ? AND valid = TRUE", anotherLocationUuid)
+        clusterCacheEntry.size() == 1
+        clusterCacheEntry.get(0).get("expiry") > Timestamp.valueOf(LocalDateTime.now().plusSeconds(59))
+        clusterCacheEntry.get(0).get("expiry") < Timestamp.valueOf(LocalDateTime.now().plusSeconds(61))
 
         and:"expected cluster ids are updated within cluster cache"
-        clusterIdsFrom(clusterCacheRows) == [2L, 4L]
+        clusterIdsFrom(clusterCacheEntry) == [2L, 4L]
 
         and: "clusters table is updated with the resolved cluster uuids"
         List<GroovyRowResult> clusterIdRows = getClusterIdsFor("clusterUuid1", "clusterUuid2")
@@ -230,20 +230,20 @@ class ClusterStorageIntegrationSpec extends Specification {
     def "when location cache entry is expired and invalidated while being resolved, then empty optional is returned"() {
         given:
         def anotherLocationUuid = "anotherLocationUuid"
-        Optional<ClusterCache> clusterCache = Optional.of(new ClusterCache("anotherLocationUuid", [2L], LocalDateTime.now().minusMinutes(1), true))
+        Optional<ClusterCacheEntry> entry = Optional.of(new ClusterCacheEntry("anotherLocationUuid", [2L], LocalDateTime.now().minusMinutes(1), true))
 
         insertCluster("clusterUuid1")
         insertLocationInCache(anotherLocationUuid, [2L],  LocalDateTime.now().minusMinutes(1), false)
 
         when:
-        def clusterIds = clusterStorage.updateAndGetClusterIds(anotherLocationUuid, ["clusterUuid1"], clusterCache, connection)
+        def clusterIds = clusterStorage.updateAndGetClusterIds(anotherLocationUuid, ["clusterUuid1"], entry, connection)
 
         then: "optional empty is returned"
         clusterIds == Optional.empty()
 
         and: "cluster cache has not been populated"
-        def clusterCacheRows = sql.rows("SELECT * FROM cluster_cache WHERE location_uuid = ? AND valid = TRUE", anotherLocationUuid)
-        clusterCacheRows.size() == 0
+        def clusterCacheEntry = sql.rows("SELECT * FROM cluster_cache WHERE location_uuid = ? AND valid = TRUE", anotherLocationUuid)
+        clusterCacheEntry.size() == 0
 
         and: "clusters table is updated with the resolved cluster uuids"
         List<GroovyRowResult> clusterIdRows = getClusterIdsFor("clusterUuid1")
@@ -251,8 +251,8 @@ class ClusterStorageIntegrationSpec extends Specification {
         clusterIdRows.get(0).get("cluster_id") == 2
     }
 
-    private List<Long> clusterIdsFrom(List<GroovyRowResult> clusterCacheRows) {
-        Array fetchedClusterIds = clusterCacheRows.get(0).get("cluster_ids") as Array
+    private List<Long> clusterIdsFrom(List<GroovyRowResult> clusterCacheEntry) {
+        Array fetchedClusterIds = clusterCacheEntry.get(0).get("cluster_ids") as Array
         Arrays.asList(fetchedClusterIds.getArray() as Long[])
     }
 

@@ -37,13 +37,13 @@ public class ClusterStorage {
         this.cacheExpiryDuration = cacheExpiryDuration;
     }
 
-    public Optional<List<Long>> updateAndGetClusterIds(String locationUuid, List<String> resolvedClusterUuids, Optional<ClusterCache> clusterCache, Connection connection) {
+    public Optional<List<Long>> updateAndGetClusterIds(String locationUuid, List<String> resolvedClusterUuids, Optional<ClusterCacheEntry> entry, Connection connection) {
         long start = System.currentTimeMillis();
 
         try {
             final List<Long> clusterIds = resolveClusterIdsFor(resolvedClusterUuids, connection);
 
-            if (cacheNotPresentOrInvalid(clusterCache)) {
+            if (cacheNotPresentOrInvalid(entry)) {
                 upsertClusterCache(locationUuid, clusterIds, connection);
                 return Optional.of(clusterIds);
 
@@ -68,7 +68,7 @@ public class ClusterStorage {
         return locationService.getClusterUuids(locationUuid);
     }
 
-    public Optional<ClusterCache> getClusterCache(String locationUuid, Connection connection) {
+    public Optional<ClusterCacheEntry> getClusterCacheEntry(String locationUuid, Connection connection) {
         long start = System.currentTimeMillis();
         try (PreparedStatement statement = getLocationToClusterIdsStatement(connection, locationUuid)) {
             return runLocationToClusterIdsQuery(statement);
@@ -81,8 +81,8 @@ public class ClusterStorage {
         }
     }
 
-    private boolean cacheNotPresentOrInvalid(Optional<ClusterCache> clusterCache) {
-        return !clusterCache.isPresent() || !clusterCache.get().isValid();
+    private boolean cacheNotPresentOrInvalid(Optional<ClusterCacheEntry> entry) {
+        return !entry.isPresent() || !entry.get().isValid();
     }
 
     private List<Long> resolveClusterIdsFor(List<String> resolvedClusterUuids, Connection newConnection) {
@@ -90,7 +90,7 @@ public class ClusterStorage {
         return fetchClusterIdsFor(resolvedClusterUuids, newConnection);
     }
 
-    private Optional<ClusterCache> runLocationToClusterIdsQuery(final PreparedStatement query) throws SQLException {
+    private Optional<ClusterCacheEntry> runLocationToClusterIdsQuery(final PreparedStatement query) throws SQLException {
         long start = System.currentTimeMillis();
         try (ResultSet rs = query.executeQuery()) {
             if (rs.next()) {
@@ -103,7 +103,7 @@ public class ClusterStorage {
                 final LocalDateTime expiry = rs.getTimestamp("expiry").toLocalDateTime();
                 final boolean isValid = rs.getBoolean("valid");
 
-                return Optional.of(new ClusterCache(locationUuid, clusterIds, expiry, isValid));
+                return Optional.of(new ClusterCacheEntry(locationUuid, clusterIds, expiry, isValid));
             }
 
             return Optional.empty();

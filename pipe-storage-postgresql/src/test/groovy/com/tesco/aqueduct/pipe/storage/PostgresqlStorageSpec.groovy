@@ -66,7 +66,7 @@ class PostgresqlStorageSpec extends Specification {
         dataSource.getConnection() >> connection
 
         and:
-        clusterStorage.getClusterCache("someLocationUuid", connection) >> Optional.empty()
+        clusterStorage.getClusterCacheEntry("someLocationUuid", connection) >> Optional.empty()
 
         and:
         connection.close() >> {throw new SQLException()}

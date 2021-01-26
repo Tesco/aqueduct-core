@@ -6,7 +6,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
-public class ClusterCache {
+public class ClusterCacheEntry {
     private final String locationUuid;
     private final List<Long> clusterIds;
     private final LocalDateTime expiry;

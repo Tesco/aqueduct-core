@@ -87,7 +87,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         """)
 
         clusterStorage = Mock(ClusterStorage)
-        clusterStorage.getClusterCache("locationUuid", _ as Connection) >> cacheEntry("locationUuid", [1L])
+        clusterStorage.getClusterCacheEntry("locationUuid", _ as Connection) >> cacheEntry("locationUuid", [1L])
         storage = new PostgresqlStorage(dataSource, dataSource, limit, retryAfter, batchSize, new OffsetFetcher(0), 1, 1, 4, clusterStorage)
     }
 
@@ -410,7 +410,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         def messageResults = storage.read(["type2", "type3"], 0, "location2")
 
         then: "messages are not returned, and no exception is thrown"
-        1 * clusterStorage.getClusterCache("location2", _ as Connection) >> cacheEntry("location2", [3, 4])
+        1 * clusterStorage.getClusterCacheEntry("location2", _ as Connection) >> cacheEntry("location2", [3, 4])
         messageResults.messages.size() == 0
         noExceptionThrown()
     }
@@ -513,7 +513,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         offsetFetcher.currentTimestamp = "TO_TIMESTAMP( '2000-12-01 10:00:01', 'YYYY-MM-DD HH:MI:SS' )"
         storage = new PostgresqlStorage(dataSource, dataSource, limit, retryAfter, batchSize, offsetFetcher, 1, 1, 4, clusterStorage)
 
-        clusterStorage.getClusterCache("someLocationUuid", _ as Connection) >> cacheEntry("someLocationUuid", [2L, 3L])
+        clusterStorage.getClusterCacheEntry("someLocationUuid", _ as Connection) >> cacheEntry("someLocationUuid", [2L, 3L])
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 2L)
         insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 3L)
         insert(message(3, "type1", "C", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 4L)
@@ -553,7 +553,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         1 * dataSource.connection >> connection1
 
         then: "clusters for given location are not cached"
-        1 * clusterStorage.getClusterCache(someLocationUuid, connection1) >> Optional.empty()
+        1 * clusterStorage.getClusterCacheEntry(someLocationUuid, connection1) >> Optional.empty()
 
         then: "First connection is closed"
         connection1.isClosed()
@@ -579,7 +579,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         clusterStorage = Mock(ClusterStorage)
 
         and:
-        clusterStorage.getClusterCache(*_) >> {throw new RuntimeException(new SQLException())}
+        clusterStorage.getClusterCacheEntry(*_) >> {throw new RuntimeException(new SQLException())}
 
         when: "reading all messages with a location"
         storage.read(["type1"], 0, "someLocationUuid")
@@ -604,7 +604,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         def messageResults = storage.read(["type1"], 0, someLocationUuid)
 
         then: "cluster cache is expired"
-        1 * clusterStorage.getClusterCache(someLocationUuid, _ as Connection) >> firstCacheRead
+        1 * clusterStorage.getClusterCacheEntry(someLocationUuid, _ as Connection) >> firstCacheRead
 
         then: "clusters are resolved from location service"
         1 * clusterStorage.resolveClustersFor(someLocationUuid) >> ["clusterUuid2", "clusterUuid3"]
@@ -613,7 +613,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         1 * clusterStorage.updateAndGetClusterIds(someLocationUuid, ["clusterUuid2", "clusterUuid3"], firstCacheRead, _ as Connection) >> Optional.empty()
 
         then: "clusters are resolved again"
-        1 * clusterStorage.getClusterCache(someLocationUuid, _ as Connection) >> secondCacheRead
+        1 * clusterStorage.getClusterCacheEntry(someLocationUuid, _ as Connection) >> secondCacheRead
         1 * clusterStorage.resolveClustersFor(someLocationUuid) >> ["clusterUuid2", "clusterUuid3"]
         1 * clusterStorage.updateAndGetClusterIds(someLocationUuid, ["clusterUuid2", "clusterUuid3"], secondCacheRead, _ as Connection) >> [2L, 3L]
 
@@ -639,7 +639,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         def messageResults = storage.read(["type1"], 0, someLocationUuid)
 
         then: "cluster cache is expired"
-        1 * clusterStorage.getClusterCache(someLocationUuid, _ as Connection) >> cacheRead
+        1 * clusterStorage.getClusterCacheEntry(someLocationUuid, _ as Connection) >> cacheRead
 
         then: "clusters are resolved from location service"
         1 * clusterStorage.resolveClustersFor(someLocationUuid) >> ["clusterUuid2", "clusterUuid3"]
@@ -669,7 +669,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         storage.read(["type1"], 0, someLocationUuid)
 
         then: "cluster cache is expired"
-        1 * clusterStorage.getClusterCache(someLocationUuid, _ as Connection) >> cacheRead
+        1 * clusterStorage.getClusterCacheEntry(someLocationUuid, _ as Connection) >> cacheRead
 
         then: "clusters are resolved from location service"
         1 * clusterStorage.resolveClustersFor(someLocationUuid) >> ["clusterUuid2", "clusterUuid3"]
@@ -687,7 +687,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         clusterStorage = Mock(ClusterStorage)
 
         and:
-        clusterStorage.getClusterCache(*_) >> Optional.empty()
+        clusterStorage.getClusterCacheEntry(*_) >> Optional.empty()
 
         and:
         clusterStorage.resolveClustersFor("someLocationUuid") >> {throw new RuntimeException()}
@@ -767,8 +767,8 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         )
     }
 
-    Optional<ClusterCache> cacheEntry(String location, List<Long> clusterIds, LocalDateTime expiry = LocalDateTime.now().plusMinutes(1), boolean valid = true) {
-        Optional.of(new ClusterCache(location, clusterIds, expiry, valid))
+    Optional<ClusterCacheEntry> cacheEntry(String location, List<Long> clusterIds, LocalDateTime expiry = LocalDateTime.now().plusMinutes(1), boolean valid = true) {
+        Optional.of(new ClusterCacheEntry(location, clusterIds, expiry, valid))
     }
 
     void insertLocationInCache(
