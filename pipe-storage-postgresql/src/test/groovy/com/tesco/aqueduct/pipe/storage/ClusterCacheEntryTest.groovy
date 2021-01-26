@@ -10,7 +10,7 @@ class ClusterCacheEntryTest extends Specification {
         def entry = new ClusterCacheEntry("location", [], LocalDateTime.now().plusMinutes(1), true)
 
         expect:
-        entry.isValidAndUnExpired()
+        entry.isValidAndUnexpired()
     }
 
     def "is not cached if entry is not valid"() {
@@ -18,7 +18,7 @@ class ClusterCacheEntryTest extends Specification {
         def entry = new ClusterCacheEntry("location", [], LocalDateTime.now().plusMinutes(1), false)
 
         expect:
-        !entry.isValidAndUnExpired()
+        !entry.isValidAndUnexpired()
     }
 
     def "is not cached if entry is expired"() {
@@ -26,7 +26,7 @@ class ClusterCacheEntryTest extends Specification {
         def entry = new ClusterCacheEntry("location", [], LocalDateTime.now().minusMinutes(1), true)
 
         expect:
-        !entry.isValidAndUnExpired()
+        !entry.isValidAndUnexpired()
     }
 
     def "is not cached if entry is expired and not valid"() {
@@ -34,6 +34,6 @@ class ClusterCacheEntryTest extends Specification {
         def entry = new ClusterCacheEntry("location", [], LocalDateTime.now().minusMinutes(1), false)
 
         expect:
-        !entry.isValidAndUnExpired()
+        !entry.isValidAndUnexpired()
     }
 }

@@ -71,7 +71,7 @@ public class PostgresqlStorage implements CentralStorage {
 
             final Optional<ClusterCacheEntry> entry = clusterStorage.getClusterCacheEntry(locationUuid, connection);
 
-            if (entry.isPresent() && entry.get().isValidAndUnExpired()) {
+            if (isValidAndUnexpired(entry)) {
                 return readMessages(types, start, startOffset, entry.get().getClusterIds(), connection);
 
             } else {
@@ -99,6 +99,10 @@ public class PostgresqlStorage implements CentralStorage {
             long end = System.currentTimeMillis();
             LOG.info("read:time", Long.toString(end - start));
         }
+    }
+
+    private boolean isValidAndUnexpired(Optional<ClusterCacheEntry> entry) {
+        return entry.map(ClusterCacheEntry::isValidAndUnexpired).orElse(false);
     }
 
     private MessageResults readMessages(List<String> types, long start, long startOffset, List<Long> clusterIds, Connection connection) throws SQLException {
