@@ -65,9 +65,7 @@ public class PostgresqlStorage implements CentralStorage {
         long start = System.currentTimeMillis();
         Connection connection = null;
         try {
-            connection = pipeDataSource.getConnection();
-
-            LOG.info("getConnection:time", Long.toString(System.currentTimeMillis() - start));
+            connection = getConnection();
 
             final Optional<ClusterCacheEntry> entry = clusterStorage.getClusterCacheEntry(locationUuid, connection);
 
@@ -79,13 +77,14 @@ public class PostgresqlStorage implements CentralStorage {
 
                 final List<String> clusterUuids = clusterStorage.resolveClustersFor(locationUuid);
 
-                connection = pipeDataSource.getConnection();
+                connection = getConnection();
 
                 final Optional<List<Long>> newClusterIds = clusterStorage.updateAndGetClusterIds(locationUuid, clusterUuids, entry, connection);
 
                 if (newClusterIds.isPresent()) {
                     return readMessages(types, start, startOffset, newClusterIds.get(), connection);
                 } else {
+                    LOG.info("postgresql storage", "Recursive read due to Cluster Cache invalidation race condition");
                     return read(types, startOffset, locationUuid);
                 }
             }
@@ -99,6 +98,13 @@ public class PostgresqlStorage implements CentralStorage {
             long end = System.currentTimeMillis();
             LOG.info("read:time", Long.toString(end - start));
         }
+    }
+
+    private Connection getConnection() throws SQLException {
+        long start = System.currentTimeMillis();
+        Connection connection = pipeDataSource.getConnection();
+        LOG.info("getConnection:time", Long.toString(System.currentTimeMillis() - start));
+        return connection;
     }
 
     private boolean isValidAndUnexpired(Optional<ClusterCacheEntry> entry) {
