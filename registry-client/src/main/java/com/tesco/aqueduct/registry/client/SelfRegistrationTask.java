@@ -58,11 +58,11 @@ public class SelfRegistrationTask {
             }
             services.update(registryResponse.getRequestedToFollow());
             if (registryResponse.getBootstrapType() == BootstrapType.PROVIDER ) {
-                // TODO - test the change below
                 provider.stop();
                 provider.reset();
                 provider.start();
             } else if(registryResponse.getBootstrapType() == BootstrapType.PIPE_AND_PROVIDER) {
+                provider.stop();
                 provider.reset();
                 pipe.reset();
                 pipe.start();
