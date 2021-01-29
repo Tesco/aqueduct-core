@@ -379,6 +379,7 @@ public class SQLiteStorage implements DistributedStorage {
             deletePipeState(connection);
             vacuumDatabase(connection);
             checkpointWalFile(connection);
+            shrinkMemory(connection);
         } catch (SQLException exception) {
             throw new RuntimeException(exception);
         }
@@ -445,6 +446,7 @@ public class SQLiteStorage implements DistributedStorage {
             statement.setTimestamp(2, threshold);
             final int rowsAffected = statement.executeUpdate();
             LOG.info("compaction", "compacted " + rowsAffected + " rows");
+            shrinkMemory(connection);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

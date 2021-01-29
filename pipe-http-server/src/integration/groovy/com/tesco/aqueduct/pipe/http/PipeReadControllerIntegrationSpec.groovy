@@ -14,6 +14,7 @@ import spock.util.concurrent.PollingConditions
 import javax.inject.Inject
 import javax.inject.Named
 import java.time.Clock
+import java.time.ZoneId
 import java.time.ZonedDateTime
 
 import static java.util.Arrays.asList
@@ -39,8 +40,8 @@ class PipeReadControllerIntegrationSpec extends Specification {
 
     static int RETRY_AFTER_MS = 600000
     static String type = "type1"
-    static ZonedDateTime zonedDateTimeNow = ZonedDateTime.now()
-    static String zonedDateTimeNowString = zonedDateTimeNow.toOffsetDateTime()
+    static ZonedDateTime zonedDateTime = ZonedDateTime.of(2020, 1, 1, 1, 1, 1, 1, ZoneId.systemDefault())
+    static String zonedDateTimeString = zonedDateTime.toOffsetDateTime()
 
     void setup() {
         RestAssured.port = server.port
@@ -125,13 +126,13 @@ class PipeReadControllerIntegrationSpec extends Specification {
     void "Check responses has correct payload and that Retry-After header has a value of 0 - #requestPath"() {
         given:
         reader.read(*_) >> new MessageResults(
-            [Message(type, "a", "ct", 100, zonedDateTimeNow, null)], 0, of(0), PipeState.UP_TO_DATE)
+            [Message(type, "a", "ct", 100, zonedDateTime, null)], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
         def response = RestAssured.given().get(requestPath)
 
         then:
-        String expectedResponseBody = """[{"type":"$type","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeNowString"}]"""
+        String expectedResponseBody = """[{"type":"$type","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeString"}]"""
         response
             .then()
             .statusCode(statusCode)
@@ -148,10 +149,10 @@ class PipeReadControllerIntegrationSpec extends Specification {
     void "non empty response returns first available element - #requestPath"() {
         given:
         reader.read(_ as List, 0, _ as String) >> new MessageResults(
-            [Message(type, "a", "ct", 100, zonedDateTimeNow, null)], 0, of(0), PipeState.UP_TO_DATE)
+            [Message(type, "a", "ct", 100, zonedDateTime, null)], 0, of(0), PipeState.UP_TO_DATE)
 
         reader.read(_ as List, 1, _ as String) >> new MessageResults(
-            [Message(type, "a", "ct", 100, zonedDateTimeNow, null)], 0, of(0), PipeState.UP_TO_DATE)
+            [Message(type, "a", "ct", 100, zonedDateTime, null)], 0, of(0), PipeState.UP_TO_DATE)
 
         reader.read(_ as List, 101, _ as String) >> new MessageResults([], 0, of(0), PipeState.UP_TO_DATE)
 
@@ -166,8 +167,8 @@ class PipeReadControllerIntegrationSpec extends Specification {
 
         where:
         requestPath                       | statusCode | responseBody
-        "/pipe/0?location=someLocation"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeNowString"}]"""
-        "/pipe/1?location=someLocation"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeNowString"}]"""
+        "/pipe/0?location=someLocation"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeString"}]"""
+        "/pipe/1?location=someLocation"   | 200        | """[{"type":"$type","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeString"}]"""
         "/pipe/101?location=someLocation" | 200        | '[]'
     }
 
@@ -189,18 +190,18 @@ class PipeReadControllerIntegrationSpec extends Specification {
 
         where:
         types               | statusCode | messages                                                                                                             | responseBody
-        "type1"             | 200        | [Message("type1", "a", "ct", 100, zonedDateTimeNow, null)]                                                           | """[{"type":"type1","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeNowString"}]"""
-        "type2"             | 200        | [Message("type2", "b", "ct", 101, zonedDateTimeNow, null)]                                                           | """[{"type":"type2","key":"b","contentType":"ct","offset":"101","created":"$zonedDateTimeNowString"}]"""
+        "type1"             | 200        | [Message("type1", "a", "ct", 100, zonedDateTime, null)]                                                        | """[{"type":"type1","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeString"}]"""
+        "type2"             | 200        | [Message("type2", "b", "ct", 101, zonedDateTime, null)]                                                        | """[{"type":"type2","key":"b","contentType":"ct","offset":"101","created":"$zonedDateTimeString"}]"""
         "type3"             | 200        | []                                                                                                                   | '[]'
-        "type1,type2"       | 200        | [Message("type1", "a", "ct", 100, zonedDateTimeNow, null), Message("type2", "b", "ct", 101, zonedDateTimeNow, null)] | """[{"type":"type1","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeNowString"},{"type":"type2","key":"b","contentType":"ct","offset":"101","created":"$zonedDateTimeNowString"}]"""
-        "type1,type2,type3" | 200        | [Message("type1", "a", "ct", 100, zonedDateTimeNow, null), Message("type2", "b", "ct", 101, zonedDateTimeNow, null)] | """[{"type":"type1","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeNowString"},{"type":"type2","key":"b","contentType":"ct","offset":"101","created":"$zonedDateTimeNowString"}]"""
+        "type1,type2"       | 200        | [Message("type1", "a", "ct", 100, zonedDateTime, null), Message("type2", "b", "ct", 101, zonedDateTime, null)] | """[{"type":"type1","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeString"},{"type":"type2","key":"b","contentType":"ct","offset":"101","created":"$zonedDateTimeString"}]"""
+        "type1,type2,type3" | 200        | [Message("type1", "a", "ct", 100, zonedDateTime, null), Message("type2", "b", "ct", 101, zonedDateTime, null)] | """[{"type":"type1","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeString"},{"type":"type2","key":"b","contentType":"ct","offset":"101","created":"$zonedDateTimeString"}]"""
     }
 
     @Unroll
     void "filtering by location and type: #query"() {
         given:
         reader.read(["type1"], 0, _ as String) >> new MessageResults(
-            [Message("type1", "a", "ct", 100, zonedDateTimeNow, null)], 0, of(0), PipeState.UP_TO_DATE)
+            [Message("type1", "a", "ct", 100, zonedDateTime, null)], 0, of(0), PipeState.UP_TO_DATE)
 
         when:
         def response = RestAssured.given().get("/pipe/0$query")
@@ -217,7 +218,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         "?type=type1"                   | 400        | ''
         "?type=type1&location="         | 400        | ''
         "?type=type1&location"          | 400        | ''
-        "?type=type1&location=1234"     | 200        | """[{"type":"type1","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeNowString"}]"""
+        "?type=type1&location=1234"     | 200        | """[{"type":"type1","key":"a","contentType":"ct","offset":"100","created":"$zonedDateTimeString"}]"""
     }
 
     @Unroll
@@ -226,7 +227,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         reader.read(["type1"], 0, _ as String) >> new MessageResults([], 0, of(headerValue), PipeState.UP_TO_DATE)
 
         reader.read(["type2"], 0, _ as String) >> new MessageResults(
-            [Message("type2", "b", "ct", headerValue, zonedDateTimeNow, null)], 0, of(headerValue), PipeState.UP_TO_DATE)
+            [Message("type2", "b", "ct", headerValue, zonedDateTime, null)], 0, of(headerValue), PipeState.UP_TO_DATE)
 
         when:
         def response = RestAssured.given().get("/pipe/0?type=$type&location=someLocation")
@@ -241,7 +242,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         where:
         type    | statusCode    | headerName                              | headerValue         | responseBody
         'type1' |  200          | HttpHeaders.GLOBAL_LATEST_OFFSET        | 101                 | '[]'
-        'type2' |  200          | HttpHeaders.GLOBAL_LATEST_OFFSET        | 101                 | """[{"type":"type2","key":"b","contentType":"ct","offset":"101","created":"$zonedDateTimeNowString"}]"""
+        'type2' |  200          | HttpHeaders.GLOBAL_LATEST_OFFSET        | 101                 | """[{"type":"type2","key":"b","contentType":"ct","offset":"101","created":"$zonedDateTimeString"}]"""
     }
 
     void "pipe signals pipe state in response header"() {
@@ -279,7 +280,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         def dataBlob = "some very big data blob with more than 200 bytes of size"
         given:
         reader.read([], 100, _ as String) >> new MessageResults(
-            [Message(null, "a", "contentType", 100, zonedDateTimeNow, dataBlob)],
+            [Message(null, "a", "contentType", 100, zonedDateTime, dataBlob)],
             0,
             OptionalLong.empty(),
             PipeState.UP_TO_DATE)
@@ -302,7 +303,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
         given:
         reader.read([], 100, _ as String) >> new MessageResults(
                 [Message(type, "a", "contentType", 100, ZonedDateTime.parse("2018-12-20T15:13:01Z"), "data"),
-                 Message(type, "b", null, 101, zonedDateTimeNow, null)],
+                 Message(type, "b", null, 101, zonedDateTime, null)],
                 0, OptionalLong.empty(), PipeState.UP_TO_DATE)
 
         when:
@@ -314,7 +315,7 @@ class PipeReadControllerIntegrationSpec extends Specification {
             .body(equalTo("""
                 [
                     {"type":"type1","key":"a","contentType":"contentType","offset":"100","created":"2018-12-20T15:13:01Z","data":"data"},
-                    {"type":"type1","key":"b","offset":"101","created":"$zonedDateTimeNowString"}
+                    {"type":"type1","key":"b","offset":"101","created":"$zonedDateTimeString"}
                 ]
             """.replaceAll("\\s", "")))
     }
