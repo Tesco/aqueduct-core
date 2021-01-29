@@ -108,6 +108,7 @@ class SelfRegistrationTaskSpec extends Specification {
         ran
         1 * upstreamClient.register(_ as Node) >> new RegistryResponse(["http://1.2.3.4", "http://5.6.7.8"], bootstrapType)
         1 * services.update(_ as List) >> { startedLatch.countDown() }
+        numProviderBootstrapCalls * bootstrapableProvider.stop()
         numProviderBootstrapCalls * bootstrapableProvider.reset()
         numProviderBootstrapCalls * bootstrapableProvider.start()
         numPipeBootstrapCalls * bootstrapablePipe.reset()
