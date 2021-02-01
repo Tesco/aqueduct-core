@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.OptionalLong;
 
 public interface Reader {
-    MessageResults read(List<String> types, long offset, List<String> targetUuids);
+    MessageResults read(List<String> types, long offset, String locationUuid);
     OptionalLong getOffset(OffsetName offsetName);
     PipeState getPipeState();
     default long getOffsetConsistencySum(long offset, List<String> targetUuids) {

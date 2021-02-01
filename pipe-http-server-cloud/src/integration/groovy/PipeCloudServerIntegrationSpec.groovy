@@ -1,7 +1,10 @@
+import Helper.SqlWrapper
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
-import com.tesco.aqueduct.pipe.api.LocationResolver
+import com.tesco.aqueduct.pipe.api.HttpHeaders
 import com.tesco.aqueduct.pipe.api.Message
+import com.tesco.aqueduct.pipe.storage.ClusterCacheEntry
+import com.tesco.aqueduct.pipe.storage.ClusterStorage
 import groovy.sql.Sql
 import io.micronaut.context.ApplicationContext
 import io.micronaut.inject.qualifiers.Qualifiers
@@ -13,6 +16,7 @@ import spock.lang.Shared
 import spock.lang.Specification
 
 import javax.sql.DataSource
+import java.sql.Connection
 import java.time.LocalDateTime
 
 import static org.hamcrest.Matchers.equalTo
@@ -26,44 +30,22 @@ class PipeCloudServerIntegrationSpec extends Specification {
     @AutoCleanup("stop") ApplicationContext context
 
     DataSource dataSource
-    LocationResolver locationResolver
+    ClusterStorage clusterStorage
 
     def setup() {
 
-        sql = new Sql(pg.embeddedPostgres.postgresDatabase.connection)
+        sql = new SqlWrapper(pg.embeddedPostgres.postgresDatabase).sql
 
         dataSource = Mock()
-        locationResolver = Mock()
+        clusterStorage = Mock()
 
         dataSource.connection >>> [
             new Sql(pg.embeddedPostgres.postgresDatabase.connection).connection,
             new Sql(pg.embeddedPostgres.postgresDatabase.connection).connection,
+            new Sql(pg.embeddedPostgres.postgresDatabase.connection).connection,
+            new Sql(pg.embeddedPostgres.postgresDatabase.connection).connection,
             new Sql(pg.embeddedPostgres.postgresDatabase.connection).connection
         ]
-        locationResolver.resolve(_) >> []
-
-        sql.execute("""
-        DROP TABLE IF EXISTS EVENTS;
-        DROP TABLE IF EXISTS CLUSTERS;
-        
-        CREATE TABLE EVENTS(
-            msg_offset BIGSERIAL PRIMARY KEY NOT NULL,
-            msg_key varchar NOT NULL, 
-            content_type varchar NOT NULL, 
-            type varchar NOT NULL, 
-            created_utc timestamp NOT NULL, 
-            data text NULL,
-            event_size int NOT NULL,
-            cluster_id BIGINT NOT NULL DEFAULT 1
-        );
-
-        CREATE TABLE CLUSTERS(
-            cluster_id BIGSERIAL PRIMARY KEY NOT NULL,
-            cluster_uuid VARCHAR NOT NULL
-        );
-          
-        INSERT INTO CLUSTERS (cluster_uuid) VALUES ('NONE');
-        """)
 
         context = ApplicationContext
             .build()
@@ -75,13 +57,16 @@ class PipeCloudServerIntegrationSpec extends Specification {
                 "persistence.read.expected-node-count": 2,
                 "persistence.read.cluster-db-pool-size": 10,
                 "micronaut.security.enabled": "false",
-                "compression.threshold-in-bytes": 1024
+                "compression.threshold-in-bytes": 1024,
+                "micronaut.caches.latest-offset-cache.expire-after-write": "5s",
+                "persistence.read.read-delay-seconds": "0"
             )
             .mainClass(EmbeddedServer)
             .build()
             .registerSingleton(DataSource, dataSource, Qualifiers.byName("pipe"))
             .registerSingleton(DataSource, dataSource, Qualifiers.byName("registry"))
-            .registerSingleton(LocationResolver, locationResolver)
+            .registerSingleton(DataSource, dataSource, Qualifiers.byName("compaction"))
+            .registerSingleton(ClusterStorage, clusterStorage)
 
         context.start()
 
@@ -101,7 +86,7 @@ class PipeCloudServerIntegrationSpec extends Specification {
         insert(101, "b", "contentType", "type1", time, null)
 
         and: "location to cluster resolution"
-        locationResolver.resolve("someLocation") >> ["a_cluster_id"]
+        clusterStorage.getClusterCacheEntry("someLocation", _ as Connection) >> clusterCacheEntry("someLocation", [1L])
 
         when:
         def request = RestAssured.get("/pipe/100?location=someLocation")
@@ -116,6 +101,39 @@ class PipeCloudServerIntegrationSpec extends Specification {
                 {"type":"type1","key":"b","contentType":"contentType","offset":"101","created":"2018-12-20T15:13:01Z"}
             ]
             """.replaceAll("\\s", "")))
+    }
+
+    def "the global latest offset is cached" () {
+        given:
+        insert(100,  "a", "contentType", "type1", time, "data")
+        insert(101, "b", "contentType", "type1", time, null)
+
+        and: "location to cluster resolution"
+        clusterStorage.getClusterCacheEntry("someLocation", _ as Connection) >> clusterCacheEntry("someLocation", [1L])
+
+        when:
+        def request1 = RestAssured.get("/pipe/100?location=someLocation")
+
+        then:
+        request1
+            .then()
+            .header(HttpHeaders.GLOBAL_LATEST_OFFSET.toString(), equalTo("101"))
+
+        when: "more data is inserted"
+        insert(102, "b", "contentType", "type1", time, null)
+        insert(103, "b", "contentType", "type1", time, null)
+
+        and:
+        def request2 = RestAssured.get("/pipe/100?location=someLocation")
+
+        then:
+        request2
+            .then()
+            .header(HttpHeaders.GLOBAL_LATEST_OFFSET.toString(), equalTo("101"))
+    }
+
+    Optional<ClusterCacheEntry> clusterCacheEntry(String locationUuid, List<Long> clusterIds) {
+        Optional.of(new ClusterCacheEntry(locationUuid, clusterIds, LocalDateTime.now().plusMinutes(1), true))
     }
 
     void insert(Long msg_offset, String msg_key, String content_type, String type, LocalDateTime created, String data) {

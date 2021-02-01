@@ -8,6 +8,7 @@ import io.restassured.RestAssured
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
+
 import javax.sql.DataSource
 
 import static io.restassured.RestAssured.when
@@ -25,6 +26,7 @@ class StatusControllerIntegrationSpec extends Specification {
             .build()
             .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("pipe"))
             .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("registry"))
+            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("compaction"))
 
         context.start()
 

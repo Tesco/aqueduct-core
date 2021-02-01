@@ -5,11 +5,14 @@ import spock.lang.Specification
 import spock.lang.Unroll
 
 import javax.sql.DataSource
+import java.sql.Connection
+import java.sql.SQLException
 
 class PostgresqlStorageSpec extends Specification {
 
     @Shared
     def retryAfter = 30000
+    ClusterStorage clusterStorage = Mock(ClusterStorage)
 
     @Unroll
     def "retry after is #result when queryTime is #timeOfQueryMs and message result size is #noOfMessages"() {
@@ -18,7 +21,7 @@ class PostgresqlStorageSpec extends Specification {
         def clusterDBPoolSize = 60
 
         and:
-        def storage = new PostgresqlStorage(Mock(DataSource), 20, retryAfter, 2, 0, readersNodeCount, clusterDBPoolSize, 4)
+        def storage = new PostgresqlStorage(Mock(DataSource), Mock(DataSource), 20, retryAfter, 2, new OffsetFetcher(0), readersNodeCount, clusterDBPoolSize, 4, clusterStorage)
 
         expect:
         storage.calculateRetryAfter(timeOfQueryMs, noOfMessages) == result
@@ -40,7 +43,7 @@ class PostgresqlStorageSpec extends Specification {
         def clusterDBPoolSize = 60
 
         and:
-        def storage = new PostgresqlStorage(Mock(DataSource), 20, retryAfter, 2, 0, readersNodeCount, clusterDBPoolSize, 4)
+        def storage = new PostgresqlStorage(Mock(DataSource), Mock(DataSource), 20, retryAfter, 2, new OffsetFetcher(0), readersNodeCount, clusterDBPoolSize, 4, clusterStorage)
 
         expect:
         storage.calculateRetryAfter(timeOfQueryMs, noOfMessages) >= result
@@ -51,5 +54,28 @@ class PostgresqlStorageSpec extends Specification {
         1234          | 0            | retryAfter
         700           | 10000        | retryAfter
         1000          | 10000        | retryAfter
+    }
+
+    def "Exception thrown during connection close is propagated upstream"() {
+        given:
+        def dataSource = Mock(DataSource)
+        def storage = new PostgresqlStorage(dataSource, Mock(DataSource), 20, retryAfter, 2, new OffsetFetcher(0), 1000, 4, 4, clusterStorage)
+
+        and:
+        def connection = Mock(Connection)
+        dataSource.getConnection() >> connection
+
+        and:
+        clusterStorage.getClusterCacheEntry("someLocationUuid", connection) >> Optional.empty()
+
+        and:
+        connection.close() >> {throw new SQLException()}
+
+        when:
+        storage.read([], 0, "someLocationUuid")
+
+        then:
+        def exception = thrown(RuntimeException)
+        exception.getCause() instanceof SQLException
     }
 }

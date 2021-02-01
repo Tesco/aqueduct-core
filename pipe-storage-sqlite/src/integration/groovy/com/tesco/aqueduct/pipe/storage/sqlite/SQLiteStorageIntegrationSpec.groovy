@@ -463,7 +463,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage.write(message)
 
         and: 'we retrieve the message from the database'
-        MessageResults messageResults = sqliteStorage.read(null, offset, ["locationUuid"])
+        MessageResults messageResults = sqliteStorage.read(null, offset, "locationUuid")
         Message retrievedMessage = messageResults.messages.get(0)
 
         then: 'the message retrieved should be what we saved'
@@ -475,7 +475,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         given: "no pipe state exist in the database"
 
         when: 'we retrieve the message from the database'
-        MessageResults messageResults = sqliteStorage.read(null, 0, ["locationUuid"])
+        MessageResults messageResults = sqliteStorage.read(null, 0, "locationUuid")
 
         then: 'the pipe states should be defaulted to OUT_OF_DATE'
         messageResults.pipeState == PipeState.UNKNOWN
@@ -494,7 +494,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage.write(PipeState.UP_TO_DATE)
 
         when: 'we retrieve the message from the database'
-        MessageResults messageResults = sqliteStorage.read(null, offset, ["locationUuid"])
+        MessageResults messageResults = sqliteStorage.read(null, offset, "locationUuid")
         Message retrievedMessage = messageResults.messages.get(0)
 
         then: 'the message retrieved should be what we saved'
@@ -516,7 +516,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage.write(messages)
 
         and: 'we retrieve the message from the database'
-        MessageResults messageResults = sqliteStorage.read(['my-new-type'], offset, ["locationUuid"])
+        MessageResults messageResults = sqliteStorage.read(['my-new-type'], offset, "locationUuid")
         Message retrievedMessage = messageResults.messages.get(0)
 
         then: 'the message retrieved should be what we saved'
@@ -533,7 +533,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage.write(messages)
 
         when: 'all messages with offset are read'
-        MessageResults messageResults = sqliteStorage.read(null, 2, ["locationUuid"])
+        MessageResults messageResults = sqliteStorage.read(null, 2, "locationUuid")
 
         then: 'multiple messages are retrieved'
         messageResults.messages.size() == 3
@@ -550,7 +550,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage.write(messages)
 
         when: 'all messages with offset are read'
-        MessageResults messageResults = sqliteStorage.read(null, 2, ["locationUuid"])
+        MessageResults messageResults = sqliteStorage.read(null, 2, "locationUuid")
 
         then: 'multiple messages are retrieved'
         messageResults.messages.size() == 3
@@ -571,7 +571,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage.write(msg3)
 
         when: "reading from the database"
-        MessageResults result = sqliteStorage.read(["type-1"], 0, ["locationUuid"])
+        MessageResults result = sqliteStorage.read(["type-1"], 0, "locationUuid")
 
         then: "messages that are returned are no larger than the maximum batch size"
         result.messages.size() == 2
@@ -590,7 +590,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage.write(messages)
 
         when: 'reading the messages of multiple specified types from a given offset'
-        def receivedMessages = sqliteStorage.read(['type-1', 'type-2'], 1, ["locationUuid"])
+        def receivedMessages = sqliteStorage.read(['type-1', 'type-2'], 1, "locationUuid")
 
         then: 'only the messages matching the multiple specified types from the given offset are returned'
         receivedMessages.messages.size() == 2
@@ -603,7 +603,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         // setup creates the table and populates globalLatestOffset
 
         when: 'performing a read into the database'
-        def messageResults = sqliteStorage.read(['type-1'], 1, ["locationUuid"])
+        def messageResults = sqliteStorage.read(['type-1'], 1, "locationUuid")
 
         then: 'the latest offset for the messages with one of the types is returned'
         messageResults.getGlobalLatestOffset() == OptionalLong.of(3)
@@ -616,7 +616,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage = new SQLiteStorage(successfulDataSource(), limit, 10, batchSize)
 
         when: 'performing a read into the database'
-        def messageResults = sqliteStorage.read(['type-1'], 1, ["locationUuid"])
+        def messageResults = sqliteStorage.read(['type-1'], 1, "locationUuid")
 
         then: 'the latest offset for the messages with one of the types is returned'
         messageResults.getGlobalLatestOffset() == OptionalLong.empty()
@@ -633,7 +633,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage.write(messages)
 
         when: 'all messages with offset are read'
-        MessageResults messageResults = sqliteStorage.read(null, 1, ["locationUuid"])
+        MessageResults messageResults = sqliteStorage.read(null, 1, "locationUuid")
 
         then: 'the retry after is 0'
         messageResults.retryAfterMs == 0
@@ -660,7 +660,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults messageResults = sqliteStorage.read(null, 1, ["locationUuid"])
+        MessageResults messageResults = sqliteStorage.read(null, 1, "locationUuid")
         List<Message> retrievedMessages = messageResults.messages
 
         then: 'duplicate messages are deleted'
@@ -683,7 +683,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults messageResults = sqliteStorage.read(null, 1, ["locationUuid"])
+        MessageResults messageResults = sqliteStorage.read(null, 1, "locationUuid")
         List<Message> retrievedMessages = messageResults.messages
 
         then: 'no messages have been deleted'
@@ -708,7 +708,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults messageResults = sqliteStorage.read(null, 1, ["locationUuid"])
+        MessageResults messageResults = sqliteStorage.read(null, 1, "locationUuid")
 
         then: 'duplicate messages are not deleted as they are beyond the threshold'
         messageResults.messages.size() == 4
@@ -734,7 +734,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
         sqliteStorage.compactUpTo(ZonedDateTime.parse("2000-12-02T10:00:00Z"))
 
         and: 'all messages are requested'
-        MessageResults messageResults = sqliteStorage.read(null, 1, ["locationUuid"])
+        MessageResults messageResults = sqliteStorage.read(null, 1, "locationUuid")
 
         then: 'duplicate messages are deleted that are within the threshold'
         messageResults.messages.size() == 7

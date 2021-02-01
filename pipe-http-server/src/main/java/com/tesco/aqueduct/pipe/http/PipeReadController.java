@@ -26,9 +26,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.tesco.aqueduct.pipe.api.PipeState.OUT_OF_DATE;
-import static com.tesco.aqueduct.pipe.api.PipeState.UP_TO_DATE;
-
 @Secured("PIPE_READ")
 @Measure
 @Controller
@@ -37,25 +34,22 @@ public class PipeReadController {
     private static final PipeLogger LOG = new PipeLogger(LoggerFactory.getLogger(PipeReadController.class));
 
     private final Reader reader;
-    private final PipeStateProvider pipeStateProvider;
-    private final LocationResolver locationResolver;
     private final Duration bootstrapThreshold;
     private final ContentEncoder contentEncoder;
     private final PipeRateLimiter rateLimiter;
+    private final boolean logging;
 
     @Inject
     public PipeReadController(
         @Named("local") Reader reader,
-        PipeStateProvider pipeStateProvider,
-        LocationResolver locationResolver,
         @Property(name = "pipe.bootstrap.threshold", defaultValue = "6h") Duration bootstrapThreshold,
+        @Property(name= "bootstrap.retry.logging", defaultValue = "false") boolean logging,
         ContentEncoder contentEncoder,
         PipeRateLimiter rateLimiter
     ) {
         this.reader = reader;
-        this.pipeStateProvider = pipeStateProvider;
-        this.locationResolver = locationResolver;
         this.bootstrapThreshold = bootstrapThreshold;
+        this.logging = logging;
         this.contentEncoder = contentEncoder;
         this.rateLimiter = rateLimiter;
     }
@@ -75,7 +69,7 @@ public class PipeReadController {
         final List<String> types = flattenRequestParams(type);
         LOG.withTypes(types).debug("pipe read controller", "reading with types");
 
-        final MessageResults messageResults = reader.read(types, offset, locationResolver.resolve(location));
+        final MessageResults messageResults = reader.read(types, offset, location);
         final List<Message> messages = messageResults.getMessages();
 
         final long retryAfterMs = calculateRetryAfter(messageResults);
@@ -91,8 +85,7 @@ public class PipeReadController {
 
         responseHeaders.put(HttpHeaders.RETRY_AFTER, String.valueOf(retryAfterSeconds));
         responseHeaders.put(HttpHeaders.RETRY_AFTER_MS, String.valueOf(retryAfterMs));
-        responseHeaders.put(HttpHeaders.PIPE_STATE,
-                pipeStateProvider.getState(types, reader).isUpToDate() ? UP_TO_DATE.toString() : OUT_OF_DATE.toString());
+        responseHeaders.put(HttpHeaders.PIPE_STATE, messageResults.getPipeState().toString());
 
         MutableHttpResponse<byte[]> response = HttpResponse.ok(encodedResponse.getEncodedBody()).headers(responseHeaders);
 
@@ -106,7 +99,9 @@ public class PipeReadController {
 
     private long calculateRetryAfter(MessageResults messageResults) {
         if (isBootstrappingAndCapacityAvailable(messageResults.getMessages())) {
-            LOG.info("pipe read controller", "retry time is 0ms");
+            if(logging) {
+                LOG.info("pipe read controller", "retry time is 0ms");
+            }
             return 0;
         } else {
             return messageResults.getRetryAfterMs();

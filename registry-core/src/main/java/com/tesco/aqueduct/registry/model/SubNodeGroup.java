@@ -5,6 +5,7 @@ import lombok.EqualsAndHashCode;
 import java.net.URL;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -107,7 +108,24 @@ public class SubNodeGroup {
 
     public void sortNodes(URL cloudUrl) {
         nodes.sort(comparing(Node::getStatus));
+        nodes.sort(comparing(Node::getGeneration));
+        nodes.sort(onlineNodesFirst());
         updateGetFollowing(cloudUrl);
+    }
+
+    private Comparator<Node> onlineNodesFirst() {
+        return (n1,n2) -> {
+            if(n1.getStatus() == OFFLINE && n2.getStatus() == OFFLINE) {
+                return 0;
+            } else if (n1.getStatus() != OFFLINE && n2.getStatus() != OFFLINE) {
+                return 0;
+            // we only want to sort offline nodes here
+            } else if(n1.getStatus() == OFFLINE && n2.getStatus() != OFFLINE) {
+                return 1;
+            } else {
+                return -1;
+            }
+        };
     }
 
     public Optional<Node> findAndUpdate(Node nodeToRegister) {

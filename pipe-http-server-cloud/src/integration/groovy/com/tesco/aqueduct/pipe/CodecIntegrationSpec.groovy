@@ -53,12 +53,13 @@ class CodecIntegrationSpec extends Specification {
                 "persistence.read.max-batch-size":              "10485760",
                 "persistence.read.expected-node-count":         2,
                 "persistence.read.cluster-db-pool-size":        10,
+                "persistence.read.read-delay-seconds":          0,
 
                 "authentication.identity.url":                  "${identityMockService.getUrl()}",
-                "authentication.identity.validate.token.path":  "/v4/access-token/auth/validate?client_id=${CLIENT_ID_AND_SECRET}",
+                "authentication.identity.validate.token.path":  "/some/validate/token/path?client_id=${CLIENT_ID_AND_SECRET}",
                 "authentication.identity.client.id":            "$CLIENT_ID",
                 "authentication.identity.client.secret":        "$CLIENT_SECRET",
-                "authentication.identity.issue.token.path":     "/v4/issue-token/token",
+                "authentication.identity.issue.token.path":     "/some/issue/token/path",
                 "authentication.identity.attempts":             "3",
                 "authentication.identity.delay":                "10ms",
                 "authentication.identity.consumes":             "application/token+json",
@@ -66,6 +67,8 @@ class CodecIntegrationSpec extends Specification {
                 "authentication.identity.users.userA.roles":    "PIPE_READ",
 
                 "location.url":                                 "${locationMockService.getUrl()}",
+                "location.clusters.get.path":                   "${LocationMock.LOCATION_CLUSTER_PATH_WITH_QUERY_PARAM}",
+                "location.clusters.get.path.filter.pattern":    "${LocationMock.LOCATION_CLUSTER_PATH_FILTER_PATTERN}",
                 "location.attempts":                            3,
                 "location.delay":                               "2ms",
                 "location.reset":                               "10ms",
@@ -77,6 +80,7 @@ class CodecIntegrationSpec extends Specification {
             .build()
             .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("pipe"))
             .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("registry"))
+            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("compaction"))
             .registerSingleton(BrotliCodec, new ErrorProneCodec())
 
         context.start()
@@ -101,7 +105,6 @@ class CodecIntegrationSpec extends Specification {
             return super.encode(input)
         }
     }
-
 
     void setup() {
         sql = new SqlWrapper(pg.embeddedPostgres.postgresDatabase)

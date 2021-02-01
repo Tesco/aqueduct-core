@@ -128,6 +128,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
                 micronaut.security.token.jwt.enabled: true
                 micronaut.security.token.jwt.bearer.enabled: true
                 compression.threshold-in-bytes: 1024
+                location.clusters.get.path.filter.pattern: "/some/filter/path"
                 authentication:
                   users:
                     $USERNAME:
@@ -160,6 +161,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
             .registerSingleton(NodeRegistry, registry)
             .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("pipe"))
             .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("registry"))
+            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("compaction"))
             .registerSingleton(Reader, reader)
             .registerSingleton(NodeRequestStorage, nodeRequestStorage)
 

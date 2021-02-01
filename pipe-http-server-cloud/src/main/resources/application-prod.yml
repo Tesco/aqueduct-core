@@ -31,17 +31,9 @@ authentication:
           - PIPE_READ
           - REGISTRY_WRITE
 
-location:
-  url: "${LOCATION_URL}"
-
-pipe:
-  server:
-    url: "${PIPE_URL}"
-
 persistence:
   compact:
-    threshold: 3d
-    schedule.cron: "0 14 12 1/1 * ?"
+    schedule.cron: "0 14 0/1 * * ?"
   read:
     limit: 2500
     max-batch-size: 1000000

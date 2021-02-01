@@ -6,9 +6,12 @@ import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import java.sql.Timestamp
+import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
+import java.util.concurrent.TimeUnit
 
 abstract class StorageSpec extends Specification {
 
@@ -16,13 +19,14 @@ abstract class StorageSpec extends Specification {
     static limit = 1000
 
     @Shared
-    def msg1 = message(offset: 102, key:"x", )
+    def msg1 = message(offset: 102, key:"x")
 
     @Shared
     def msg2 = message(offset: 107, key:"y")
 
     abstract Reader getStorage();
-    abstract void insert(Message msg);
+    abstract void insert(Message msg, Long clusterId = 1L);
+    abstract void insertLocationInCache(String locationUuid, List<Long> clusterIds, def expiry = Timestamp.valueOf(LocalDateTime.now() + TimeUnit.MINUTES.toMillis(1)), boolean valid = true)
 
     def "can persist messages without offset"() {
         given:
@@ -30,7 +34,7 @@ abstract class StorageSpec extends Specification {
         insert(message(offset: null))
 
         when:
-        List<Message> messages = storage.read(null, 0, []).messages
+        List<Message> messages = storage.read(null, 0, "locationUuid").messages
 
         then:
         messages*.offset == [1,2]
@@ -43,7 +47,7 @@ abstract class StorageSpec extends Specification {
         insert(msg2)
 
         when:
-        List<Message> messages = storage.read(null, 0, []).messages
+        List<Message> messages = storage.read(null, 0, "locationUuid").messages
 
         then:
         messages*.offset == [102,107]
@@ -55,7 +59,7 @@ abstract class StorageSpec extends Specification {
         insert(msg)
 
         when: "When we read"
-        List<Message> messages = storage.read(null, 0, []).messages
+        List<Message> messages = storage.read(null, 0, "locationUuid").messages
 
         then: "We get exactly the message we send"
         messages == [msg]
@@ -68,7 +72,7 @@ abstract class StorageSpec extends Specification {
         }
 
         when:
-        def messages = storage.read(null, 0, []).messages.toList()
+        def messages = storage.read(null, 0, "locationUuid").messages.toList()
 
         then:
         messages.size() == limit
@@ -83,7 +87,7 @@ abstract class StorageSpec extends Specification {
         insert(message(type: "type-v3"))
 
         when:
-        List<Message> messages = storage.read(types, 0, []).messages
+        List<Message> messages = storage.read(types, 0, "locationUuid").messages
 
         then:
         messages.size() == resultsSize
@@ -107,7 +111,7 @@ abstract class StorageSpec extends Specification {
         insert(msg2)
 
         then:
-        storage.read(null, offset, []).messages == result
+        storage.read(null, offset, "locationUuid").messages == result
 
         where:
         offset          | result       | rule
@@ -125,7 +129,7 @@ abstract class StorageSpec extends Specification {
         insert(message(key:"x"))
 
         then:
-        storage.read(null, 0, []).messages.size() == 3
+        storage.read(null, 0, "locationUuid").messages.size() == 3
     }
 
     abstract Message message(

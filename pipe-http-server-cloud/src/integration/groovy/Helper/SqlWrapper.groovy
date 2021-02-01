@@ -19,6 +19,7 @@ class SqlWrapper {
         sql.execute("""
         DROP TABLE IF EXISTS EVENTS;
         DROP TABLE IF EXISTS CLUSTERS;
+        DROP TABLE IF EXISTS CLUSTER_CACHE;
           
         CREATE TABLE EVENTS(
             msg_offset BIGSERIAL PRIMARY KEY NOT NULL,
@@ -28,7 +29,8 @@ class SqlWrapper {
             created_utc timestamp NOT NULL, 
             data text NULL,
             event_size int NOT NULL,
-            cluster_id BIGINT NOT NULL DEFAULT 1
+            cluster_id BIGINT NOT NULL DEFAULT 1,
+            time_to_live TIMESTAMP NULL
         );
         
         CREATE TABLE CLUSTERS(
@@ -36,9 +38,15 @@ class SqlWrapper {
             cluster_uuid VARCHAR NOT NULL
         );
         
+        CREATE TABLE CLUSTER_CACHE(
+            location_uuid VARCHAR PRIMARY KEY NOT NULL,
+            cluster_ids BIGINT[] NOT NULL,
+            expiry TIMESTAMP NOT NULL,
+            valid BOOLEAN NOT NULL DEFAULT TRUE
+        );
+        
         INSERT INTO CLUSTERS (cluster_uuid) VALUES ('NONE');
         """)
-
         return sql
     }
 

@@ -123,7 +123,7 @@ class TimedDistributedStorageIntegrationSpec extends Specification {
         storage.write(message)
 
         and: 'we retrieve the message from the database'
-        MessageResults messageResults = storage.read(null, offset, ["locationUuid"])
+        MessageResults messageResults = storage.read(null, offset, "locationUuid")
         Message retrievedMessage = messageResults.messages.get(0)
 
         then: 'the message retrieved should be what we saved'

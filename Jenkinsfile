@@ -37,17 +37,17 @@ ansiColor('xterm') {
         String latestImage = "$registry/aqueduct-pipe:latest"
 
         if (scmVars.GIT_BRANCH == "master") {
-            stage('Spot Bugs') {
-                sh "./gradlew spotbugsMain"
-                def spotbugs = scanForIssues tool: spotBugs(pattern: '**/spotbugs/main.xml')
-                publishIssues issues: [spotbugs]
-            }
-
-            stage('Pmd Analysis') {
-                sh "./gradlew pmdMain"
-                def pmd = scanForIssues tool: pmdParser(pattern: '**/pmd/main.xml')
-                publishIssues issues: [pmd]
-            }
+//             stage('Spot Bugs') {
+//                 sh "./gradlew spotbugsMain"
+//                 def spotbugs = scanForIssues tool: spotBugs(pattern: '**/spotbugs/main.xml')
+//                 publishIssues issues: [spotbugs]
+//             }
+//
+//             stage('Pmd Analysis') {
+//                 sh "./gradlew pmdMain"
+//                 def pmd = scanForIssues tool: pmdParser(pattern: '**/pmd/main.xml')
+//                 publishIssues issues: [pmd]
+//             }
 
             stage('OWASP Scan') {
                 sh "./gradlew dependencyCheckAggregate"
@@ -84,7 +84,7 @@ ansiColor('xterm') {
                     sh "docker build -t ${integrationImage} ."
                 } 
 
-                sh "docker run --rm  -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.cache/trivy:/root/.cache/trivy knqyf263/trivy:0.1.2 --quiet --ignore-unfixed $integrationImage"
+//                sh "docker run --rm  -v /var/run/docker.sock:/var/run/docker.sock -v $HOME/.cache/trivy:/root/.cache/trivy knqyf263/trivy:0.1.2 --quiet --ignore-unfixed $integrationImage"
                 sh "docker push ${integrationImage}"
 
                 if (params.INITIAL_BUILD) {
@@ -119,14 +119,8 @@ ansiColor('xterm') {
                     get_pipe: {
                         completeRunscopeTests("ppe", "get_pipe")
                     },
-                    publisher: {
-                        completeRunscopeTests("ppe", "publisher")
-                    },
                     registry_v2: {
                         completeRunscopeTests("ppe", "registry_v2")
-                    },
-                    auth_check: {
-                        completeRunscopeTests("ppe", "auth_check")
                     }
                 )
             }
@@ -161,14 +155,8 @@ ansiColor('xterm') {
                     get_pipe: {
                         completeRunscopeTests("live", "get_pipe")
                     },
-                    publisher: {
-                        completeRunscopeTests("live", "publisher")
-                    },
                     registry_v2: {
                         completeRunscopeTests("live", "registry_v2")
-                    },
-                    auth_check: {
-                        completeRunscopeTests("live", "auth_check")
                     }
                 )
             }

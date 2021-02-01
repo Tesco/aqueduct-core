@@ -63,7 +63,7 @@ class SelfRegistrationTaskSpec extends Specification {
         0 * services.update(_)
     }
 
-    def 'check register doesnt default to cloud pipe if previously it succeeded'() {
+    def 'check register does not default to cloud pipe if previously it succeeded'() {
         given: "a registry client"
         def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
         upstreamClient.register(_ as Node) >> new RegistryResponse(["http://1.2.3.4", "http://5.6.7.8"], BootstrapType.NONE) >> { throw new RuntimeException() }
@@ -78,7 +78,7 @@ class SelfRegistrationTaskSpec extends Specification {
         1 * services.update(["http://1.2.3.4", "http://5.6.7.8"])
     }
 
-    def 'null response to register call doesnt result in null hit list update update'() {
+    def 'null response to register call does not result in null hit list update update'() {
         given: "a registry client"
         def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
 
@@ -93,7 +93,7 @@ class SelfRegistrationTaskSpec extends Specification {
     }
 
     @Unroll
-    def 'bootstrap related methods are called in correct combo depending on bootstrap type'() {
+    def 'bootstrap related methods are called in correct combo and order depending on bootstrap type'() {
         def startedLatch = new CountDownLatch(1)
 
         given: "a registry client"
@@ -108,10 +108,21 @@ class SelfRegistrationTaskSpec extends Specification {
         ran
         1 * upstreamClient.register(_ as Node) >> new RegistryResponse(["http://1.2.3.4", "http://5.6.7.8"], bootstrapType)
         1 * services.update(_ as List) >> { startedLatch.countDown() }
+
+        then: "provider is stopped"
+        numProviderBootstrapCalls * bootstrapableProvider.stop()
+
+        then: "provider is reset"
         numProviderBootstrapCalls * bootstrapableProvider.reset()
-        numProviderBootstrapCalls * bootstrapableProvider.start()
+
+        then: "pipe is reset"
         numPipeBootstrapCalls * bootstrapablePipe.reset()
+
+        then: "pipe is started"
         numPipeBootstrapCalls * bootstrapablePipe.start()
+
+        then: "provider is started"
+        numProviderBootstrapCalls * bootstrapableProvider.start()
 
         where:
         bootstrapType                   | numProviderBootstrapCalls | numPipeBootstrapCalls

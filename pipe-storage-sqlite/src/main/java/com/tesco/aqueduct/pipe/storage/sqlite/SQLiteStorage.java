@@ -58,7 +58,7 @@ public class SQLiteStorage implements DistributedStorage {
     }
 
     @Override
-    public MessageResults read(final List<String> types, final long offset, final List<String> locationUuids) {
+    public MessageResults read(final List<String> types, final long offset, final String locationUuid) {
         final List<Message> retrievedMessages = new ArrayList<>();
         final int typesCount = types == null ? 0 : types.size();
 
@@ -379,6 +379,17 @@ public class SQLiteStorage implements DistributedStorage {
             deletePipeState(connection);
             vacuumDatabase(connection);
             checkpointWalFile(connection);
+            shrinkMemory(connection);
+        } catch (SQLException exception) {
+            throw new RuntimeException(exception);
+        }
+    }
+
+    public void runMaintenanceTasks() {
+        try (Connection connection = dataSource.getConnection()) {
+            shrinkMemory(connection);
+            vacuumDatabase(connection);
+            checkpointWalFile(connection);
         } catch (SQLException exception) {
             throw new RuntimeException(exception);
         }
@@ -412,6 +423,13 @@ public class SQLiteStorage implements DistributedStorage {
         }
     }
 
+    private void shrinkMemory(Connection connection) throws SQLException {
+        try (PreparedStatement statement = connection.prepareStatement(SQLiteQueries.SHRINK_MEMORY)) {
+            statement.execute();
+            LOG.info("shrinkMemory","Memory shrunk");
+        }
+    }
+
     private void checkpointWalFile(Connection connection) throws SQLException {
         try (PreparedStatement statement = connection.prepareStatement(SQLiteQueries.CHECKPOINT_DB)) {
             statement.execute();
@@ -428,6 +446,7 @@ public class SQLiteStorage implements DistributedStorage {
             statement.setTimestamp(2, threshold);
             final int rowsAffected = statement.executeUpdate();
             LOG.info("compaction", "compacted " + rowsAffected + " rows");
+            shrinkMemory(connection);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

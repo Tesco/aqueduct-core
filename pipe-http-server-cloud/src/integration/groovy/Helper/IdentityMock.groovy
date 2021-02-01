@@ -6,8 +6,8 @@ import groovy.json.JsonOutput
 
 class IdentityMock {
 
-    private static final String VALIDATE_PATH = "/v4/access-token/auth/validate"
-    private static final String ISSUE_TOKEN_PATH = "/v4/issue-token/token"
+    public static final String VALIDATE_PATH = "/some/validate/token/path"
+    public static final String ISSUE_TOKEN_PATH = "/some/issue/token/path"
 
     private ErsatzServer identityMock
     private String clientId
@@ -110,5 +110,9 @@ class IdentityMock {
                 }
             }
         }
+    }
+
+    void verify() {
+        identityMock.verify()
     }
 }

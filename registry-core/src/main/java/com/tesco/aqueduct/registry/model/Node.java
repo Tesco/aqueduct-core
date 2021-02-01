@@ -21,7 +21,7 @@ import static com.tesco.aqueduct.registry.model.Status.OFFLINE;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Node {
     /**
-     * Name of the group, usually store number 
+     * Name of the group, usually location
      */
     private final String group;
 
@@ -72,6 +72,10 @@ public class Node {
      */
     private final Map<String, String> provider;
 
+
+    @JsonIgnore
+    private final List<String> legacyKeywords = Arrays.asList("POS", "FAST", "GHS", "DCOS");
+
     public String getId() {
         if (group == null) {
             return localUrl.toString();
@@ -110,6 +114,15 @@ public class Node {
         }
 
         return pipe.get("v");
+    }
+
+    @JsonIgnore
+    public Generation getGeneration() {
+        if(legacyKeywords.stream().anyMatch(keyword -> getHost().contains(keyword))) {
+            return Generation.LEGACY;
+        } else {
+            return Generation.STRATEGIC;
+        }
     }
 
     @JsonIgnore

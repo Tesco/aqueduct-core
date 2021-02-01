@@ -1,7 +1,6 @@
 import com.stehno.ersatz.Decoders
 import com.stehno.ersatz.ErsatzServer
 import com.tesco.aqueduct.pipe.api.*
-import com.tesco.aqueduct.pipe.http.PipeStateProvider
 import groovy.json.JsonOutput
 import io.micronaut.context.ApplicationContext
 import io.micronaut.context.env.yaml.YamlPropertySourceLoader
@@ -13,12 +12,15 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
 import spock.lang.Unroll
+
 import javax.sql.DataSource
 
 class IdentityTokenValidatorIntegrationSpec extends Specification {
 
     static final int CACHE_EXPIRY_SECONDS = 1
     static final String VALIDATE_TOKEN_BASE_PATH = '/some/access-token/validate/path'
+    private final static String LOCATION_CLUSTER_PATH_FILTER_PATTERN = "/**/some/get/*/clusters/path/**"
+
     static final String USERNAME = "username"
     static final String PASSWORD = "password"
     static final String encodedCredentials = "${USERNAME}:${PASSWORD}".bytes.encodeBase64().toString()
@@ -43,12 +45,8 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
             reportToConsole()
         })
 
-        def pipeStateProvider = Mock(PipeStateProvider) {
-            getState(_ as List, _ as Reader) >> new PipeStateResponse(true, 100)
-        }
-
-        def locationResolver = Mock(LocationResolver) {
-            resolve(_) >> ["cluster1"]
+        def locationResolver = Mock(LocationService) {
+            getClusterUuids(_) >> ["cluster1"]
         }
 
         identityMock.start()
@@ -67,6 +65,7 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
                 micronaut.security.token.jwt.bearer.enabled: true
                 micronaut.caches.identity-cache.expire-after-write: ${CACHE_EXPIRY_SECONDS}s
                 compression.threshold-in-bytes: 1024
+                location.clusters.get.path.filter.pattern: $LOCATION_CLUSTER_PATH_FILTER_PATTERN
                 authentication:
                   users:
                     $USERNAME:
@@ -97,7 +96,7 @@ class IdentityTokenValidatorIntegrationSpec extends Specification {
         .registerSingleton(Reader, centralStorageMock, Qualifiers.byName("local"))
         .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("pipe"))
         .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("registry"))
-        .registerSingleton(pipeStateProvider)
+        .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("compaction"))
         .registerSingleton(locationResolver)
 
         context.start()

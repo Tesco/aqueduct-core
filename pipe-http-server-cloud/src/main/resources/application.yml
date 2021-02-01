@@ -12,8 +12,8 @@ micronaut:
   caches:
     identity-cache:
       expire-after-write: 10m
-    cluster-cache:
-      expire-after-write: 1h
+    latest-offset-cache:
+      expire-after-write: 10s
   router:
     static-resources:
       swagger:
@@ -53,6 +53,14 @@ datasources:
     maximum-pool-size: 2
     max-lifetime: 600000
     leak-detection-threshold: 60000
+  compaction:
+    jdbc-url: "jdbc:postgresql://${POSTGRE_SERVER}/${POSTGRE_DATABASE}"
+    username: "${POSTGRE_USERNAME}"
+    password: "${POSTGRE_PASSWORD}"
+    driver-class-name: org.postgresql.Driver
+    maximum-pool-size: 1
+    max-lifetime: 600000
+    leak-detection-threshold: 300000
 
 authentication:
   identity:
@@ -64,8 +72,14 @@ location:
   delay: 500ms
   attempts: 3
   reset: 5s
+  url: "${LOCATION_URL}"
+  clusters.get.path: "${LOCATION_CLUSTERS_GET_PATH}"
+  clusters.get.path.filter.pattern: "${LOCATION_CLUSTERS_GET_PATH_FILTER_PATTERN}"
+  clusters.cache.expire-after-write: 1h
 
 pipe:
+  server:
+    url: "${PIPE_URL}"
   delay: 500ms
   attempts: 1
   reset: 240s
@@ -78,3 +92,5 @@ registry:
 compression:
   threshold-in-bytes: 1024
   logging: true
+
+bootstrap.retry.logging: true

@@ -11,11 +11,11 @@ import io.micronaut.retry.annotation.CircuitBreaker;
 @Client("${location.url}")
 @Measure
 public interface LocationServiceClient {
-    @Get("/clusters/v1/locations/{locationUuid}/clusters/ids")
+    @Get("${location.clusters.get.path}")
     @Consumes
     @CircuitBreaker(attempts = "${location.attempts}", delay = "${location.delay}", reset = "${location.reset}")
     HttpResponse<LocationServiceClusterResponse> getClusters(
         @Header("TraceId") String traceId,
         String locationUuid
-        );
+    );
 }

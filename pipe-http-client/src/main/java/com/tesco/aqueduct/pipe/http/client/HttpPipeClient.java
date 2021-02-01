@@ -23,9 +23,9 @@ public class HttpPipeClient implements Reader {
 
     @Inject
     public HttpPipeClient(
-            final InternalHttpPipeClient client,
-            final Codec codec,
-            @Property(name = "persistence.read.default-retry-after") long defaultRetryAfter
+        final InternalHttpPipeClient client,
+        final Codec codec,
+        @Property(name = "persistence.read.default-retry-after") long defaultRetryAfter
     ) {
         this.client = client;
         this.codec = codec;
@@ -33,13 +33,9 @@ public class HttpPipeClient implements Reader {
     }
 
     @Override
-    public MessageResults read(@Nullable final List<String> types, final long offset, final List<String> locationUuids) {
+    public MessageResults read(@Nullable final List<String> types, final long offset, final String locationUuid) {
 
-        if(locationUuids.size() != 1) {
-            throw new IllegalArgumentException("Multiple location uuid's not supported in the http pipe client");
-        }
-
-        final HttpResponse<byte[]> response = client.httpRead(types, offset, locationUuids.get(0));
+        final HttpResponse<byte[]> response = client.httpRead(types, offset, locationUuid);
 
         final byte[] responseBody;
 

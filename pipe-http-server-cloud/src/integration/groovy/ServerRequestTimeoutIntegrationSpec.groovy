@@ -1,10 +1,14 @@
 import Helper.IdentityMock
-import com.tesco.aqueduct.pipe.api.LocationResolver
+import Helper.SqlWrapper
+import com.opentable.db.postgres.junit.EmbeddedPostgresRules
+import com.opentable.db.postgres.junit.SingleInstancePostgresRule
+import com.tesco.aqueduct.pipe.api.LocationService
 import io.micronaut.context.ApplicationContext
 import io.micronaut.inject.qualifiers.Qualifiers
 import io.micronaut.runtime.server.EmbeddedServer
 import io.restassured.RestAssured
 import org.apache.http.NoHttpResponseException
+import org.junit.ClassRule
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
@@ -13,24 +17,26 @@ import javax.sql.DataSource
 
 class ServerRequestTimeoutIntegrationSpec extends Specification {
 
-    private static final String VALIDATE_TOKEN_BASE_PATH = '/v4/access-token/auth/validate'
     private static final String CLIENT_ID = UUID.randomUUID().toString()
     private static final String CLIENT_SECRET = UUID.randomUUID().toString()
     private static final String CLIENT_ID_AND_SECRET = "trn:tesco:cid:${CLIENT_ID}:${CLIENT_SECRET}"
-    public static final String VALIDATE_TOKEN_PATH = "${VALIDATE_TOKEN_BASE_PATH}?client_id=${CLIENT_ID_AND_SECRET}"
+    public static final String VALIDATE_TOKEN_PATH = "${IdentityMock.VALIDATE_PATH}?client_id=${CLIENT_ID_AND_SECRET}"
 
     private final static String ACCESS_TOKEN = UUID.randomUUID().toString()
+    @Shared @ClassRule SingleInstancePostgresRule pg = EmbeddedPostgresRules.singleInstance()
 
     @Shared @AutoCleanup ApplicationContext context
 
     def setup() {
         def identityMock = new IdentityMock(CLIENT_ID, CLIENT_SECRET, ACCESS_TOKEN)
 
-        def mockLocationResolver = Mock(LocationResolver)
+        def mockLocationResolver = Mock(LocationService)
 
-        mockLocationResolver.resolve(_) >> {
+        new SqlWrapper(pg.embeddedPostgres.postgresDatabase)
+
+        mockLocationResolver.getClusterUuids(_) >> {
             sleep(3000) // Mocking method processing to take longer than server idle timeout
-            ["someLocation"]
+            ["someCluster"]
         }
 
         context = ApplicationContext
@@ -42,6 +48,8 @@ class ServerRequestTimeoutIntegrationSpec extends Specification {
                 "persistence.read.max-batch-size":              "10485760",
                 "persistence.read.expected-node-count":         2,
                 "persistence.read.cluster-db-pool-size":        10,
+                "persistence.read.read-delay-seconds":          0,
+                "location.clusters.get.path.filter.pattern":    "some/filter/pattern",
 
                 "authentication.identity.url":                  "${identityMock.getUrl()}",
                 "authentication.identity.validate.token.path":  "$VALIDATE_TOKEN_PATH",
@@ -61,9 +69,10 @@ class ServerRequestTimeoutIntegrationSpec extends Specification {
             )
             .mainClass(EmbeddedServer)
             .build()
-            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("pipe"))
-            .registerSingleton(DataSource, Mock(DataSource), Qualifiers.byName("registry"))
-            .registerSingleton(LocationResolver, mockLocationResolver)
+            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("pipe"))
+            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("registry"))
+            .registerSingleton(DataSource, pg.embeddedPostgres.postgresDatabase, Qualifiers.byName("compaction"))
+            .registerSingleton(LocationService, mockLocationResolver)
 
         context.start()
 
