@@ -1,15 +1,4 @@
 authentication:
-  users:
-    pipe-runscope-ppe:
-      password: "${RUNSCOPE_PIPE_READ_PASSWORD}"
-      roles:
-        - PIPE_READ
-    ppe-support:
-      password: "${SUPPORT_PASSWORD}"
-      roles:
-        - REGISTRY_DELETE
-        - BOOTSTRAP_NODE
-        - PIPE_READ
   identity:
     url: "${IDENTITY_URL}"
     validate.token.path: "${IDENTITY_VALIDATE_PATH}"
@@ -35,6 +24,12 @@ authentication:
       nodeC:
         clientId: "${NODE_C_CLIENT_UID}"
         roles:
+          - PIPE_READ
+      admin:
+        clientId: "${ADMIN_CLIENT_UID}"
+        roles:
+          - REGISTRY_DELETE
+          - BOOTSTRAP_NODE
           - PIPE_READ
 
 persistence:
