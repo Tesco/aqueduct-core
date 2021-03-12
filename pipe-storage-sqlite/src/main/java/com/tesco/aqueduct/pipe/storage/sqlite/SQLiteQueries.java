@@ -13,6 +13,8 @@ final class SQLiteQueries {
     public static final String GET_PIPE_STATE =
         "SELECT value FROM PIPE_STATE WHERE name='pipe_state';";
 
+    public static final String REINDEX_EVENTS = "REINDEX EVENT;";
+
     static final String CREATE_EVENT_TABLE =
         "CREATE TABLE IF NOT EXISTS EVENT( " +
         " msg_offset bigint PRIMARY KEY NOT NULL," +
@@ -59,7 +61,6 @@ final class SQLiteQueries {
     static final String VACUUM_DB = "VACUUM;";
     static final String CHECKPOINT_DB = "PRAGMA wal_checkpoint(TRUNCATE);";
     static final String INTEGRITY_CHECK = "PRAGMA quick_check(1);";
-    static final String SHRINK_MEMORY = "PRAGMA shrink_memory;";
 
     static String getReadEvent(final int typesCount, final long maxBatchSize) {
         final StringBuilder queryBuilder = new StringBuilder()
@@ -86,7 +87,7 @@ final class SQLiteQueries {
     }
 
     static String getOffset(final OffsetName name) {
-        return "SELECT name, value FROM OFFSET WHERE name = '" + name.toString() + "'";
+        return "SELECT name, value FROM OFFSET WHERE name = '" + name.toString() + "';";
     }
 
     static void appendFilterByTypes(final StringBuilder queryBuilder, int typesCount) {

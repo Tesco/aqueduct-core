@@ -36,6 +36,6 @@ class PostgreSQLNodeRegistrySpec extends Specification {
 		def result = registry.register(testNode)
 
 		then: "the cloud url is returned"
-		result == [cloudUrl]
+		result.requestedToFollow == [cloudUrl]
 	}
 }

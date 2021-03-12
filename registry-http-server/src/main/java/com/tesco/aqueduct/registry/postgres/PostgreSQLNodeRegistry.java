@@ -42,7 +42,7 @@ public class PostgreSQLNodeRegistry implements NodeRegistry {
     }
 
     @Override
-    public List<URL> register(final Node nodeToRegister) {
+    public Node register(final Node nodeToRegister) {
         long start = System.currentTimeMillis();
 
         try (Connection connection = getConnection()) {
@@ -64,7 +64,7 @@ public class PostgreSQLNodeRegistry implements NodeRegistry {
             connection.commit();
             LOG.info("commit", Long.toString(System.currentTimeMillis() - start));
 
-            return node.getRequestedToFollow();
+            return node;
         } catch (SQLException | IOException exception) {
             LOG.error("Postgresql node registry", "register node", exception);
             throw new RuntimeException(exception);

@@ -7,6 +7,9 @@ import org.sqlite.SQLiteException
 import spock.lang.Specification
 import spock.lang.Unroll
 
+import java.sql.Connection
+import java.sql.PreparedStatement
+import java.sql.ResultSet
 import java.sql.SQLException
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -22,8 +25,8 @@ class SQLiteStorageIntegrationSpec extends Specification {
     long maxOverheadBatchSize = (Message.MAX_OVERHEAD_SIZE * limit) + batchSize
     private SQLiteStorage sqliteStorage
 
-    ZonedDateTime currentUTCTime() {
-        ZonedDateTime.now().withZoneSameInstant(ZoneId.of("UTC"))
+    ZonedDateTime createdTime() {
+        ZonedDateTime.of(2020, 01, 01, 00, 00, 00, 0, ZoneId.of("UTC"))
     }
 
     def message(long offset) {
@@ -31,7 +34,7 @@ class SQLiteStorageIntegrationSpec extends Specification {
     }
 
     def message(long offset, String type, String data = "some-data") {
-        return message(offset, "some-key", type, currentUTCTime(), data)
+        return message(offset, "some-key", type, createdTime(), data)
     }
 
     def message(long offset, String key, ZonedDateTime createdDateTime) {
@@ -451,6 +454,28 @@ class SQLiteStorageIntegrationSpec extends Specification {
         and: 'value should be the last written state'
         def rows = sql.rows("SELECT value FROM PIPE_STATE WHERE name='pipe_state'")
         rows.get(0).get("value") == PipeState.OUT_OF_DATE.toString()
+    }
+
+    def 'read is executed in one transaction only'() {
+        given: 'a mocked datasource and connection'
+        def datasource = Mock(SQLiteDataSource)
+        def connection = Mock(Connection)
+        def preparedStatement = Mock(PreparedStatement)
+        def resultSet = Mock(ResultSet)
+
+        datasource.getConnection() >> connection
+        connection.prepareStatement(_ as String) >> preparedStatement
+        preparedStatement.execute() >> true
+        preparedStatement.executeQuery() >> resultSet
+        resultSet.next() >> false
+
+        sqliteStorage = new SQLiteStorage(datasource, limit, 10, batchSize)
+
+        when: 'offset, pipe state and messages are read'
+        sqliteStorage.read([], 10, 'some-location')
+
+        then: 'get connection is only invoked once'
+        1 * datasource.getConnection() >> connection
     }
 
     def 'newly stored message with offset is successfully retrieved from the database'() {

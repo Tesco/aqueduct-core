@@ -1,3 +1,4 @@
+import Helper.SqlWrapper
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules
 import com.opentable.db.postgres.junit.SingleInstancePostgresRule
 import com.stehno.ersatz.Decoders
@@ -24,7 +25,6 @@ import org.junit.ClassRule
 import spock.lang.*
 
 import javax.sql.DataSource
-import java.sql.DriverManager
 import java.time.Duration
 
 import static com.tesco.aqueduct.pipe.api.PipeState.UP_TO_DATE
@@ -60,46 +60,15 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
 
     @Shared Sql sql
 
-    DataSource dataSource
     @Shared NodeRegistry registry
     @Shared NodeRequestStorage nodeRequestStorage
 
-    def setupDatabase() {
-        sql = new Sql(pg.embeddedPostgres.postgresDatabase.connection)
+    def setupAndClearDatabase() {
+        def datasource = pg.embeddedPostgres.postgresDatabase
+        sql = new SqlWrapper(datasource).sql
 
-        dataSource = Mock()
-
-        dataSource.connection >> {
-            DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
-        }
-
-        clearTables(sql)
-
-        nodeRequestStorage = new PostgreSQLNodeRequestStorage(dataSource)
-        registry = new PostgreSQLNodeRegistry(dataSource, new URL(CLOUD_PIPE_URL), Duration.ofDays(1))
-    }
-
-    private void clearTables(Sql sql) {
-        sql.execute("""
-            DROP TABLE IF EXISTS registry;
-            
-            CREATE TABLE registry(
-            group_id VARCHAR PRIMARY KEY NOT NULL,
-            entry JSON NOT NULL,
-            version integer NOT NULL
-            );
-        """)
-
-        sql.execute("""
-            DROP TABLE IF EXISTS node_requests;
-            
-            CREATE TABLE node_requests(
-            host_id VARCHAR PRIMARY KEY NOT NULL,
-            bootstrap_requested timestamp NOT NULL,
-            bootstrap_type VARCHAR NOT NULL,
-            bootstrap_received timestamp
-            );
-        """)
+        nodeRequestStorage = new PostgreSQLNodeRequestStorage(datasource)
+        registry = new PostgreSQLNodeRegistry(datasource, new URL(CLOUD_PIPE_URL), Duration.ofDays(1))
     }
 
     void setupSpec() {
@@ -110,7 +79,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
 
         identityMock.start()
 
-        setupDatabase()
+        setupAndClearDatabase()
 
         Reader reader = Mock(Reader) {
             getOffset(OffsetName.GLOBAL_LATEST_OFFSET) >> OptionalLong.of(100L);
@@ -175,7 +144,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
 
     void setup() {
         identityMock.clearExpectations()
-        clearTables(sql)
+        setupAndClearDatabase()
 
         TestAppender.clearEvents()
     }

@@ -1,14 +1,13 @@
 package com.tesco.aqueduct.registry.model;
 
-import java.net.URL;
 import java.util.List;
 
 public interface NodeRegistry {
     /**
      * @param node Node to register as new or update current state
-     * @return List of URL this node should currently follow
+     * @return Node registered
      */
-    List<URL> register(Node node);
+    Node register(Node node);
 
     /**
      * @param offset Latest offset of root

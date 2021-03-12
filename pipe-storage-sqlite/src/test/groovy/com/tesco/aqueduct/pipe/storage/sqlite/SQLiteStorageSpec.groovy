@@ -243,11 +243,7 @@ class SQLiteStorageSpec extends Specification {
         when: "tuning is invoked"
         sqliteStorage.runMaintenanceTasks()
 
-        then: "shrink memory attempted"
-        1 * connection.prepareStatement(SQLiteQueries.SHRINK_MEMORY) >> statement
-        1 * statement.execute()
-
-        and: "vacuum is attempted"
+        then: "vacuum is attempted"
         1 * connection.prepareStatement(SQLiteQueries.VACUUM_DB) >> statement
         1 * statement.execute()
         1 * statement.getUpdateCount() >> 0

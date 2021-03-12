@@ -20,6 +20,8 @@ class SqlWrapper {
         DROP TABLE IF EXISTS EVENTS;
         DROP TABLE IF EXISTS CLUSTERS;
         DROP TABLE IF EXISTS CLUSTER_CACHE;
+        DROP TABLE IF EXISTS REGISTRY;
+        DROP TABLE IF EXISTS NODE_REQUESTS;
           
         CREATE TABLE EVENTS(
             msg_offset BIGSERIAL PRIMARY KEY NOT NULL,
@@ -45,6 +47,19 @@ class SqlWrapper {
             valid BOOLEAN NOT NULL DEFAULT TRUE
         );
         
+        CREATE TABLE REGISTRY(
+            group_id VARCHAR PRIMARY KEY NOT NULL,
+            entry JSON NOT NULL,
+            version integer NOT NULL
+        );
+
+        CREATE TABLE NODE_REQUESTS(
+            host_id VARCHAR PRIMARY KEY NOT NULL,
+            bootstrap_requested timestamp NOT NULL,
+            bootstrap_type VARCHAR NOT NULL,
+            bootstrap_received timestamp
+        );
+
         INSERT INTO CLUSTERS (cluster_uuid) VALUES ('NONE');
         """)
         return sql

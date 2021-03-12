@@ -199,9 +199,9 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         def followC = registerNode("groupC", "http://a")
 
         then: "All first nodes in the group get a cloud URL"
-        followA == [cloudURL]
-        followB == [cloudURL]
-        followC == [cloudURL]
+        followA.requestedToFollow == [cloudURL]
+        followB.requestedToFollow == [cloudURL]
+        followC.requestedToFollow == [cloudURL]
     }
 
     def "the second node in the group should be told to calls the first node"() {
@@ -209,10 +209,10 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         registerNode("x", "http://first")
 
         when: "Second node registers"
-        def follow = registerNode("x", "http://second")
+        def registeredNode = registerNode("x", "http://second")
 
         then: "It is told to call the first one"
-        follow == [new URL("http://first"), cloudURL]
+        registeredNode.requestedToFollow == [new URL("http://first"), cloudURL]
     }
 
     def "the third node in the group should be told to call the first node and the cloud"() {
@@ -223,12 +223,11 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         registerNode("x", "http://second")
 
         when: "Third node registers"
-        def follow = registerNode("x", "http://third")
+        def registeredNode = registerNode("x", "http://third")
 
         then: "It is told to call the first one"
-        follow == [new URL("http://first"), cloudURL]
+        registeredNode.requestedToFollow == [new URL("http://first"), cloudURL]
     }
-
 
     def "registering the same node again returns the unchanged hierarchy"() {
         given: "We have two nodes registered"
@@ -240,8 +239,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         def actualSecond = registerNode("x", "http://second")
 
         then: "It is told to call the cloud"
-        actualFirst == expectedFirst
-        actualSecond == expectedSecond
+        actualFirst.requestedToFollow == expectedFirst.requestedToFollow
+        actualSecond.requestedToFollow == expectedSecond.requestedToFollow
     }
 
     def "registering the same node again does not break the original hierarchy in storage"() {
@@ -280,7 +279,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         when: "Nodes register"
         nodes.times {
             String address = "http://1.1.1.${it+1}"
-            def firstFollower = registerNode("x", address).first()
+            def firstFollower = registerNode("x", address).requestedToFollow.first()
             nodeToChildren[firstFollower] << address
         }
         nodeToChildren.each {
@@ -321,14 +320,14 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
 
     def "explicit test of the binary tree logic"() {
         when: "nodes register"
-        def nodeList1 = registerNode("x", "http://1.1.1.1").toListString()
-        def nodeList2 = registerNode("x", "http://1.1.1.2").toListString()
-        def nodeList3 = registerNode("x", "http://1.1.1.3").toListString()
-        def nodeList4 = registerNode("x", "http://1.1.1.4").toListString()
-        def nodeList5 = registerNode("x", "http://1.1.1.5").toListString()
-        def nodeList6 = registerNode("x", "http://1.1.1.6").toListString()
-        def nodeList7 = registerNode("x", "http://1.1.1.7").toListString()
-        def nodeList8 = registerNode("x", "http://1.1.1.8").toListString()
+        def nodeList1 = registerNode("x", "http://1.1.1.1").requestedToFollow.toListString()
+        def nodeList2 = registerNode("x", "http://1.1.1.2").requestedToFollow.toListString()
+        def nodeList3 = registerNode("x", "http://1.1.1.3").requestedToFollow.toListString()
+        def nodeList4 = registerNode("x", "http://1.1.1.4").requestedToFollow.toListString()
+        def nodeList5 = registerNode("x", "http://1.1.1.5").requestedToFollow.toListString()
+        def nodeList6 = registerNode("x", "http://1.1.1.6").requestedToFollow.toListString()
+        def nodeList7 = registerNode("x", "http://1.1.1.7").requestedToFollow.toListString()
+        def nodeList8 = registerNode("x", "http://1.1.1.8").requestedToFollow.toListString()
 
         then: "The heirachy returned to each node forms a binary tree"
         nodeList1 == "[http://cloud.pipe:8080]"
@@ -518,8 +517,8 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         secondNode = registerNode("groupA", "http://a2", 123, FOLLOWING, [], ["v":"1.0"])
 
         then: "all three nodes follow cloud"
-        firstNode == [cloudURL]
-        secondNode == [new URL("http://a1"), cloudURL]
+        firstNode.requestedToFollow == [cloudURL]
+        secondNode.requestedToFollow == [new URL("http://a1"), cloudURL]
     }
 
     @Ignore

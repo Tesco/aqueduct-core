@@ -1,17 +1,4 @@
 authentication:
-  users:
-    pipe-provider-live:
-      password: "${PIPE_READ_PASSWORD}"
-    pipe-runscope-live:
-      password: "${RUNSCOPE_PIPE_READ_PASSWORD}"
-      roles:
-        - PIPE_READ
-    live-support:
-      password: "${SUPPORT_PASSWORD}"
-      roles:
-        - REGISTRY_DELETE
-        - BOOTSTRAP_NODE
-        - PIPE_READ
   identity:
     url: "${IDENTITY_URL}"
     validate.token.path: "${IDENTITY_VALIDATE_PATH}"
@@ -30,6 +17,16 @@ authentication:
         roles:
           - PIPE_READ
           - REGISTRY_WRITE
+      nodeC:
+        clientId: "${NODE_C_CLIENT_UID}"
+        roles:
+          - PIPE_READ
+      admin:
+        clientId: "${ADMIN_CLIENT_UID}"
+        roles:
+          - REGISTRY_DELETE
+          - BOOTSTRAP_NODE
+          - PIPE_READ
 
 persistence:
   compact:
