@@ -69,8 +69,10 @@ public class PostgresqlStorage implements CentralStorage {
 
             final Optional<ClusterCacheEntry> entry = clusterStorage.getClusterCacheEntry(locationUuid, connection);
 
+            final List<Long> locationGroups = getLocationGroupsFor(locationUuid, connection);
+
             if (isValidAndUnexpired(entry)) {
-                return readMessages(types, start, startOffset, entry.get().getClusterIds(), connection);
+                return readMessages(types, start, startOffset, entry.get().getClusterIds(), locationGroups, connection);
 
             } else {
                 close(connection);
@@ -82,7 +84,7 @@ public class PostgresqlStorage implements CentralStorage {
                 final Optional<List<Long>> newClusterIds = clusterStorage.updateAndGetClusterIds(locationUuid, clusterUuids, entry, connection);
 
                 if (newClusterIds.isPresent()) {
-                    return readMessages(types, start, startOffset, newClusterIds.get(), connection);
+                    return readMessages(types, start, startOffset, newClusterIds.get(), locationGroups, connection);
                 } else {
                     LOG.info("postgresql storage", "Recursive read due to Cluster Cache invalidation race condition");
                     return read(types, startOffset, locationUuid);
@@ -100,6 +102,31 @@ public class PostgresqlStorage implements CentralStorage {
         }
     }
 
+    private List<Long> getLocationGroupsFor(String locationUuid, Connection connection) {
+        long start = System.currentTimeMillis();
+        try (PreparedStatement statement = connection.prepareStatement(getSelectLocationGroupsQuery())) {
+            statement.setString(1, locationUuid);
+            ResultSet resultSet = statement.executeQuery();
+
+            if(resultSet.next()) {
+                Array groups = resultSet.getArray("groups");
+                return Arrays.asList( (Long[]) groups.getArray());
+            } else {
+                return Collections.emptyList();
+            }
+        } catch (SQLException exception) {
+            LOG.error("postgresql storage", "resolve groups for location", exception);
+            throw new RuntimeException(exception);
+        } finally {
+            long end = System.currentTimeMillis();
+            LOG.info("getLocationGroupsFor:time", Long.toString(end - start));
+        }
+    }
+
+    private String getSelectLocationGroupsQuery() {
+        return "SELECT groups FROM LOCATION_GROUPS WHERE location_uuid = ?;";
+    }
+
     private Connection getConnection() throws SQLException {
         long start = System.currentTimeMillis();
         Connection connection = pipeDataSource.getConnection();
@@ -111,14 +138,20 @@ public class PostgresqlStorage implements CentralStorage {
         return entry.map(ClusterCacheEntry::isValidAndUnexpired).orElse(false);
     }
 
-    private MessageResults readMessages(List<String> types, long start, long startOffset, List<Long> clusterIds, Connection connection) throws SQLException {
+    private MessageResults readMessages(
+        List<String> types,
+        long start,
+        long startOffset,
+        List<Long> clusterIds,
+        List<Long> locationGroups,
+        Connection connection) throws SQLException {
 
         connection.setAutoCommit(false);
         setWorkMem(connection);
 
         final long globalLatestOffset = offsetFetcher.getGlobalLatestOffset(connection);
 
-        try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, globalLatestOffset, clusterIds)) {
+        try (PreparedStatement messagesQuery = getMessagesStatement(connection, types, startOffset, globalLatestOffset, clusterIds, locationGroups)) {
 
             final List<Message> messages = runMessagesQuery(messagesQuery);
             long end = System.currentTimeMillis();
@@ -263,31 +296,34 @@ public class PostgresqlStorage implements CentralStorage {
     }
 
     private PreparedStatement getMessagesStatement(
-        final Connection connection,
-        final List<String> types,
-        final long startOffset,
-        long endOffset,
-        final List<Long> clusterIds
-    ) {
+            final Connection connection,
+            final List<String> types,
+            final long startOffset,
+            long endOffset,
+            final List<Long> clusterIds,
+            List<Long> locationGroups) {
         try {
             PreparedStatement query;
 
             final Array clusterIdArray = connection.createArrayOf("BIGINT", clusterIds.toArray());
+            final Array locationGroupsArray = connection.createArrayOf("BIGINT", locationGroups.toArray());
 
             if (types == null || types.isEmpty()) {
                 query = connection.prepareStatement(getSelectEventsWithoutTypeQuery(maxBatchSize));
                 query.setArray(1, clusterIdArray);
-                query.setLong(2, startOffset);
-                query.setLong(3, endOffset);
-                query.setLong(4, limit);
+                query.setArray(2, locationGroupsArray);
+                query.setLong(3, startOffset);
+                query.setLong(4, endOffset);
+                query.setLong(5, limit);
             } else {
                 final String strTypes = String.join(",", types);
                 query = connection.prepareStatement(getSelectEventsWithTypeQuery(maxBatchSize));
                 query.setArray(1, clusterIdArray);
-                query.setLong(2, startOffset);
-                query.setLong(3, endOffset);
-                query.setString(4, strTypes);
-                query.setLong(5, limit);
+                query.setArray(2, locationGroupsArray);
+                query.setLong(3, startOffset);
+                query.setLong(4, endOffset);
+                query.setString(5, strTypes);
+                query.setLong(6, limit);
             }
 
             return query;
@@ -362,7 +398,7 @@ public class PostgresqlStorage implements CentralStorage {
             "     type, msg_key, content_type, msg_offset, created_utc, data, " +
             "     SUM(event_size) OVER (ORDER BY msg_offset ASC) AS running_size " +
             "   FROM events " +
-                  addClusterFilter() +
+                  addClusterAndLocationGroupFilter() +
             "   AND events.msg_offset >= ? " +
             "   AND events.msg_offset <= ?" +
             " ORDER BY msg_offset " +
@@ -380,7 +416,7 @@ public class PostgresqlStorage implements CentralStorage {
             "     type, msg_key, content_type, msg_offset, created_utc, data, " +
             "     SUM(event_size) OVER (ORDER BY msg_offset ASC) AS running_size " +
             "   FROM events " +
-                    addClusterFilter() +
+                    addClusterAndLocationGroupFilter() +
             "   AND events.msg_offset >= ? " +
             "   AND events.msg_offset <= ?" +
             "   AND type = ANY (string_to_array(?, ','))" +
@@ -390,10 +426,10 @@ public class PostgresqlStorage implements CentralStorage {
             " WHERE running_size <= " + maxBatchSize;
     }
 
-    private String addClusterFilter() {
+    private String addClusterAndLocationGroupFilter() {
         return
             " WHERE " +
-            " cluster_id = ANY (?) ";
+            " cluster_id = ANY (?) AND (location_group IS NULL OR location_group = ANY (?)) ";
     }
 
     private static String getCompactionQuery() {
