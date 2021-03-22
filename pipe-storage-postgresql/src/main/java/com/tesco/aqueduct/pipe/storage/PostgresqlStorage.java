@@ -144,7 +144,8 @@ public class PostgresqlStorage implements CentralStorage {
         long startOffset,
         List<Long> clusterIds,
         List<Long> locationGroups,
-        Connection connection) throws SQLException {
+        Connection connection
+    ) throws SQLException {
 
         connection.setAutoCommit(false);
         setWorkMem(connection);
