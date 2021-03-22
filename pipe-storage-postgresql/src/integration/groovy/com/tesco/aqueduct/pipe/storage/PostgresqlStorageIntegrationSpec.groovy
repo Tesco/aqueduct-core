@@ -735,7 +735,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         types << [ [], ["type1"] ]
     }
 
-    def "messages with location group are not read if location is not part of any groups"() {
+    def "messages with location group are not read if given location is not part of any groups"() {
         given: "2 messages, one of which with a location group that the location does not belong to"
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
         insert(message(2, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 1L, 0, Timestamp.valueOf(time.toLocalDateTime()), 2L)
@@ -751,7 +751,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         messageResults.messages.get(0).offset == 1
     }
 
-    def "messages with location group are not read if location is not pressent in location groups table"() {
+    def "messages with location group are not read if location is not present in location groups table"() {
         given: "2 messages, one of which with a location group that the location does not belong to"
         insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
         insert(message(2, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"), 1L, 0, Timestamp.valueOf(time.toLocalDateTime()), 2L)
@@ -777,7 +777,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
 
         then: "both messages are returned"
         messageResults.messages.size() == 2
-        messageResults.messages*.offset*.intValue() == [1, 2]
+        messageResults.messages.offset*.intValue() == [1, 2]
     }
 
     def "location groups are resolved correctly as part of the read"() {
@@ -800,7 +800,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
 
         then: "only messages for the relevant cluster and group are returned"
         messageResults.messages.size() == 3
-        messageResults.messages*.offset*.intValue() == [3, 4, 6]
+        messageResults.messages.offset*.intValue() == [3, 4, 6]
         messageResults.globalLatestOffset == OptionalLong.of(6)
     }
 
@@ -819,7 +819,8 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         Long clusterId,
         int messageSize=0,
         Timestamp time = Timestamp.valueOf(msg.created.toLocalDateTime()),
-        Long locationGroup = null) {
+        Long locationGroup = null
+    ) {
             if (msg.offset == null) {
                 sql.execute(
                     "INSERT INTO EVENTS(msg_key, content_type, type, created_utc, data, event_size, cluster_id, location_group) VALUES(?,?,?,?,?,?,?,?);",
