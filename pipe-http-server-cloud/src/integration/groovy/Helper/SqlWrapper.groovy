@@ -23,6 +23,7 @@ class SqlWrapper {
         DROP TABLE IF EXISTS REGISTRY;
         DROP TABLE IF EXISTS NODE_REQUESTS;
         DROP TABLE IF EXISTS OFFSETS;
+        DROP TABLE IF EXISTS LOCATION_GROUPS;
           
         CREATE TABLE EVENTS(
             msg_offset BIGSERIAL PRIMARY KEY NOT NULL,
@@ -33,6 +34,7 @@ class SqlWrapper {
             data text NULL,
             event_size int NOT NULL,
             cluster_id BIGINT NOT NULL DEFAULT 1,
+            location_group BIGINT,
             time_to_live TIMESTAMP NULL
         );
         
@@ -64,6 +66,11 @@ class SqlWrapper {
         CREATE TABLE OFFSETS(
             name VARCHAR PRIMARY KEY NOT NULL,
             value BIGINT NOT NULL
+        );
+
+        CREATE TABLE LOCATION_GROUPS(
+            location_uuid VARCHAR PRIMARY KEY NOT NULL,
+            groups BIGINT[] NOT NULL
         );
 
         INSERT INTO CLUSTERS (cluster_uuid) VALUES ('NONE');
