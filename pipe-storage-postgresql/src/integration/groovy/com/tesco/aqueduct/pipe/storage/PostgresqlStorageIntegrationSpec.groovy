@@ -800,11 +800,10 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
 
         then: "only messages for the relevant cluster and group are returned"
         messageResults.messages.size() == 3
-        messageResults.messages*.offset*.intValue() == [3L, 4L, 6L]
+        messageResults.messages*.offset*.intValue() == [3, 4, 6]
         messageResults.globalLatestOffset == OptionalLong.of(6)
-
     }
-    
+
     def "vacuum analyse query is valid"() {
         given: "a database"
 
@@ -815,8 +814,9 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         noExceptionThrown()
     }
 
-
-    void insert(Message msg, Long clusterId,
+    void insert(
+        Message msg,
+        Long clusterId,
         int messageSize=0,
         Timestamp time = Timestamp.valueOf(msg.created.toLocalDateTime()),
         Long locationGroup = null) {

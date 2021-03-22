@@ -296,12 +296,12 @@ public class PostgresqlStorage implements CentralStorage {
     }
 
     private PreparedStatement getMessagesStatement(
-            final Connection connection,
-            final List<String> types,
-            final long startOffset,
-            long endOffset,
-            final List<Long> clusterIds,
-            List<Long> locationGroups) {
+        final Connection connection,
+        final List<String> types,
+        final long startOffset,
+        long endOffset,
+        final List<Long> clusterIds,
+        List<Long> locationGroups) {
         try {
             PreparedStatement query;
 
