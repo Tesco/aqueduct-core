@@ -70,6 +70,7 @@ class HttpPipeClientSpec extends Specification {
         null  | "0"     | 0
     }
 
+    @Unroll
     def "if global offset is available in the header, it should be returned in MessageResults"() {
         def responseBody = """[
             {
@@ -86,7 +87,7 @@ class HttpPipeClientSpec extends Specification {
         HttpResponse<byte[]> httpResponse = new SimpleHttpResponse()
         httpResponse.body(responseBody.bytes)
         httpResponse.headers.set(HttpHeaders.RETRY_AFTER, "1")
-        httpResponse.headers.set(HttpHeaders.GLOBAL_LATEST_OFFSET, "100")
+        httpResponse.headers.set(HttpHeaders.GLOBAL_LATEST_OFFSET, globalOffsetHeader)
         httpResponse.headers.set(HttpHeaders.PIPE_STATE, PipeState.UP_TO_DATE.name())
 
         internalClient.httpRead(_ as List, _ as Long, _ as String) >> httpResponse
@@ -95,7 +96,12 @@ class HttpPipeClientSpec extends Specification {
         def messageResults = client.read([], 0, "locationUuid")
 
         then: "global latest offset header is set correctly in the result"
-        messageResults.globalLatestOffset == OptionalLong.of(100)
+        messageResults.globalLatestOffset == globalLatestOffset
+
+        where:
+        globalOffsetHeader | globalLatestOffset
+        "100"              | OptionalLong.of(100)
+        null               | OptionalLong.empty()
     }
 
     def "if pipe state is available in the header and is true, then results should report pipe state as up to date"() {

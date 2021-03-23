@@ -57,7 +57,7 @@ public class HttpPipeClient implements Reader {
         return new MessageResults(
             JsonHelper.messageFromJsonArray(responseBody),
             retryAfter,
-            OptionalLong.of(getGlobalOffsetHeader(response)),
+            getGlobalOffsetHeader(response),
             getPipeState(response)
         );
     }
@@ -80,8 +80,9 @@ public class HttpPipeClient implements Reader {
         }
     }
 
-    private Long getGlobalOffsetHeader(HttpResponse<?> response) {
-        return Long.parseLong(response.header(HttpHeaders.GLOBAL_LATEST_OFFSET));
+    private OptionalLong getGlobalOffsetHeader(HttpResponse<?> response) {
+        String globalLatestOffset = response.header(HttpHeaders.GLOBAL_LATEST_OFFSET);
+        return globalLatestOffset == null ? OptionalLong.empty() : OptionalLong.of(Long.parseLong(globalLatestOffset));
     }
 
     private PipeState getPipeState(HttpResponse<?> response) {
