@@ -81,10 +81,24 @@ public class SubNodeGroup {
         nodes.set(index, updatedNode);
     }
 
-    public void markNodesOfflineIfNotSeenSince(ZonedDateTime threshold) {
+    protected void handleOfflineNodes(ZonedDateTime markOfflineThreshold, ZonedDateTime removeOfflineThreshold) {
+        markNodesOfflineIfNotSeenSince(markOfflineThreshold);
+        removeOfflineNodesIfNotSeenSince(removeOfflineThreshold);
+    }
+
+    private void markNodesOfflineIfNotSeenSince(ZonedDateTime threshold) {
         IntStream.range(0, nodes.size())
             .filter(i -> nodes.get(i).getLastSeen().compareTo(threshold) < 0)
             .forEach(i -> updateNodeByIndex(nodes.get(i).toBuilder().status(OFFLINE).build(), i));
+    }
+
+    private void removeOfflineNodesIfNotSeenSince(ZonedDateTime threshold) {
+        List<Node> nodesToBeRemoved = IntStream.range(0, nodes.size())
+            .filter(i -> nodes.get(i).getLastSeen().compareTo(threshold) < 0)
+            .mapToObj(nodes::get)
+            .collect(Collectors.toList());
+
+        nodes.removeAll(nodesToBeRemoved);
     }
 
     public Optional<Node> getByHost(String host) {

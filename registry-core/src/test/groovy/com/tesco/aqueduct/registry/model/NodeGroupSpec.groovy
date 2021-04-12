@@ -39,28 +39,6 @@ class NodeGroupSpec extends Specification {
         group.subGroups.get(1).nodes == [node2]
     }
 
-    def createNode(
-        String group,
-        URL url,
-        long offset=0,
-        Status status=INITIALISING,
-        List<URL> following=[],
-        ZonedDateTime created=null,
-        Map<String, String> pipeProperties=["v":"1.0"],
-        List<URL> requestedToFollow=[]
-    ) {
-        return Node.builder()
-            .localUrl(url)
-            .group(group)
-            .status(status)
-            .offset(offset)
-            .following(following)
-            .lastSeen(created)
-            .requestedToFollow(requestedToFollow)
-            .pipe(pipeProperties)
-            .build()
-    }
-
     def "Group has node"() {
         given: "A Group with Nodes"
         def group = new NodeGroup([Mock(Node)])
@@ -110,9 +88,11 @@ class NodeGroupSpec extends Specification {
     def "a node can be added to the group"() {
         given: "an empty node group"
         def group = new NodeGroup([])
+
         when: "a new node is added"
         def node = Node.builder().localUrl(new URL("http://test_node_1")).pipe(["v":"1.0"]).build()
         group.upsert(node, CLOUD_URL)
+
         then: "the node group is no longer empty"
         !group.isEmpty()
     }
@@ -412,8 +392,10 @@ class NodeGroupSpec extends Specification {
             .pipe(["pipeState": PipeState.OUT_OF_DATE.toString(), "v":"1.0"])
             .build()
         NodeGroup group = new NodeGroup([n1, n2])
+
         when: "the NodeGroup nodes are output as JSON"
         String result = group.nodesToJson()
+
         then: "the JSON format is correct"
         result ==
             "[" +
@@ -453,12 +435,82 @@ class NodeGroupSpec extends Specification {
             .pipe(["v":"1.0"])
             .build()
         NodeGroup group = new NodeGroup([n1, n2, n3])
+
         when: "requesting nodes be marked offline"
-        group.markNodesOfflineIfNotSeenSince(ZonedDateTime.now().minusDays(5))
+        group.handleOfflineNodes(ZonedDateTime.now().minusDays(5), ZonedDateTime.now().minusDays(11))
+
         then: "Only nodes not seen since the threshold are marked offline"
         group.subGroups.get(0).nodes.get(0).status == FOLLOWING
         group.subGroups.get(0).nodes.get(1).status == OFFLINE
+        group.subGroups.get(0).nodes.get(2).status == FOLLOWING
+    }
+
+    def "Nodes that are offline for a configured period of time are removed from subgroup"() {
+        given: "A node group"
+        def n1Url = new URL("http://node-1")
+        Node n1 = Node.builder()
+                .localUrl(n1Url)
+                .lastSeen(ZonedDateTime.now())
+                .status(FOLLOWING)
+                .pipe(["v":"1.0"])
+                .build()
+
+        Node n2 = Node.builder()
+                .localUrl(new URL("http://node-2"))
+                .lastSeen(ZonedDateTime.now().minusDays(10))
+                .status(FOLLOWING)
+                .pipe(["v":"1.0"])
+                .build()
+
+        def n3Url = new URL("http://node-3")
+        Node n3 = Node.builder()
+                .localUrl(n3Url)
+                .lastSeen(ZonedDateTime.now().minusDays(3))
+                .status(FOLLOWING)
+                .pipe(["v":"1.0"])
+                .build()
+        NodeGroup group = new NodeGroup([n1, n2, n3])
+
+        when: "requesting offline nodes to be handled"
+        group.handleOfflineNodes(ZonedDateTime.now().minusDays(1), ZonedDateTime.now().minusDays(6))
+
+        then: "Nodes older than threshold are removed"
+        group.subGroups.get(0).nodes.size() == 2
+
         group.subGroups.get(0).nodes.get(0).status == FOLLOWING
+        group.subGroups.get(0).nodes.get(0).localUrl == n1Url
+
+        group.subGroups.get(0).nodes.get(1).status == OFFLINE
+        group.subGroups.get(0).nodes.get(1).localUrl == n3Url
+    }
+
+    def "a whole subgroup is removed if all nodes are offline for a configured period of time"() {
+        given: "A node group"
+        Node n1 = Node.builder()
+                .localUrl(new URL("http://node-1"))
+                .lastSeen(ZonedDateTime.now().minusDays(2))
+                .status(FOLLOWING)
+                .pipe(["v":"1.0"])
+                .build()
+        Node n2 = Node.builder()
+                .localUrl(new URL("http://node-2"))
+                .lastSeen(ZonedDateTime.now().minusDays(2))
+                .status(FOLLOWING)
+                .pipe(["v":"1.0"])
+                .build()
+        Node n3 = Node.builder()
+                .localUrl(new URL("http://node-3"))
+                .lastSeen(ZonedDateTime.now().minusDays(2))
+                .status(FOLLOWING)
+                .pipe(["v":"1.0"])
+                .build()
+        NodeGroup group = new NodeGroup([n1, n2, n3])
+
+        when: "requesting offline nodes to be handled"
+        group.handleOfflineNodes(ZonedDateTime.now().minusDays(1), ZonedDateTime.now().minusDays(1))
+
+        then: "No subgroups exist"
+        group.subGroups.isEmpty()
     }
 
     @Ignore
@@ -647,5 +699,28 @@ class NodeGroupSpec extends Specification {
         group.subGroups.get(0).nodes.size() == 2
         group.subGroups.get(0).nodes.get(0).localUrl == url1
         group.subGroups.get(0).nodes.get(1).localUrl == url2
+    }
+
+
+    def createNode(
+            String group,
+            URL url,
+            long offset=0,
+            Status status=INITIALISING,
+            List<URL> following=[],
+            ZonedDateTime created=null,
+            Map<String, String> pipeProperties=["v":"1.0"],
+            List<URL> requestedToFollow=[]
+    ) {
+        return Node.builder()
+                .localUrl(url)
+                .group(group)
+                .status(status)
+                .offset(offset)
+                .following(following)
+                .lastSeen(created)
+                .requestedToFollow(requestedToFollow)
+                .pipe(pipeProperties)
+                .build()
     }
 }

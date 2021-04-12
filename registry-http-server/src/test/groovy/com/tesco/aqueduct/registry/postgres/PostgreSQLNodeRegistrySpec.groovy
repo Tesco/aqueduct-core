@@ -27,7 +27,8 @@ class PostgreSQLNodeRegistrySpec extends Specification {
 		and: "a node registry"
 
 		def offlineDelta = Duration.ofMinutes(5)
-		def registry = new PostgreSQLNodeRegistry(dataSourceMock, cloudUrl, offlineDelta, mockNodeGroupFactory)
+		def removeDelta = Duration.ofMinutes(10)
+		def registry = new PostgreSQLNodeRegistry(dataSourceMock, cloudUrl, offlineDelta, removeDelta, mockNodeGroupFactory)
 
 		and: "a node to register"
 		def testNode = Mock(Node)

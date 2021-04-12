@@ -64,9 +64,10 @@ public class Bindings {
     NodeRegistry bindNodeRegistry(
         @Named("registry") final DataSource dataSource,
         @Property(name = "pipe.server.url") final URL selfUrl,
-        @Value("${registry.mark-offline-after:1m}") final Duration markAsOffline
+        @Value("${registry.mark-offline-after:1m}") final Duration markAsOffline,
+        @Value("${registry.remove-offline-after:1m}") final Duration removeOffline
     ) {
-        return new PostgreSQLNodeRegistry(dataSource, selfUrl, markAsOffline);
+        return new PostgreSQLNodeRegistry(dataSource, selfUrl, markAsOffline, removeOffline);
     }
 
     @Singleton

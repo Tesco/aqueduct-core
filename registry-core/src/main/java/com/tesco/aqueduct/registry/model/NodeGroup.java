@@ -60,8 +60,9 @@ public class NodeGroup {
         subGroups.forEach(subgroup -> subgroup.updateGetFollowing(cloudUrl));
     }
 
-    public void markNodesOfflineIfNotSeenSince(final ZonedDateTime threshold) {
-        subGroups.forEach(subGroup -> subGroup.markNodesOfflineIfNotSeenSince(threshold));
+    public void handleOfflineNodes(final ZonedDateTime markOfflineThreshold, final ZonedDateTime removeOfflineThreshold) {
+        subGroups.forEach(subGroup -> subGroup.handleOfflineNodes(markOfflineThreshold, removeOfflineThreshold));
+        subGroups.removeIf(SubNodeGroup::isEmpty);
     }
 
     public Node upsert(final Node nodeToRegister, final URL cloudUrl) {
@@ -102,8 +103,8 @@ public class NodeGroup {
         }
     }
 
-    public void processNodes(ZonedDateTime threshold, URL cloudUrl) {
-        markNodesOfflineIfNotSeenSince(threshold);
+    public void processNodes(ZonedDateTime markOfflineThreshold, ZonedDateTime removeOfflineThreshold, URL cloudUrl) {
+        handleOfflineNodes(markOfflineThreshold, removeOfflineThreshold);
         sortNodes(cloudUrl);
     }
 

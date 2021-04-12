@@ -97,7 +97,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         followers.size() == 1
     }
 
-    def "registry marks nodes offline and sorts based on status"() {
+    def "registry handles nodes offline and sorts based on status"() {
         given: "a registry with a short offline delta"
         registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(5))
 
@@ -122,6 +122,10 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         URL url6 = new URL("http://6.6.6.6")
         Node node6 = createNode("group", url6, offset, FOLLOWING, [cloudURL], null,["v":"2.0","pipeState":"OUT_OF_DATE"])
 
+        URL url7 = new URL("http://7.7.7.7")
+        Node node7 = createNode("group", url7, offset, FOLLOWING, [cloudURL], null,["v":"2.0","pipeState":"OUT_OF_DATE"])
+
+
         when: "nodes are registered"
         registry.register(node1)
         registry.register(node2)
@@ -130,12 +134,17 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         registry.register(node5)
         registry.register(node6)
 
-        and: "half fail to re-register within the offline delta"
-        sleep 5000
+        and: "some fail to re-register within the offline delta"
+        sleep 1000
+        registry.register(node1)
+        registry.register(node2)
+        registry.register(node6)
+
+        and:
+        sleep(5000)
         registry.register(node3)
         registry.register(node4)
         registry.register(node5)
-
 
         and: "get summary"
         def followers = registry.getSummary(
@@ -144,7 +153,10 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
             []
         ).followers
 
-        then: "nodes are marked as offline and sorted accordingly"
+        then: "nodes not seen since remove threshold are removed from registry"
+        followers.size() == 6
+
+        and: "nodes are marked as offline and sorted accordingly"
         followers[0].getLocalUrl() == url3
         followers[1].getLocalUrl() == url4
         followers[2].getLocalUrl() == url5
