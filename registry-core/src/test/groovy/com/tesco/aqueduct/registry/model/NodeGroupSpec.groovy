@@ -713,14 +713,14 @@ class NodeGroupSpec extends Specification {
             List<URL> requestedToFollow=[]
     ) {
         return Node.builder()
-                .localUrl(url)
-                .group(group)
-                .status(status)
-                .offset(offset)
-                .following(following)
-                .lastSeen(created)
-                .requestedToFollow(requestedToFollow)
-                .pipe(pipeProperties)
-                .build()
+            .localUrl(url)
+            .group(group)
+            .status(status)
+            .offset(offset)
+            .following(following)
+            .lastSeen(created)
+            .requestedToFollow(requestedToFollow)
+            .pipe(pipeProperties)
+            .build()
     }
 }

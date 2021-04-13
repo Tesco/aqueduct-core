@@ -25,7 +25,6 @@ class PostgreSQLNodeRegistrySpec extends Specification {
 		1 * mockConnection.setAutoCommit(false)
 
 		and: "a node registry"
-
 		def offlineDelta = Duration.ofMinutes(5)
 		def removeDelta = Duration.ofMinutes(10)
 		def registry = new PostgreSQLNodeRegistry(dataSourceMock, cloudUrl, offlineDelta, removeDelta, mockNodeGroupFactory)

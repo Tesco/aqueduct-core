@@ -19,30 +19,30 @@ public class PostgreSQLNodeRegistry implements NodeRegistry {
     private static final RegistryLogger LOG = new RegistryLogger(LoggerFactory.getLogger(PostgreSQLNodeRegistry.class));
 
     private final URL cloudUrl;
-    private final Duration markTillOfflineDelta;
-    private final Duration removeTillOfflineDelta;
+    private final Duration markNodeOfflineDelta;
+    private final Duration removeNodeOfflineDelta;
     private final DataSource dataSource;
     private final PostgresNodeGroupStorage nodeGroupStorage;
 
     public PostgreSQLNodeRegistry(
         final DataSource dataSource,
         final URL cloudUrl,
-        final Duration markTillOfflineDelta,
-        final Duration removeTillOfflineDelta
+        final Duration markNodeOfflineDelta,
+        final Duration removeNodeOfflineDelta
     ) {
-        this(dataSource, cloudUrl, markTillOfflineDelta, removeTillOfflineDelta, new PostgresNodeGroupStorage());
+        this(dataSource, cloudUrl, markNodeOfflineDelta, removeNodeOfflineDelta, new PostgresNodeGroupStorage());
     }
 
     PostgreSQLNodeRegistry(
         final DataSource dataSource,
         final URL cloudUrl,
-        final Duration markTillOfflineDelta,
-        Duration removeTillOfflineDelta,
+        final Duration markNodeOfflineDelta,
+        final Duration removeNodeOfflineDelta,
         PostgresNodeGroupStorage nodeGroupStorage
     ) {
         this.cloudUrl = cloudUrl;
-        this.markTillOfflineDelta = markTillOfflineDelta;
-        this.removeTillOfflineDelta = removeTillOfflineDelta;
+        this.markNodeOfflineDelta = markNodeOfflineDelta;
+        this.removeNodeOfflineDelta = removeNodeOfflineDelta;
         this.dataSource = dataSource;
         this.nodeGroupStorage = nodeGroupStorage;
 
@@ -68,7 +68,7 @@ public class PostgreSQLNodeRegistry implements NodeRegistry {
             Node node = group.upsert(nodeToRegister, cloudUrl);
             LOG.info("upsert", Long.toString(System.currentTimeMillis() - start));
 
-            group.processNodes(ZonedDateTime.now().minus(markTillOfflineDelta), ZonedDateTime.now().minus(removeTillOfflineDelta), cloudUrl);
+            group.processNodes(ZonedDateTime.now().minus(markNodeOfflineDelta), ZonedDateTime.now().minus(removeNodeOfflineDelta), cloudUrl);
             LOG.info("process node", Long.toString(System.currentTimeMillis() - start));
 
             group.persist(connection);
@@ -98,8 +98,8 @@ public class PostgreSQLNodeRegistry implements NodeRegistry {
     public StateSummary getSummary(final long offset, final Status status, final List<String> groupIds) {
         List<PostgresNodeGroup> groups = getPostgresNodeGroups(groupIds);
 
-        final ZonedDateTime markTillOfflineThreshold = ZonedDateTime.now().minus(markTillOfflineDelta);
-        final ZonedDateTime removeTillOfflineThreshold = ZonedDateTime.now().minus(removeTillOfflineDelta);
+        final ZonedDateTime markTillOfflineThreshold = ZonedDateTime.now().minus(markNodeOfflineDelta);
+        final ZonedDateTime removeTillOfflineThreshold = ZonedDateTime.now().minus(removeNodeOfflineDelta);
         groups.forEach(group -> group.handleOfflineNodes(markTillOfflineThreshold, removeTillOfflineThreshold));
 
         final List<Node> followers = groups.stream()

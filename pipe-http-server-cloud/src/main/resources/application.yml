@@ -88,6 +88,7 @@ metrics.interceptor.enabled: true
 
 registry:
   mark-offline-after: 25m
+  remove-offline-after: 7d
 
 compression:
   threshold-in-bytes: 1024
