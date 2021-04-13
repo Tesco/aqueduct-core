@@ -50,6 +50,7 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
 
         sql.execute("""
         DROP TABLE IF EXISTS EVENTS;
+        DROP TABLE IF EXISTS EVENTS_BUFFER;
         DROP TABLE IF EXISTS CLUSTERS;
         DROP TABLE IF EXISTS REGISTRY;
         DROP TABLE IF EXISTS NODE_REQUESTS;
@@ -68,7 +69,19 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
             cluster_id BIGINT NOT NULL DEFAULT 1,
             location_group BIGINT,
             time_to_live TIMESTAMP NULL
-        );
+        );        
+        
+        CREATE TABLE EVENTS_BUFFER(
+            msg_offset BIGSERIAL PRIMARY KEY NOT NULL,
+            msg_key VARCHAR NOT NULL,
+            content_type VARCHAR NOT NULL,
+            type VARCHAR NOT NULL,
+            created_utc TIMESTAMP NOT NULL,
+            data TEXT NULL,
+            event_size INT NOT NULL,
+            cluster_id BIGINT NOT NULL DEFAULT 1,
+            time_to_live TIMESTAMP NULL
+        ); 
         
         CREATE TABLE NODE_REQUESTS(
             host_id VARCHAR PRIMARY KEY NOT NULL,
