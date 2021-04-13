@@ -68,7 +68,7 @@ public class PostgreSQLNodeRegistry implements NodeRegistry {
             Node node = group.upsert(nodeToRegister, cloudUrl);
             LOG.info("upsert", Long.toString(System.currentTimeMillis() - start));
 
-            group.processNodes(ZonedDateTime.now().minus(markTillOfflineDelta), ZonedDateTime.now().minus(markTillOfflineDelta), cloudUrl);
+            group.processNodes(ZonedDateTime.now().minus(markTillOfflineDelta), ZonedDateTime.now().minus(removeTillOfflineDelta), cloudUrl);
             LOG.info("process node", Long.toString(System.currentTimeMillis() - start));
 
             group.persist(connection);
@@ -98,8 +98,9 @@ public class PostgreSQLNodeRegistry implements NodeRegistry {
     public StateSummary getSummary(final long offset, final Status status, final List<String> groupIds) {
         List<PostgresNodeGroup> groups = getPostgresNodeGroups(groupIds);
 
-        final ZonedDateTime threshold = ZonedDateTime.now().minus(markTillOfflineDelta);
-        groups.forEach(group -> group.handleOfflineNodes(threshold, threshold));
+        final ZonedDateTime markTillOfflineThreshold = ZonedDateTime.now().minus(markTillOfflineDelta);
+        final ZonedDateTime removeTillOfflineThreshold = ZonedDateTime.now().minus(removeTillOfflineDelta);
+        groups.forEach(group -> group.handleOfflineNodes(markTillOfflineThreshold, removeTillOfflineThreshold));
 
         final List<Node> followers = groups.stream()
             .flatMap(nodeGroup -> nodeGroup.getNodes().stream()).collect(Collectors.toList());

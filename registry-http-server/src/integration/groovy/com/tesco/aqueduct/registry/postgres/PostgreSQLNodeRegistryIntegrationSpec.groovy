@@ -58,7 +58,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
             );
         """)
 
-        registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofDays(1))
+        registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofDays(1), Duration.ofDays(2))
     }
 
     def "registry always contains root"() {
@@ -99,9 +99,9 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
 
     def "registry handles nodes offline and sorts based on status"() {
         given: "a registry with a short offline delta"
-        registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(5))
+        registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(5), Duration.ofSeconds(7))
 
-        and: "6 nodes"
+        and: "7 nodes"
         long offset = 12345
 
         URL url1 = new URL("http://1.1.1.1")
@@ -133,15 +133,16 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         registry.register(node4)
         registry.register(node5)
         registry.register(node6)
+        registry.register(node7)
 
-        and: "some fail to re-register within the offline delta"
-        sleep 1000
+        and: "three nodes register again"
+        sleep(2000)
         registry.register(node1)
         registry.register(node2)
         registry.register(node6)
 
-        and:
-        sleep(5000)
+        and: "three fail to re-register within the offline delta"
+        sleep 5000
         registry.register(node3)
         registry.register(node4)
         registry.register(node5)
