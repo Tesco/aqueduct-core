@@ -93,12 +93,7 @@ public class SubNodeGroup {
     }
 
     private void removeOfflineNodesIfNotSeenSince(ZonedDateTime threshold) {
-        List<Node> nodesToBeRemoved = IntStream.range(0, nodes.size())
-            .filter(i -> nodes.get(i).getLastSeen().compareTo(threshold) < 0)
-            .mapToObj(nodes::get)
-            .collect(Collectors.toList());
-
-        nodes.removeAll(nodesToBeRemoved);
+        nodes.removeIf(node -> node.getLastSeen().compareTo(threshold) < 0);
     }
 
     public Optional<Node> getByHost(String host) {
