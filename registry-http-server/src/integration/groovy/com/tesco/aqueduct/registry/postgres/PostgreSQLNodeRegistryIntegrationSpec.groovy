@@ -460,7 +460,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
 
     def "After some time nodes are marked as offline"() {
         given: "registry with small offline mark"
-        registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofMillis(100))
+        registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofMillis(100), Duration.ofMillis(500))
 
         def offset = 100
         def now = ZonedDateTime.now()
@@ -579,7 +579,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
     @Ignore
     def "registry marks nodes offline and sorts based on status within their hierarchies"() {
         given: "a registry with a short offline delta"
-        registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(5))
+        registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(5), Duration.ofSeconds(10))
 
         and: "6 nodes with different versions"
         long offset = 12345
@@ -663,7 +663,7 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
     
     def "registry marks nodes offline and sorts nodes ignoring version"() {
         given: "a registry with a short offline delta"
-        registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(5))
+        registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(5), Duration.ofSeconds(10))
 
         and: "6 nodes with different versions"
         long offset = 12345
