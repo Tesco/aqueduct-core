@@ -440,6 +440,7 @@ public class PostgresqlStorage implements CentralStorage {
     private static String getVacuumAnalyseQuery() {
         return
             " VACUUM ANALYSE EVENTS; " +
+            " VACUUM ANALYSE EVENTS_BUFFER; " +
             " VACUUM ANALYSE CLUSTERS; " +
             " VACUUM ANALYSE REGISTRY; " +
             " VACUUM ANALYSE NODE_REQUESTS; ";
