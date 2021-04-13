@@ -73,16 +73,12 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
 
     def "registry accepts new elements"() {
         given: "A new node"
-
         ZonedDateTime now = ZonedDateTime.now()
-
         long offset = 12345
-
         Node expectedNode = createNode("group", new URL("http://1.1.1.1"), offset, FOLLOWING, [cloudURL], now)
 
         when: "The node is registered"
         registry.register(expectedNode)
-
         def followers = registry.getSummary(
             offset,
             FOLLOWING,
@@ -124,7 +120,6 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
 
         URL url7 = new URL("http://7.7.7.7")
         Node node7 = createNode("group", url7, offset, FOLLOWING, [cloudURL], null,["v":"2.0","pipeState":"OUT_OF_DATE"])
-
 
         when: "nodes are registered"
         registry.register(node1)
@@ -178,6 +173,46 @@ class PostgreSQLNodeRegistryIntegrationSpec extends Specification {
         followers[3].requestedToFollow == [url4, url3, cloudURL]
         followers[4].requestedToFollow == [url4, url3, cloudURL]
         followers[5].requestedToFollow == [url5, url3, cloudURL]
+    }
+
+    def "returns an empty state summary if all nodes are offline"() {
+        given: "a registry with a short offline delta"
+        registry = new PostgreSQLNodeRegistry(dataSource, cloudURL, Duration.ofSeconds(1), Duration.ofSeconds(2))
+
+        and: "3 nodes"
+        long offset = 1234
+
+        URL url1 = new URL("http://1.1.1.1")
+        Node node1 = createNode("group", url1, offset, FOLLOWING, [cloudURL], null,["v":"2.0","pipeState":"UNKNOWN"])
+
+        URL url2 = new URL("http://2.2.2.2")
+        Node node2 = createNode("group", url2, offset, FOLLOWING, [cloudURL], null,["v":"2.0","pipeState":"UP_TO_DATE"])
+
+        URL url3 = new URL("http://3.3.3.3")
+        Node node3 = createNode("group", url3, offset, FOLLOWING, [cloudURL], null,["v":"2.0","pipeState":"UP_TO_DATE"])
+
+        when: "nodes are registered"
+        registry.register(node1)
+        registry.register(node2)
+        registry.register(node3)
+
+        and: "nodes fail to register within the remove node threshold"
+        sleep(2000)
+
+        and: "get summary"
+        def summary = registry.getSummary(
+            offset,
+            FOLLOWING,
+            []
+        )
+
+        then: "the state summary contains no nodes"
+        summary.getFollowers().isEmpty()
+
+        and: "the root is the cloud"
+        summary.root.localUrl == cloudURL
+        summary.root.offset == 1234
+        summary.root.status == FOLLOWING
     }
 
     @Unroll

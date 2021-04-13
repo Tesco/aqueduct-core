@@ -449,26 +449,26 @@ class NodeGroupSpec extends Specification {
         given: "A node group"
         def n1Url = new URL("http://node-1")
         Node n1 = Node.builder()
-                .localUrl(n1Url)
-                .lastSeen(ZonedDateTime.now())
-                .status(FOLLOWING)
-                .pipe(["v":"1.0"])
-                .build()
+            .localUrl(n1Url)
+            .lastSeen(ZonedDateTime.now())
+            .status(FOLLOWING)
+            .pipe(["v":"1.0"])
+            .build()
 
         Node n2 = Node.builder()
-                .localUrl(new URL("http://node-2"))
-                .lastSeen(ZonedDateTime.now().minusDays(10))
-                .status(FOLLOWING)
-                .pipe(["v":"1.0"])
-                .build()
+            .localUrl(new URL("http://node-2"))
+            .lastSeen(ZonedDateTime.now().minusDays(10))
+            .status(FOLLOWING)
+            .pipe(["v":"1.0"])
+            .build()
 
         def n3Url = new URL("http://node-3")
         Node n3 = Node.builder()
-                .localUrl(n3Url)
-                .lastSeen(ZonedDateTime.now().minusDays(3))
-                .status(FOLLOWING)
-                .pipe(["v":"1.0"])
-                .build()
+            .localUrl(n3Url)
+            .lastSeen(ZonedDateTime.now().minusDays(3))
+            .status(FOLLOWING)
+            .pipe(["v":"1.0"])
+            .build()
         NodeGroup group = new NodeGroup([n1, n2, n3])
 
         when: "requesting offline nodes to be handled"
@@ -487,23 +487,23 @@ class NodeGroupSpec extends Specification {
     def "a whole subgroup is removed if all nodes are offline for a configured period of time"() {
         given: "A node group"
         Node n1 = Node.builder()
-                .localUrl(new URL("http://node-1"))
-                .lastSeen(ZonedDateTime.now().minusDays(2))
-                .status(FOLLOWING)
-                .pipe(["v":"1.0"])
-                .build()
+            .localUrl(new URL("http://node-1"))
+            .lastSeen(ZonedDateTime.now().minusDays(2))
+            .status(FOLLOWING)
+            .pipe(["v":"1.0"])
+            .build()
         Node n2 = Node.builder()
-                .localUrl(new URL("http://node-2"))
-                .lastSeen(ZonedDateTime.now().minusDays(2))
-                .status(FOLLOWING)
-                .pipe(["v":"1.0"])
-                .build()
+            .localUrl(new URL("http://node-2"))
+            .lastSeen(ZonedDateTime.now().minusDays(2))
+            .status(FOLLOWING)
+            .pipe(["v":"1.0"])
+            .build()
         Node n3 = Node.builder()
-                .localUrl(new URL("http://node-3"))
-                .lastSeen(ZonedDateTime.now().minusDays(2))
-                .status(FOLLOWING)
-                .pipe(["v":"1.0"])
-                .build()
+            .localUrl(new URL("http://node-3"))
+            .lastSeen(ZonedDateTime.now().minusDays(2))
+            .status(FOLLOWING)
+            .pipe(["v":"1.0"])
+            .build()
         NodeGroup group = new NodeGroup([n1, n2, n3])
 
         when: "requesting offline nodes to be handled"
@@ -703,14 +703,14 @@ class NodeGroupSpec extends Specification {
 
 
     def createNode(
-            String group,
-            URL url,
-            long offset=0,
-            Status status=INITIALISING,
-            List<URL> following=[],
-            ZonedDateTime created=null,
-            Map<String, String> pipeProperties=["v":"1.0"],
-            List<URL> requestedToFollow=[]
+        String group,
+        URL url,
+        long offset=0,
+        Status status=INITIALISING,
+        List<URL> following=[],
+        ZonedDateTime created=null,
+        Map<String, String> pipeProperties=["v":"1.0"],
+        List<URL> requestedToFollow=[]
     ) {
         return Node.builder()
             .localUrl(url)
