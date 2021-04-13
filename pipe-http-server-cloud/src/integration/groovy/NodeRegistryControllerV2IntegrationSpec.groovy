@@ -68,7 +68,7 @@ class NodeRegistryControllerV2IntegrationSpec extends Specification {
         sql = new SqlWrapper(datasource).sql
 
         nodeRequestStorage = new PostgreSQLNodeRequestStorage(datasource)
-        registry = new PostgreSQLNodeRegistry(datasource, new URL(CLOUD_PIPE_URL), Duration.ofDays(1))
+        registry = new PostgreSQLNodeRegistry(datasource, new URL(CLOUD_PIPE_URL), Duration.ofDays(1), Duration.ofDays(2))
     }
 
     void setupSpec() {
