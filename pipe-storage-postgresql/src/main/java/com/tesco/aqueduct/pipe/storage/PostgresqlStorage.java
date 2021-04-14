@@ -279,6 +279,7 @@ public class PostgresqlStorage implements CentralStorage {
         long start = System.currentTimeMillis();
 
         try (ResultSet rs = query.executeQuery()) {
+            long startProcessingResults = System.currentTimeMillis();
             while (rs.next()) {
                 final String type = rs.getString("type");
                 final String key = rs.getString("msg_key");
@@ -289,6 +290,8 @@ public class PostgresqlStorage implements CentralStorage {
 
                 messages.add(new Message(type, key, contentType, offset, created, data));
             }
+
+            LOG.info("runMessagesQuery:time processing results", Long.toString(System.currentTimeMillis() - startProcessingResults));
         } finally {
             long end = System.currentTimeMillis();
             LOG.info("runMessagesQuery:time", Long.toString(end - start));
