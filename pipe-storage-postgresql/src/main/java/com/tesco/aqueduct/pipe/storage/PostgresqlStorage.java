@@ -148,7 +148,7 @@ public class PostgresqlStorage implements CentralStorage {
     ) throws SQLException {
 
         connection.setAutoCommit(false);
-        setWorkMem(connection);
+//        setWorkMem(connection);
 
         final long globalLatestOffset = offsetFetcher.getGlobalLatestOffset(connection);
 
