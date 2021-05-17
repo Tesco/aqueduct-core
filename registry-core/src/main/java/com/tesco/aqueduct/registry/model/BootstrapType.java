@@ -5,5 +5,6 @@ public enum  BootstrapType {
     PIPE_AND_PROVIDER,
     PIPE,
     PIPE_WITH_DELAY,
+    PIPE_AND_PROVIDER_WITH_DELAY,
     NONE
 }

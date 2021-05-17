@@ -125,11 +125,12 @@ class SelfRegistrationTaskSpec extends Specification {
         numProviderBootstrapCalls * bootstrapableProvider.start()
 
         where:
-        bootstrapType                   | numProviderBootstrapCalls | numPipeBootstrapCalls
-        BootstrapType.PROVIDER          | 1                         | 0
-        BootstrapType.PIPE_AND_PROVIDER | 1                         | 1
-        BootstrapType.NONE              | 0                         | 0
-        BootstrapType.PIPE              | 0                         | 1
-        BootstrapType.PIPE_WITH_DELAY   | 0                         | 1
+        bootstrapType                              | numProviderBootstrapCalls | numPipeBootstrapCalls
+        BootstrapType.PROVIDER                     | 1                         | 0
+        BootstrapType.PIPE_AND_PROVIDER            | 1                         | 1
+        BootstrapType.NONE                         | 0                         | 0
+        BootstrapType.PIPE                         | 0                         | 1
+        BootstrapType.PIPE_WITH_DELAY              | 0                         | 1
+        BootstrapType.PIPE_AND_PROVIDER_WITH_DELAY | 1                         | 1
     }
 }

@@ -57,24 +57,39 @@ public class SelfRegistrationTask {
                 return;
             }
             services.update(registryResponse.getRequestedToFollow());
-            if (registryResponse.getBootstrapType() == BootstrapType.PROVIDER ) {
-                provider.stop();
-                provider.reset();
-                provider.start();
-            } else if(registryResponse.getBootstrapType() == BootstrapType.PIPE_AND_PROVIDER) {
-                provider.stop();
-                provider.reset();
-                pipe.reset();
-                pipe.start();
-                provider.start();
-            } else if (registryResponse.getBootstrapType() == BootstrapType.PIPE) {
-                pipe.reset();
-                pipe.start();
-            } else if (registryResponse.getBootstrapType() == BootstrapType.PIPE_WITH_DELAY) {
-                pipe.reset();
-                Thread.sleep(bootstrapDelayMs);
-                pipe.start();
+            switch (registryResponse.getBootstrapType()) {
+                case PROVIDER:
+                    provider.stop();
+                    provider.reset();
+                    provider.start();
+                    break;
+                case PIPE_AND_PROVIDER:
+                    provider.stop();
+                    provider.reset();
+                    pipe.reset();
+                    pipe.start();
+                    provider.start();
+                    break;
+                case PIPE:
+                    pipe.reset();
+                    pipe.start();
+                    break;
+                case PIPE_WITH_DELAY:
+                    pipe.reset();
+                    Thread.sleep(bootstrapDelayMs);
+                    pipe.start();
+                    break;
+                case PIPE_AND_PROVIDER_WITH_DELAY:
+                    provider.stop();
+                    provider.reset();
+                    pipe.reset();
+                    Thread.sleep(bootstrapDelayMs);
+                    pipe.start();
+                    provider.start();
+                    break;
             }
+
+
         } catch (HttpClientResponseException hcre) {
             LOG.error("SelfRegistrationTask.register", "Register error [HttpClientResponseException]: %s", hcre.getMessage());
         } catch (Exception e) {
