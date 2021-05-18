@@ -92,8 +92,6 @@ public class SelfRegistrationTask {
                     provider.reset();
                     corruptionManager.reset();
             }
-
-
         } catch (HttpClientResponseException hcre) {
             LOG.error("SelfRegistrationTask.register", "Register error [HttpClientResponseException]: %s", hcre.getMessage());
         } catch (Exception e) {
