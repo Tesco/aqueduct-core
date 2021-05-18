@@ -5,6 +5,7 @@ import com.tesco.aqueduct.pipe.api.IdentityToken
 import com.tesco.aqueduct.pipe.api.TokenProvider
 import com.tesco.aqueduct.registry.model.Bootstrapable
 import com.tesco.aqueduct.registry.model.Node
+import com.tesco.aqueduct.registry.model.Resetable
 import io.micronaut.context.ApplicationContext
 import io.micronaut.http.client.DefaultHttpClientConfiguration
 import io.micronaut.inject.qualifiers.Qualifiers
@@ -56,6 +57,7 @@ class RegistryClientIntegrationSpec extends Specification {
             .registerSingleton(Supplier.class, providerMetricsSupplier, Qualifiers.byName("providerMetricsSupplier"))
             .registerSingleton(Bootstrapable.class, Mock(Bootstrapable), Qualifiers.byName("provider"))
             .registerSingleton(Bootstrapable.class, Mock(Bootstrapable), Qualifiers.byName("pipe"))
+            .registerSingleton(Resetable.class, Mock(Resetable), Qualifiers.byName("corruptionManager"))
             .registerSingleton(new ServiceList(
                 new DefaultHttpClientConfiguration(),
                 new PipeServiceInstance(new DefaultHttpClientConfiguration(), new URL(server.getHttpUrl())),
