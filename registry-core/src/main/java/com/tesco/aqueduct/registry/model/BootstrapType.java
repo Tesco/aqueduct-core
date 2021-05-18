@@ -6,5 +6,6 @@ public enum  BootstrapType {
     PIPE,
     PIPE_WITH_DELAY,
     PIPE_AND_PROVIDER_WITH_DELAY,
+    CORRUPTION_RECOVERY,
     NONE
 }

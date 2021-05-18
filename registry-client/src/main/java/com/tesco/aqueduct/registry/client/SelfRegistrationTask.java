@@ -87,6 +87,13 @@ public class SelfRegistrationTask {
                     pipe.start();
                     provider.start();
                     break;
+                case CORRUPTION_RECOVERY:
+                    provider.stop();
+                    provider.reset();
+
+                    //drop the database
+                    //restart the provider
+                    System.exit(0);
             }
 
 
