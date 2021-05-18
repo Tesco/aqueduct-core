@@ -4,6 +4,7 @@ import com.tesco.aqueduct.registry.model.BootstrapType
 import com.tesco.aqueduct.registry.model.Bootstrapable
 import com.tesco.aqueduct.registry.model.Node
 import com.tesco.aqueduct.registry.model.RegistryResponse
+import com.tesco.aqueduct.registry.model.Resetable
 import spock.lang.Specification
 import spock.lang.Unroll
 
@@ -31,12 +32,13 @@ class SelfRegistrationTaskSpec extends Specification {
     def services = Mock(ServiceList)
     def bootstrapableProvider = Mock(Bootstrapable)
     def bootstrapablePipe = Mock(Bootstrapable)
+    def corruptionManager = Mock(Resetable)
 
     def 'check registry client polls upstream service'() {
         def startedLatch = new CountDownLatch(1)
 
         given: "a registry client"
-        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
+        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, corruptionManager, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
 
         when: "register() is called"
         registryClient.register()
@@ -51,7 +53,7 @@ class SelfRegistrationTaskSpec extends Specification {
 
     def 'check registryHitList defaults to cloud pipe if register call fails'() {
         given: "a registry client"
-        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
+        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, corruptionManager, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
 
         and: "when called, upstreamClient will throw an exception"
         upstreamClient.register(_ as Node) >> { throw new RuntimeException() }
@@ -65,7 +67,7 @@ class SelfRegistrationTaskSpec extends Specification {
 
     def 'check register does not default to cloud pipe if previously it succeeded'() {
         given: "a registry client"
-        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
+        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, corruptionManager, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
         upstreamClient.register(_ as Node) >> new RegistryResponse(["http://1.2.3.4", "http://5.6.7.8"], BootstrapType.NONE) >> { throw new RuntimeException() }
 
         when: "register() is called successfully"
@@ -80,7 +82,7 @@ class SelfRegistrationTaskSpec extends Specification {
 
     def 'null response to register call does not result in null hit list update update'() {
         given: "a registry client"
-        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
+        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, corruptionManager, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
 
         and: "upstream client will return null"
         upstreamClient.register(_ as Node) >> { null }
@@ -97,7 +99,7 @@ class SelfRegistrationTaskSpec extends Specification {
         def startedLatch = new CountDownLatch(1)
 
         given: "a registry client"
-        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
+        def registryClient = new SelfRegistrationTask(upstreamClient, { MY_NODE }, services, bootstrapableProvider, bootstrapablePipe, corruptionManager, REGISTRATION_INTERVAL, BOOTSTRAP_DELAY)
 
         when: "register() is called"
         registryClient.register()
@@ -110,10 +112,13 @@ class SelfRegistrationTaskSpec extends Specification {
         1 * services.update(_ as List) >> { startedLatch.countDown() }
 
         then: "provider is stopped"
-        numProviderBootstrapCalls * bootstrapableProvider.stop()
+        numProviderStopAndResetCalls * bootstrapableProvider.stop()
 
         then: "provider is reset"
-        numProviderBootstrapCalls * bootstrapableProvider.reset()
+        numProviderStopAndResetCalls * bootstrapableProvider.reset()
+
+        then: "corruption manager is reset"
+        numCorruptionManagerCalls * corruptionManager.reset()
 
         then: "pipe is reset"
         numPipeBootstrapCalls * bootstrapablePipe.reset()
@@ -122,15 +127,16 @@ class SelfRegistrationTaskSpec extends Specification {
         numPipeBootstrapCalls * bootstrapablePipe.start()
 
         then: "provider is started"
-        numProviderBootstrapCalls * bootstrapableProvider.start()
+        numProviderStartCalls * bootstrapableProvider.start()
 
         where:
-        bootstrapType                              | numProviderBootstrapCalls | numPipeBootstrapCalls
-        BootstrapType.PROVIDER                     | 1                         | 0
-        BootstrapType.PIPE_AND_PROVIDER            | 1                         | 1
-        BootstrapType.NONE                         | 0                         | 0
-        BootstrapType.PIPE                         | 0                         | 1
-        BootstrapType.PIPE_WITH_DELAY              | 0                         | 1
-        BootstrapType.PIPE_AND_PROVIDER_WITH_DELAY | 1                         | 1
+        bootstrapType                              | numProviderStopAndResetCalls | numProviderStartCalls | numPipeBootstrapCalls | numCorruptionManagerCalls
+        BootstrapType.PROVIDER                     | 1                            | 1                     | 0                     | 0
+        BootstrapType.PIPE_AND_PROVIDER            | 1                            | 1                     | 1                     | 0
+        BootstrapType.NONE                         | 0                            | 0                     | 0                     | 0
+        BootstrapType.PIPE                         | 0                            | 0                     | 1                     | 0
+        BootstrapType.PIPE_WITH_DELAY              | 0                            | 0                     | 1                     | 0
+        BootstrapType.PIPE_AND_PROVIDER_WITH_DELAY | 1                            | 1                     | 1                     | 0
+        BootstrapType.CORRUPTION_RECOVERY          | 1                            | 0                     | 0                     | 1
     }
 }

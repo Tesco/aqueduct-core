@@ -1,9 +1,6 @@
 package com.tesco.aqueduct.registry.client;
 
-import com.tesco.aqueduct.registry.model.BootstrapType;
-import com.tesco.aqueduct.registry.model.Bootstrapable;
-import com.tesco.aqueduct.registry.model.Node;
-import com.tesco.aqueduct.registry.model.RegistryResponse;
+import com.tesco.aqueduct.registry.model.*;
 import com.tesco.aqueduct.registry.utils.RegistryLogger;
 import io.micronaut.context.annotation.Context;
 import io.micronaut.context.annotation.Property;
@@ -27,6 +24,7 @@ public class SelfRegistrationTask {
     private final ServiceList services;
     private final Bootstrapable provider;
     private final Bootstrapable pipe;
+    private final Resetable corruptionManager;
     private final long bootstrapDelayMs;
 
     @Inject
@@ -36,6 +34,7 @@ public class SelfRegistrationTask {
         final ServiceList services,
         @Named("provider") final Bootstrapable provider,
         @Named("pipe") final Bootstrapable pipe,
+        @Named("corruptionManager") Resetable corruptionManager,
         @Property(name = "pipe.http.registration.interval") String retryInterval,
         @Value("${pipe.bootstrap.delay:300000}") final int additionalDelay // 5 minutes extra to allow all nodes to reset
     ) {
@@ -44,6 +43,7 @@ public class SelfRegistrationTask {
         this.services = services;
         this.provider = provider;
         this.pipe = pipe;
+        this.corruptionManager = corruptionManager;
         this.bootstrapDelayMs = Duration.parse("PT" + retryInterval).toMillis() + additionalDelay;
     }
 
@@ -90,10 +90,7 @@ public class SelfRegistrationTask {
                 case CORRUPTION_RECOVERY:
                     provider.stop();
                     provider.reset();
-
-                    //drop the database
-                    //restart the provider
-                    System.exit(0);
+                    corruptionManager.reset();
             }
 
 
