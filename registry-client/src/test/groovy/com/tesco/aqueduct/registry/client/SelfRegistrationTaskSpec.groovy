@@ -112,31 +112,34 @@ class SelfRegistrationTaskSpec extends Specification {
         1 * services.update(_ as List) >> { startedLatch.countDown() }
 
         then: "provider is stopped"
-        numProviderStopAndResetCalls * bootstrapableProvider.stop()
+        providerStopAndResetCalls * bootstrapableProvider.stop()
 
         then: "provider is reset"
-        numProviderStopAndResetCalls * bootstrapableProvider.reset()
+        providerStopAndResetCalls * bootstrapableProvider.reset()
+
+        then: "pipe is stopped"
+        pipeStopCalls * bootstrapablePipe.stop()
 
         then: "corruption manager is reset"
-        numCorruptionManagerCalls * corruptionManager.reset()
+        corruptionManagerCalls * corruptionManager.reset()
 
         then: "pipe is reset"
-        numPipeBootstrapCalls * bootstrapablePipe.reset()
+        pipeResetAndStartCalls * bootstrapablePipe.reset()
 
         then: "pipe is started"
-        numPipeBootstrapCalls * bootstrapablePipe.start()
+        pipeResetAndStartCalls * bootstrapablePipe.start()
 
         then: "provider is started"
-        numProviderStartCalls * bootstrapableProvider.start()
+        providerStartCalls * bootstrapableProvider.start()
 
         where:
-        bootstrapType                              | numProviderStopAndResetCalls | numProviderStartCalls | numPipeBootstrapCalls | numCorruptionManagerCalls
-        BootstrapType.PROVIDER                     | 1                            | 1                     | 0                     | 0
-        BootstrapType.PIPE_AND_PROVIDER            | 1                            | 1                     | 1                     | 0
-        BootstrapType.NONE                         | 0                            | 0                     | 0                     | 0
-        BootstrapType.PIPE                         | 0                            | 0                     | 1                     | 0
-        BootstrapType.PIPE_WITH_DELAY              | 0                            | 0                     | 1                     | 0
-        BootstrapType.PIPE_AND_PROVIDER_WITH_DELAY | 1                            | 1                     | 1                     | 0
-        BootstrapType.CORRUPTION_RECOVERY          | 1                            | 0                     | 0                     | 1
+        bootstrapType                              | providerStopAndResetCalls | providerStartCalls | pipeResetAndStartCalls | pipeStopCalls | corruptionManagerCalls
+        BootstrapType.PROVIDER                     | 1                         | 1                  | 0                      | 0             | 0
+        BootstrapType.PIPE_AND_PROVIDER            | 1                         | 1                  | 1                      | 1             | 0
+        BootstrapType.NONE                         | 0                         | 0                  | 0                      | 0             | 0
+        BootstrapType.PIPE                         | 0                         | 0                  | 1                      | 1             | 0
+        BootstrapType.PIPE_WITH_DELAY              | 0                         | 0                  | 1                      | 1             | 0
+        BootstrapType.PIPE_AND_PROVIDER_WITH_DELAY | 1                         | 1                  | 1                      | 1             | 0
+        BootstrapType.CORRUPTION_RECOVERY          | 1                         | 0                  | 0                      | 1             | 1
     }
 }

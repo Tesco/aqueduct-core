@@ -66,15 +66,18 @@ public class SelfRegistrationTask {
                 case PIPE_AND_PROVIDER:
                     provider.stop();
                     provider.reset();
+                    pipe.stop();
                     pipe.reset();
                     pipe.start();
                     provider.start();
                     break;
                 case PIPE:
+                    pipe.stop();
                     pipe.reset();
                     pipe.start();
                     break;
                 case PIPE_WITH_DELAY:
+                    pipe.stop();
                     pipe.reset();
                     Thread.sleep(bootstrapDelayMs);
                     pipe.start();
@@ -82,6 +85,7 @@ public class SelfRegistrationTask {
                 case PIPE_AND_PROVIDER_WITH_DELAY:
                     provider.stop();
                     provider.reset();
+                    pipe.stop();
                     pipe.reset();
                     Thread.sleep(bootstrapDelayMs);
                     pipe.start();
@@ -90,6 +94,7 @@ public class SelfRegistrationTask {
                 case CORRUPTION_RECOVERY:
                     provider.stop();
                     provider.reset();
+                    pipe.stop();
                     corruptionManager.reset();
                     break;
             }
