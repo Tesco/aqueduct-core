@@ -40,7 +40,7 @@ persistence:
   compact:
     schedule.cron: "0 14 0/1 * * ?"
     deletions:
-      enabled: false
+      enabled: true
       threshold: 30d
   read:
     limit: 2500
