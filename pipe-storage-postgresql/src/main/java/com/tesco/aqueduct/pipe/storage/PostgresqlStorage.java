@@ -86,7 +86,7 @@ public class PostgresqlStorage implements CentralStorage {
                 connection.setAutoCommit(false);
                 //start transaction
 
-                final Optional<List<Long>> newClusterIds = clusterStorage.updateAndGetClusterIds(locationUuid, clusterUuids, entry, connection);
+                final Optional<List<Long>> newClusterIds = clusterStorage.updateAndGetClusterIds(locationUuid, clusterUuids, entry, connection); //possible serialisation failure here given it's an update
                 locationGroups = getLocationGroupsFor(locationUuid, connection);
 
                 if (newClusterIds.isPresent()) {
