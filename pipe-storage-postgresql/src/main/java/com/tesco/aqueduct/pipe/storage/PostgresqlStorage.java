@@ -67,8 +67,8 @@ public class PostgresqlStorage implements CentralStorage {
         Connection connection = null;
         try {
             connection = getConnection();
-            connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
-            connection.setAutoCommit(false);
+//            connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+//            connection.setAutoCommit(false);
 
             final Optional<ClusterCacheEntry> entry = clusterStorage.getClusterCacheEntry(locationUuid, connection);
 
@@ -81,9 +81,9 @@ public class PostgresqlStorage implements CentralStorage {
 
                 final List<String> clusterUuids = clusterStorage.resolveClustersFor(locationUuid);
 
-                connection = getConnection();
-                connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
-                connection.setAutoCommit(false);
+//                connection = getConnection();
+//                connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+//                connection.setAutoCommit(false);
                 //start transaction
 
                 final Optional<List<Long>> newClusterIds = clusterStorage.updateAndGetClusterIds(locationUuid, clusterUuids, entry, connection); //possible serialisation failure here given it's an update

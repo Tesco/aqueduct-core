@@ -928,6 +928,30 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         noExceptionThrown()
     }
 
+    def "read happens in a single transaction when cluster cache entry is valid"() {
+        given:
+        def locationUuid = "locationUuid"
+        def clusterId = 1L
+        clusterStorage.getClusterCacheEntry(locationUuid, _ as Connection) >> cacheEntry(locationUuid, [clusterId])
+        insertLocationGroupFor(locationUuid, [1L])
+        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+
+        and:
+        PostgresqlStorage storageSpy = Spy(PostgresqlStorage, constructorArgs: [dataSource, dataSource, limit, retryAfter, batchSize, new GlobalLatestOffsetCache(), 1, 1, 4, clusterStorage]) {
+            getLocationGroupsFor(_, _) >> {
+                insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+                [1L]
+            }
+        }
+
+        when: "messages are read"
+        def messageResults = storageSpy.read([], 0L, "locationUuid")
+
+        then: "only the first message is returned"
+        messageResults.messages.size() == 1
+        messageResults.messages.get(0).offset == 1
+    }
+
     void insert(
         Message msg,
         Long clusterId,
