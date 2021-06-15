@@ -67,8 +67,6 @@ public class PostgresqlStorage implements CentralStorage {
         Connection connection = null;
         try {
             connection = getConnection();
-            connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
-            connection.setAutoCommit(false);
 
             final Optional<ClusterCacheEntry> entry = clusterStorage.getClusterCacheEntry(locationUuid, connection);
 
@@ -81,12 +79,9 @@ public class PostgresqlStorage implements CentralStorage {
 
                 final List<String> clusterUuids = clusterStorage.resolveClustersFor(locationUuid);
 
-//                connection = getConnection();
-//                connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
-//                connection.setAutoCommit(false);
-                //start transaction
+                connection = getConnection();
 
-                final Optional<List<Long>> newClusterIds = clusterStorage.updateAndGetClusterIds(locationUuid, clusterUuids, entry, connection); //possible serialisation failure here given it's an update
+                final Optional<List<Long>> newClusterIds = clusterStorage.updateAndGetClusterIds(locationUuid, clusterUuids, entry, connection);
                 locationGroups = getLocationGroupsFor(locationUuid, connection);
 
                 if (newClusterIds.isPresent()) {
@@ -136,6 +131,8 @@ public class PostgresqlStorage implements CentralStorage {
     private Connection getConnection() throws SQLException {
         long start = System.currentTimeMillis();
         Connection connection = pipeDataSource.getConnection();
+        connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+        connection.setAutoCommit(false);
         LOG.info("getConnection:time", Long.toString(System.currentTimeMillis() - start));
         return connection;
     }
