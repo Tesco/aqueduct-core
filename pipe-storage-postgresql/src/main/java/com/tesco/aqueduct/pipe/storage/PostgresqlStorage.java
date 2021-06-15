@@ -66,7 +66,7 @@ public class PostgresqlStorage implements CentralStorage {
         long start = System.currentTimeMillis();
         Connection connection = null;
         try {
-            connection = getConnection();
+            connection = getConnectionAndStartTransaction();
 
             final Optional<ClusterCacheEntry> entry = clusterStorage.getClusterCacheEntry(locationUuid, connection);
 
@@ -79,7 +79,7 @@ public class PostgresqlStorage implements CentralStorage {
 
                 final List<String> clusterUuids = clusterStorage.resolveClustersFor(locationUuid);
 
-                connection = getConnection();
+                connection = getConnectionAndStartTransaction();
 
                 final Optional<List<Long>> newClusterIds = clusterStorage.updateAndGetClusterIds(locationUuid, clusterUuids, entry, connection);
                 locationGroups = getLocationGroupsFor(locationUuid, connection);
@@ -128,7 +128,7 @@ public class PostgresqlStorage implements CentralStorage {
         return "SELECT groups FROM LOCATION_GROUPS WHERE location_uuid = ?;";
     }
 
-    private Connection getConnection() throws SQLException {
+    private Connection getConnectionAndStartTransaction() throws SQLException {
         long start = System.currentTimeMillis();
         Connection connection = pipeDataSource.getConnection();
         connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
@@ -465,7 +465,7 @@ public class PostgresqlStorage implements CentralStorage {
     }
 
     private static String getCompactDeletionQuery() {
-        return "DELETE FROM events WHERE created_utc <= ? AND data IS NULL LIMIT ;";
+        return "DELETE FROM events WHERE created_utc <= ? AND data IS NULL;";
     }
 
     private static String getVacuumAnalyseQuery() {
