@@ -50,6 +50,22 @@ public class PipeLogger {
         return new PipeLogger(this, fields);
     }
 
+    public PipeLogger withOffset(final long offset) {
+        final Map<String, String> fields = Collections.singletonMap(
+            "offset",
+            String.valueOf(offset)
+        );
+        return new PipeLogger(this, fields);
+    }
+
+    public PipeLogger withLocation(final String location) {
+        final Map<String, String> fields = Collections.singletonMap(
+            "location",
+            location
+        );
+        return new PipeLogger(this, fields);
+    }
+
     public void error(final String where, final String what, final String why) {
         log(where, what, why, log::error);
     }
