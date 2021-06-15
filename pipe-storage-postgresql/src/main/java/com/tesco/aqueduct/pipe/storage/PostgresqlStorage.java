@@ -67,8 +67,8 @@ public class PostgresqlStorage implements CentralStorage {
         Connection connection = null;
         try {
             connection = getConnection();
-//            connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
-//            connection.setAutoCommit(false);
+            connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+            connection.setAutoCommit(false);
 
             final Optional<ClusterCacheEntry> entry = clusterStorage.getClusterCacheEntry(locationUuid, connection);
 
@@ -153,7 +153,6 @@ public class PostgresqlStorage implements CentralStorage {
         Connection connection
     ) throws SQLException {
 
-        connection.setAutoCommit(false);
         setWorkMem(connection);
 
         final long globalLatestOffset = globalLatestOffsetCache.get(connection);
