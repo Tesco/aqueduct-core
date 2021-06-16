@@ -78,10 +78,13 @@ public class PostgresqlStorage implements CentralStorage {
                 close(connection);
 
                 final List<String> clusterUuids = clusterStorage.resolveClustersFor(locationUuid);
+                LOG.info("postgresql storage", "LocationId: " + locationUuid + ", ClusterUuids: " + clusterUuids);
 
                 connection = getConnectionAndStartTransaction();
 
                 final Optional<List<Long>> newClusterIds = clusterStorage.updateAndGetClusterIds(locationUuid, clusterUuids, entry, connection);
+                LOG.info("postgresql storage", "LocationId: " + locationUuid + ", ClusterIds: " + newClusterIds);
+
                 locationGroups = getLocationGroupsFor(locationUuid, connection);
 
                 if (newClusterIds.isPresent()) {
@@ -132,7 +135,7 @@ public class PostgresqlStorage implements CentralStorage {
         long start = System.currentTimeMillis();
         Connection connection = pipeDataSource.getConnection();
         connection.setAutoCommit(false);
-//        connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+        connection.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
         LOG.info("getConnection:time", Long.toString(System.currentTimeMillis() - start));
         return connection;
     }
