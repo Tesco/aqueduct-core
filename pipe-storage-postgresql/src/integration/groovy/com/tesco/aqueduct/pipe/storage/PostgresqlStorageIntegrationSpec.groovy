@@ -929,49 +929,48 @@ class PostgresqlStorageIntegrationSpec extends StorageSpec {
         noExceptionThrown()
     }
 
-//    @Ignore
-//    def "read happens in a single transaction when cluster cache entry is valid"() {
-//        given: "for a location and cluster"
-//        def locationUuid = "locationUuid"
-//        def clusterId = 1L
-//
-//        and: "location group exists"
-//        insertLocationGroupFor(locationUuid, [1L])
-//
-//        and: "message in events table"
-//        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
-//
-//        and: "a datasource"
-//        DataSource mockedDataSource = Mock()
-//        Connection connection1 = DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
-//        Connection connection2 = DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
-//        mockedDataSource.connection >>> [ connection1, connection2 ]
-//
-//        and: "clusterStorage returning a cache entry and while that happens another message is written in events"
-//        def clusterStorage = Mock(ClusterStorage)
-//        clusterStorage.getClusterCacheEntry(locationUuid, connection2) >> {
-//            // simulates a read that an actual cluster cache would do
-//            connection2.prepareStatement("SELECT * FROM events;").execute()
-//
-//            // a message is inserted into the database from another transaction
-//            insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
-//
-//            // a cache entry is returned
-//            cacheEntry(locationUuid, [clusterId])
-//        }
-//
-//        and:
-//        def storage = new PostgresqlStorage(
-//            mockedDataSource, dataSource, limit, retryAfter, batchSize, new GlobalLatestOffsetCache(), 1, 1, 4, clusterStorage
-//        )
-//
-//        when: "messages are read"
-//        def messageResults = storage.read([], 0L, "locationUuid")
-//
-//        then: "only the first message is returned and we should not see messages written outside the transaction"
-//        messageResults.messages.size() == 1
-//        messageResults.messages.get(0).offset == 1
-//    }
+    def "read happens in a single transaction when cluster cache entry is valid"() {
+        given: "for a location and cluster"
+        def locationUuid = "locationUuid"
+        def clusterId = 1L
+
+        and: "location group exists"
+        insertLocationGroupFor(locationUuid, [1L])
+
+        and: "message in events table"
+        insert(message(1, "type1", "A", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+
+        and: "a datasource"
+        DataSource mockedDataSource = Mock()
+        Connection connection1 = DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
+        Connection connection2 = DriverManager.getConnection(pg.embeddedPostgres.getJdbcUrl("postgres", "postgres"))
+        mockedDataSource.connection >>> [ connection1, connection2 ]
+
+        and: "clusterStorage returning a cache entry and while that happens another message is written in events"
+        def clusterStorage = Mock(ClusterStorage)
+        clusterStorage.getClusterCacheEntry(locationUuid, connection2) >> {
+            // simulates a read that an actual cluster cache would do
+            connection2.prepareStatement("SELECT * FROM events;").execute()
+
+            // a message is inserted into the database from another transaction
+            insert(message(2, "type1", "B", "content-type", ZonedDateTime.parse("2000-12-01T10:00:00Z"), "data"))
+
+            // a cache entry is returned
+            cacheEntry(locationUuid, [clusterId])
+        }
+
+        and:
+        def storage = new PostgresqlStorage(
+            mockedDataSource, dataSource, limit, retryAfter, batchSize, new GlobalLatestOffsetCache(), 1, 1, 4, clusterStorage
+        )
+
+        when: "messages are read"
+        def messageResults = storage.read([], 0L, "locationUuid")
+
+        then: "only the first message is returned and we should not see messages written outside the transaction"
+        messageResults.messages.size() == 1
+        messageResults.messages.get(0).offset == 1
+    }
 //
 //    @Ignore
 //    def "read happens in a single transaction when cluster cache entry is invalid"() {
