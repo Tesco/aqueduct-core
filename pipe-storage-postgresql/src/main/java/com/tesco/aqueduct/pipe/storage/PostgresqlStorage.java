@@ -75,7 +75,7 @@ public class PostgresqlStorage implements CentralStorage {
             if (isValidAndUnexpired(entry)) {
                 return readMessages(types, start, startOffset, entry.get().getClusterIds(), locationGroups, connection);
             } else {
-                close(connection);
+                close(connection, true);
 
                 final List<String> clusterUuids = clusterStorage.resolveClustersFor(locationUuid);
                 LOG.info("postgresql storage", "LocationId: " + locationUuid + ", ClusterUuids: " + clusterUuids);
@@ -96,10 +96,11 @@ public class PostgresqlStorage implements CentralStorage {
             }
         } catch (SQLException exception) {
             LOG.error("postgresql storage", "read", exception);
+            close(connection, false);
             throw new RuntimeException(exception);
         } finally {
             if (connection != null) {
-                close(connection);
+                close(connection, true);
             }
             long end = System.currentTimeMillis();
             LOG.info("read:time", Long.toString(end - start));
@@ -169,8 +170,12 @@ public class PostgresqlStorage implements CentralStorage {
         }
     }
 
-    private void close(Connection connection) {
+    private void close(Connection connection, boolean shouldCommit) {
         try {
+            if (shouldCommit) {
+                connection.commit();
+            }
+
             if (!connection.isClosed()) {
                 connection.close();
             }
