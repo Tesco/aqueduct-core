@@ -75,16 +75,14 @@ public class PostgresqlStorage implements CentralStorage {
             if (isValidAndUnexpired(entry)) {
                 return readMessages(types, start, startOffset, entry.get().getClusterIds(), locationGroups, connection);
             } else {
-                close(connection, true);
+                commit(connection);
+                close(connection);
 
                 final List<String> clusterUuids = clusterStorage.resolveClustersFor(locationUuid);
-                LOG.info("postgresql storage", "LocationId: " + locationUuid + ", ClusterUuids: " + clusterUuids);
 
                 connection = getConnectionAndStartTransaction();
 
                 final Optional<List<Long>> newClusterIds = clusterStorage.updateAndGetClusterIds(locationUuid, clusterUuids, entry, connection);
-                LOG.info("postgresql storage", "LocationId: " + locationUuid + ", ClusterIds: " + newClusterIds);
-
                 locationGroups = getLocationGroupsFor(locationUuid, connection);
 
                 if (newClusterIds.isPresent()) {
@@ -96,11 +94,12 @@ public class PostgresqlStorage implements CentralStorage {
             }
         } catch (SQLException exception) {
             LOG.error("postgresql storage", "read", exception);
-            close(connection, false);
+            close(connection);
             throw new RuntimeException(exception);
         } finally {
             if (connection != null) {
-                close(connection, true);
+                commit(connection);
+                close(connection);
             }
             long end = System.currentTimeMillis();
             LOG.info("read:time", Long.toString(end - start));
@@ -170,17 +169,24 @@ public class PostgresqlStorage implements CentralStorage {
         }
     }
 
-    private void close(Connection connection, boolean shouldCommit) {
+    private void close(Connection connection) {
         try {
-            if (shouldCommit) {
-                connection.commit();
-            }
-
             if (!connection.isClosed()) {
                 connection.close();
             }
         } catch (SQLException exception) {
             LOG.error("postgresql storage", "close", exception);
+            throw new RuntimeException(exception);
+        }
+    }
+
+    private void commit(Connection connection) {
+        try {
+            if (!connection.isClosed()) {
+             connection.commit();
+            }
+        } catch (SQLException exception) {
+            LOG.error("postgresql storage", "commit", exception);
             throw new RuntimeException(exception);
         }
     }
