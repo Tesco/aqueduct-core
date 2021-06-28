@@ -40,7 +40,7 @@ persistence:
       threshold: 30d
   read:
     limit: 500
-    max-batch-size: 500000
+    max-batch-size: 1000000
     retry-after: 600000
     expected-node-count: 7000
     cluster-db-pool-size: 24
