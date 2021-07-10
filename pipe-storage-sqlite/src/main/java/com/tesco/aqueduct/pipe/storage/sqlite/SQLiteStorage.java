@@ -4,6 +4,7 @@ import com.tesco.aqueduct.pipe.api.*;
 import com.tesco.aqueduct.pipe.logger.PipeLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.sqlite.SQLiteException;
 
 import javax.sql.DataSource;
 import java.io.IOException;
@@ -333,16 +334,16 @@ public class SQLiteStorage implements DistributedStorage {
 
     @Override
     public void runVisibilityCheck() {
-        runIntegrityCheck();
+        runQuickIntegrityCheck();
     }
 
-    private void runIntegrityCheck() {
+    private void runQuickIntegrityCheck() {
         try (Connection connection = dataSource.getConnection();
              PreparedStatement statement = connection.prepareStatement(SQLiteQueries.QUICK_INTEGRITY_CHECK)) {
             try (ResultSet resultSet = statement.executeQuery()) {
                 String result = resultSet.getString(1);
                 if (!result.equals("ok")) {
-                    LOG.error("integrity check", "integrity check failed", result);
+                    LOG.error("quick integrity check", "quick integrity check failed", result);
                     reindex(connection);
                 }
             }
@@ -442,7 +443,6 @@ public class SQLiteStorage implements DistributedStorage {
         try (Connection connection = dataSource.getConnection()) {
             vacuumDatabase(connection);
             checkpointWalFile(connection);
-            fullIntegrityCheck(connection);
         } catch (SQLException exception) {
             throw new RuntimeException(exception);
         }
@@ -483,10 +483,23 @@ public class SQLiteStorage implements DistributedStorage {
         }
     }
 
-    private void fullIntegrityCheck(Connection connection) throws SQLException {
-        try (PreparedStatement statement = connection.prepareStatement(SQLiteQueries.FULL_INTEGRITY_CHECK)) {
+    public boolean runFullIntegrityCheck() {
+        try (Connection connection = dataSource.getConnection();
+             PreparedStatement statement = connection.prepareStatement(SQLiteQueries.FULL_INTEGRITY_CHECK)) {
             statement.execute();
-            LOG.info("fullIntegrityCheck", "full integrity check");
+            try (ResultSet resultSet = statement.executeQuery()) {
+                String result = resultSet.getString(1);
+                if (!result.equals("ok")) {
+                    LOG.error("full integrity check", "full integrity check failed", result);
+                    return false;
+                }
+
+                return true;
+            }
+
+        } catch (SQLException exception) {
+            LOG.error("full integrity check", "exception thrown while performing full integrity check", exception);
+            throw new RuntimeException(exception);
         }
     }
 

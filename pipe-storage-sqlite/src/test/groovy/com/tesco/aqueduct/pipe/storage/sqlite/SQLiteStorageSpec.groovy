@@ -3,11 +3,13 @@ package com.tesco.aqueduct.pipe.storage.sqlite
 import com.tesco.aqueduct.pipe.api.*
 import spock.lang.Shared
 import spock.lang.Specification
+import spock.lang.Unroll
 
 import javax.sql.DataSource
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.PreparedStatement
+import java.sql.ResultSet
 import java.sql.SQLException
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -257,10 +259,74 @@ class SQLiteStorageSpec extends Specification {
         and: "checkpoint is attempted"
         1 * connection.prepareStatement(SQLiteQueries.CHECKPOINT_DB) >> statement
         1 * statement.execute()
+    }
 
-        and: "full integrity check is attempted"
+    @Unroll
+    def "runFullIntegrityCheck returns #expectedResult when sqlite integrity check gives '#mockQueryResult'"() {
+        given: "mock datasource"
+        def dataSource = Mock(DataSource)
+        def connection = Mock(Connection)
+        def statement = Mock(PreparedStatement)
+
+        def resultSet = Mock(ResultSet)
+        resultSet.next() >> true
+        resultSet.getString(1) >> mockQueryResult
+
+        and: "data source giving out connection on demand"
+        dataSource.getConnection() >>> [
+            // first four calls are for setting up database schema
+            DriverManager.getConnection(connectionUrl),
+            DriverManager.getConnection(connectionUrl),
+            DriverManager.getConnection(connectionUrl),
+            DriverManager.getConnection(connectionUrl),
+            connection
+        ]
+
+        and:
+        sqliteStorage = new SQLiteStorage(dataSource, 1, 1, 1)
+
+        when: "integrity check is invoked"
+        def result = sqliteStorage.runFullIntegrityCheck()
+
+        then:
         1 * connection.prepareStatement(SQLiteQueries.FULL_INTEGRITY_CHECK) >> statement
-        1 * statement.execute()
+        1 * statement.executeQuery() >> resultSet
+
+        and:
+        result == expectedResult
+
+        where:
+        mockQueryResult | expectedResult
+        "ok"            | true
+        "failure"       | false
+    }
+
+    def "integrity check throws exception if there is a failure"() {
+        given: "mock datasource"
+        def dataSource = Mock(DataSource)
+        def connection = Mock(Connection)
+        def statement = Mock(PreparedStatement)
+
+        statement.executeQuery() >> {throw new SQLException()}
+
+        and: "data source giving out connection on demand"
+        dataSource.getConnection() >>> [
+                // first four calls are for setting up database schema
+                DriverManager.getConnection(connectionUrl),
+                DriverManager.getConnection(connectionUrl),
+                DriverManager.getConnection(connectionUrl),
+                DriverManager.getConnection(connectionUrl),
+                connection
+        ]
+
+        and:
+        sqliteStorage = new SQLiteStorage(dataSource, 1, 1, 1)
+
+        when: "integrity check is invoked"
+        sqliteStorage.runFullIntegrityCheck()
+
+        then:
+        thrown(RuntimeException)
     }
 
     def 'calculate max offset throws Runtime exception if error during processing'() {
